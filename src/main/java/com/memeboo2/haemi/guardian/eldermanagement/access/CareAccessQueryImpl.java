@@ -4,6 +4,8 @@ import com.memeboo2.haemi.common.error.DomainException;
 import com.memeboo2.haemi.common.error.ErrorCode;
 import com.memeboo2.haemi.guardian.api.CareAccessQuery;
 import com.memeboo2.haemi.guardian.api.GuardianRole;
+import com.memeboo2.haemi.guardian.eldermanagement.domain.Elder;
+import com.memeboo2.haemi.guardian.eldermanagement.domain.ElderRepository;
 import com.memeboo2.haemi.guardian.eldermanagement.domain.GuardianElderLink;
 import com.memeboo2.haemi.guardian.eldermanagement.domain.GuardianElderLinkRepository;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +24,7 @@ public class CareAccessQueryImpl implements CareAccessQuery {
     private static final Logger log = LoggerFactory.getLogger(CareAccessQueryImpl.class);
 
     private final GuardianElderLinkRepository linkRepository;
+    private final ElderRepository elderRepository;
 
     @Override
     public void requireGuardianOf(UUID guardianId, UUID elderId) {
@@ -33,9 +36,12 @@ public class CareAccessQueryImpl implements CareAccessQuery {
 
     @Override
     public void requireSelf(UUID actorId, UUID elderId) {
-        // elder 테이블에서 userId == elderId 매핑은 auth 통합 후 연결
-        // 현재는 actorId가 elder의 userId와 일치하는지 링크로 확인
-        // (Elder.userId == actorId 검증은 elderRepository에서 처리)
+        Elder elder = elderRepository.findById(elderId)
+                .orElseThrow(() -> new DomainException(ErrorCode.RESOURCE_NOT_FOUND));
+        if (!elder.getUserId().equals(actorId)) {
+            log.warn("CareAccess denied (self): actorId={}, elderId={}, at={}", actorId, elderId, Instant.now());
+            throw new DomainException(ErrorCode.CARE_ACCESS_DENIED);
+        }
     }
 
     @Override
