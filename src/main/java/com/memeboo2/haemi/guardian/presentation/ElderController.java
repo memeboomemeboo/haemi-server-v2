@@ -1,5 +1,6 @@
 package com.memeboo2.haemi.guardian.presentation;
 
+import com.memeboo2.haemi.auth.api.AccountCommand;
 import com.memeboo2.haemi.common.web.ApiResponse;
 import com.memeboo2.haemi.guardian.eldermanagement.application.RegisterElderUseCase;
 import com.memeboo2.haemi.guardian.presentation.dto.RegisterElderRequest;
@@ -21,6 +22,7 @@ import java.util.UUID;
 public class ElderController {
 
     private final RegisterElderUseCase registerElderUseCase;
+    private final AccountCommand accountCommand;
 
     @Operation(summary = "어르신 등록 (ACC-REG-002)")
     @ApiResponses({
@@ -31,8 +33,11 @@ public class ElderController {
     public ResponseEntity<ApiResponse<UUID>> register(
             @RequestAttribute UUID guardianId,
             @Valid @RequestBody RegisterElderRequest req) {
+        String birthDate = req.birthDate() != null ? req.birthDate().toString() : null;
+        UUID elderUserId = accountCommand.createElderAccount(
+                req.name(), req.loginId(), req.pin(), birthDate, req.phone());
         UUID elderId = registerElderUseCase.execute(
-                guardianId, req.elderUserId(), req.familyId(), req.name(), req.birthDate());
+                guardianId, elderUserId, req.familyId(), req.name(), req.birthDate());
         return ResponseEntity.created(URI.create("/api/v1/guardian/elders/" + elderId))
                 .body(ApiResponse.ok(elderId));
     }
