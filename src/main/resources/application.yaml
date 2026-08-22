@@ -117,6 +117,9 @@ haemi:
     review-interval-days: 14
     review-cron: "0 30 6 * * *"
     time-zone: Asia/Seoul
+  family:
+    max-elders: ${HAEMI_FAMILY_MAX_ELDERS:4}
+    max-guardians: ${HAEMI_FAMILY_MAX_GUARDIANS:8}
   jwt:
     secret: ${JWT_SECRET:haemi-dev-jwt-secret-key-must-be-at-least-256-bits-long-for-hs256!!}
     access-token-validity: PT30M
