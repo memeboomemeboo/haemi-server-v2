@@ -3,6 +3,7 @@ package com.memeboo2.haemi.platform.media.application;
 import com.memeboo2.haemi.common.error.DomainException;
 import com.memeboo2.haemi.common.error.ErrorCode;
 import com.memeboo2.haemi.common.time.HaemiClock;
+import com.memeboo2.haemi.platform.api.MediaUploadCommand;
 import com.memeboo2.haemi.platform.media.domain.MediaRef;
 import com.memeboo2.haemi.platform.media.infrastructure.MediaRefRepository;
 import com.memeboo2.haemi.platform.media.infrastructure.StoragePort;
@@ -15,14 +16,15 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
-public class ConfirmUploadUseCase {
+public class ConfirmUploadUseCase implements MediaUploadCommand {
 
     private final MediaRefRepository repository;
     private final StoragePort storage;
     private final HaemiClock clock;
 
+    @Override
     @Transactional
-    public URI confirm(UUID actorId, UUID mediaRefId) {
+    public URI confirmUpload(UUID actorId, UUID mediaRefId) {
         MediaRef ref = repository.findById(mediaRefId)
                 .orElseThrow(() -> new DomainException(ErrorCode.RESOURCE_NOT_FOUND));
 

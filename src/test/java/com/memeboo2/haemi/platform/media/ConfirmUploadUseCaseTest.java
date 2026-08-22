@@ -52,7 +52,7 @@ class ConfirmUploadUseCaseTest {
         given(clock.now()).willReturn(NOW);
         given(storage.generateServingUrl(any())).willReturn(URI.create("http://localhost/serve"));
 
-        URI url = useCase.confirm(actorId, refId);
+        URI url = useCase.confirmUpload(actorId, refId);
 
         assertThat(url).isNotNull();
         assertThat(ref.getStatus()).isEqualTo(UploadStatus.CONFIRMED);
@@ -66,7 +66,7 @@ class ConfirmUploadUseCaseTest {
 
         given(repository.findById(refId)).willReturn(Optional.of(pendingRef(owner)));
 
-        assertThatThrownBy(() -> useCase.confirm(other, refId))
+        assertThatThrownBy(() -> useCase.confirmUpload(other, refId))
                 .isInstanceOf(DomainException.class)
                 .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
                         .isEqualTo(ErrorCode.NOT_RESOURCE_OWNER));
@@ -77,7 +77,7 @@ class ConfirmUploadUseCaseTest {
         UUID refId = UUID.randomUUID();
         given(repository.findById(refId)).willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> useCase.confirm(UUID.randomUUID(), refId))
+        assertThatThrownBy(() -> useCase.confirmUpload(UUID.randomUUID(), refId))
                 .isInstanceOf(DomainException.class)
                 .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
                         .isEqualTo(ErrorCode.RESOURCE_NOT_FOUND));
@@ -92,7 +92,7 @@ class ConfirmUploadUseCaseTest {
         given(repository.findById(refId)).willReturn(Optional.of(ref));
         given(clock.now()).willReturn(EXPIRY.plusSeconds(1));
 
-        assertThatThrownBy(() -> useCase.confirm(actorId, refId))
+        assertThatThrownBy(() -> useCase.confirmUpload(actorId, refId))
                 .isInstanceOf(IllegalStateException.class);
 
         assertThat(ref.getStatus()).isEqualTo(UploadStatus.EXPIRED);

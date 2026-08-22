@@ -1,0 +1,16 @@
+package com.memeboo2.haemi.platform.api;
+
+import java.net.URI;
+import java.util.UUID;
+
+/**
+ * platform/media의 업로드 확정 계약.
+ * guardian/memory 등 다른 그룹은 이 인터페이스를 통해서만 platform/media에 접근한다.
+ */
+public interface MediaUploadCommand {
+
+    /**
+     * presigned URL로 업로드한 미디어를 확정하고 서빙 URL을 반환한다.
+     */
+    URI confirmUpload(UUID actorId, UUID mediaRefId);
+}

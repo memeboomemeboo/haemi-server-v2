@@ -57,7 +57,7 @@ public class MediaController {
             @RequestAttribute UUID guardianId,
             @PathVariable UUID mediaRefId) {
 
-        URI servingUrl = confirmUploadUseCase.confirm(guardianId, mediaRefId);
+        URI servingUrl = confirmUploadUseCase.confirmUpload(guardianId, mediaRefId);
         return ResponseEntity.ok(ApiResponse.ok(servingUrl.toString()));
     }
 }
