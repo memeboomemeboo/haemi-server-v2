@@ -1,6 +1,6 @@
 package com.memeboo2.haemi.guardian.memory.application;
 
-import com.memeboo2.haemi.elder.api.ElderResponded;
+import com.memeboo2.haemi.common.event.ElderResponded;
 import com.memeboo2.haemi.guardian.memory.infrastructure.MemoryRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.modulith.events.ApplicationModuleListener;

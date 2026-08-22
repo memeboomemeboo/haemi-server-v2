@@ -1,6 +1,6 @@
 package com.memeboo2.haemi.elder.response.application;
 
-import com.memeboo2.haemi.elder.api.ElderResponded;
+import com.memeboo2.haemi.common.event.ElderResponded;
 import com.memeboo2.haemi.elder.response.domain.Emotion;
 import com.memeboo2.haemi.elder.response.domain.Response;
 import com.memeboo2.haemi.elder.response.domain.ResponseType;
