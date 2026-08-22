@@ -59,4 +59,8 @@ public class Account extends BaseEntity {
     public void updatePin(String pinHash) {
         this.pinHash = pinHash;
     }
+
+    public void updateLoginId(String loginId) {
+        this.loginId = loginId;
+    }
 }
