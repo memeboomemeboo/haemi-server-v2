@@ -233,7 +233,7 @@
 | 작업 | 담당 | 상태 | 진행률 | PR | 완료 조건 |
 | --- | --- | --- | ---: | --- | --- |
 | 에이전트 하네스 정리 | 황정빈 | ✅ 완료 | 100% | #1 | 실행 규칙·컨벤션·태스크 연결 문서화 |
-| `BACKLOG.md` 운영 | 황정빈 | 🟨 진행 중 | 80% | - | 최초 파일 생성 후 PR과 함께 지속 갱신 |
+| `BACKLOG.md` 운영 | 황정빈 | ✅ 완료 | 100% | #19 | 최초 파일 생성 후 PR과 함께 지속 갱신 |
 | Gradle/패키지/Modulith/CI 뼈대 | 공동 | ✅ 완료 | 100% | #1 | `ApplicationModules.verify()` 통과 |
 | `common` 기반 | 황정빈 주도 | ✅ 완료 | 100% | #1 | web/error/security/persistence/event |
 | `common/time`, `common/test` | 황정빈 | ✅ 완료 | 100% | #1 | HaemiClock (KST) 구현 |
