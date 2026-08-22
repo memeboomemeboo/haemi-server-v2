@@ -17,14 +17,35 @@ repositories {
 	mavenCentral()
 }
 
+dependencyManagement {
+	imports {
+		mavenBom 'org.springframework.modulith:spring-modulith-bom:2.0.0'
+	}
+}
+
 dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	implementation 'org.springframework.boot:spring-boot-starter-flyway'
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
-	implementation 'org.springframework.boot:spring-boot-starter-mail'
-	implementation 'org.springframework.boot:spring-boot-starter'
+	implementation 'org.springframework.boot:spring-boot-starter-security'
+
+	// Spring Modulith
+	implementation 'org.springframework.modulith:spring-modulith-starter-core'
+	implementation 'org.springframework.modulith:spring-modulith-events-jpa'
+	testImplementation 'org.springframework.modulith:spring-modulith-starter-test'
+
+	// JWT (jjwt 0.12.x)
+	implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
+	runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.6'
+	runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.6'
+
+	// FCM push notifications (Firebase Admin SDK)
+	implementation 'com.google.firebase:firebase-admin:9.7.0'
+
+	// API docs
+	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.3'
 
 	compileOnly 'org.projectlombok:lombok'
 	annotationProcessor 'org.projectlombok:lombok'
@@ -33,27 +54,10 @@ dependencies {
 	runtimeOnly 'org.flywaydb:flyway-database-postgresql'
 	testRuntimeOnly 'com.h2database:h2'
 
-	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.3'
-
-	// Spring Security
-	implementation 'org.springframework.boot:spring-boot-starter-security'
-
-	// JWT (jjwt 0.12.x)
-	implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
-	runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.6'
-	runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.6'
-
-	// TOTP (2FA)
-	implementation 'dev.samstevens.totp:totp:1.7.1'
-
-	// PDF generation (OpenPDF, LGPLv3)
-	implementation 'com.github.librepdf:openpdf:1.3.3'
-
-	// FCM push notifications (Firebase Admin SDK)
-	implementation 'com.google.firebase:firebase-admin:9.7.0'
+	// ArchUnit
+	testImplementation 'com.tngtech.archunit:archunit-junit5:1.4.0'
 
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
-	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
