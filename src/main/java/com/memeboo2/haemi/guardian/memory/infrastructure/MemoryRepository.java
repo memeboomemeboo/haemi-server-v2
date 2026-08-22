@@ -20,6 +20,8 @@ public interface MemoryRepository extends JpaRepository<Memory, UUID> {
     @Query("SELECT m FROM Memory m LEFT JOIN FETCH m.images WHERE m.elderId = :elderId AND m.deletedAt IS NULL ORDER BY m.createdAt DESC")
     List<Memory> findAllByElderIdWithImages(UUID elderId);
 
+    boolean existsByCreatedByAndCreatedAtAfter(UUID createdBy, java.time.Instant since);
+
     @Query("SELECT m FROM Memory m LEFT JOIN FETCH m.images WHERE m.id = :id AND m.elderId = :elderId AND m.deletedAt IS NULL")
     Optional<Memory> findByIdAndElderIdWithImages(UUID id, UUID elderId);
 }
