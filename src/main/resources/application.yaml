@@ -92,3 +92,7 @@ haemi:
     retention:
       memory-days: ${HAEMI_MEDIA_RETENTION_MEMORY_DAYS:365}
       response-days: ${HAEMI_MEDIA_RETENTION_RESPONSE_DAYS:365}
+  dailycare:
+    retention-days: ${HAEMI_DAILYCARE_RETENTION_DAYS:30}
+    inbox-look-back-days: ${HAEMI_DAILYCARE_INBOX_LOOKBACK_DAYS:30}
+    max-voice-duration-seconds: ${HAEMI_DAILYCARE_MAX_VOICE_SECONDS:60}
