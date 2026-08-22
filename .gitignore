@@ -44,3 +44,7 @@ firebase-*.json
 
 # FCM 서비스 계정 키가 떨어지는 배포용 디렉터리 (#92)
 secrets/
+
+### Claude Code ###
+.claude/hanes/
+.claude/settings.local.json
