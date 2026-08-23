@@ -1,4 +1,4 @@
-name: Spring Boot Test
+name: CI
 
 on:
   pull_request:
@@ -23,11 +23,11 @@ jobs:
       - name: Grant execute permission for Gradle
         run: chmod +x ./gradlew
 
-      - name: Run tests
+      - name: Run unit tests
         run: ./gradlew test --no-daemon
 
-      - name: Run S1 safety regression gate
-        run: ./gradlew test --tests com.memeboo2.haemi.regression.S1RegressionSuiteTest --no-daemon
+      - name: Verify module boundaries (Spring Modulith)
+        run: ./gradlew test --tests "*ModuleVerificationTest*" --no-daemon
 
-      - name: Verify production configuration wiring
-        run: ./gradlew test --tests com.memeboo2.haemi.DeploymentConfigurationTest --tests com.memeboo2.haemi.DatabaseConfigurationTest --no-daemon
+      - name: ArchUnit gate (AU-2, AU-3)
+        run: ./gradlew test --tests "*ArchitectureTest*" --no-daemon
