@@ -29,13 +29,15 @@ public class GetGuardianProfileUseCase {
 
     public record ElderCard(UUID elderId, String name, LocalDate birthDate, GuardianRole role) {}
 
-    public record FamilyInfo(UUID familyId, String name) {}
+    public record FamilyInfo(UUID familyId, String name, String memo, String profileImageUrl) {}
 
     public record GuardianProfile(
             UUID userId,
             String name,
             String loginId,
             String phone,
+            String birthDate,
+            String profileImageUrl,
             FamilyInfo family,
             List<ElderCard> elders
     ) {}
@@ -46,7 +48,8 @@ public class GetGuardianProfileUseCase {
                 .orElseThrow(() -> new DomainException(ErrorCode.RESOURCE_NOT_FOUND));
 
         Optional<Family> family = familyRepository.findByMembers_UserId(guardianId);
-        FamilyInfo familyInfo = family.map(f -> new FamilyInfo(f.getId(), f.getName())).orElse(null);
+        FamilyInfo familyInfo = family.map(f -> new FamilyInfo(
+                f.getId(), f.getName(), f.getMemo(), f.getProfileImageUrl())).orElse(null);
 
         List<ElderCard> elders = linkRepository.findAllByGuardianId(guardianId).stream()
                 .map(link -> {
@@ -62,6 +65,8 @@ public class GetGuardianProfileUseCase {
                 account.name(),
                 account.loginId(),
                 account.phone(),
+                account.birthDate(),
+                account.profileImageUrl(),
                 familyInfo,
                 elders
         );

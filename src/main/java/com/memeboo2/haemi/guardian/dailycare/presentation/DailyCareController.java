@@ -42,7 +42,7 @@ public class DailyCareController {
             @PathVariable UUID elderId,
             @Valid @RequestBody SendVoiceRequest req) {
 
-        UUID id = sendDailyCareUseCase.sendVoice(guardianId, elderId, req.mediaKey(), req.durationSeconds());
+        UUID id = sendDailyCareUseCase.sendVoice(guardianId, elderId, req.mediaRefId(), req.durationSeconds());
         return ResponseEntity
                 .created(URI.create("/api/v1/elder/inbox/" + id))
                 .body(ApiResponse.ok(id));

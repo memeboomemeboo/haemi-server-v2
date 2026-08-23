@@ -10,6 +10,7 @@ import lombok.NoArgsConstructor;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.UUID;
 
 @Entity
@@ -25,6 +26,7 @@ import java.util.UUID;
 public class DailyCare extends BaseEntity {
 
     private static final int MAX_TEXT_LENGTH = 100;
+    private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
     @Column(nullable = false)
     private UUID guardianId;
@@ -71,7 +73,7 @@ public class DailyCare extends BaseEntity {
         c.careType = CareType.TEXT;
         c.text = text;
         c.retainUntil = careDate.plusDays(retentionDays).atStartOfDay()
-                .atZone(java.time.ZoneOffset.UTC).toInstant();
+                .atZone(KST).toInstant();
         return c;
     }
 
@@ -85,7 +87,7 @@ public class DailyCare extends BaseEntity {
         c.mediaKey = mediaKey;
         c.durationSeconds = durationSeconds;
         c.retainUntil = careDate.plusDays(retentionDays).atStartOfDay()
-                .atZone(java.time.ZoneOffset.UTC).toInstant();
+                .atZone(KST).toInstant();
         return c;
     }
 

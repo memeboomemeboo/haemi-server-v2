@@ -27,7 +27,7 @@ public class JoinFamilyUseCase {
      */
     @Transactional
     public void execute(UUID guardianId, UUID familyId) {
-        Family family = familyRepository.findById(familyId)
+        Family family = familyRepository.findByIdForUpdate(familyId)
                 .orElseThrow(() -> new DomainException(ErrorCode.RESOURCE_NOT_FOUND, "가족을 찾을 수 없습니다."));
 
         // 이미 다른 가족에 속해 있는지 (R2: 보호자는 한 가족만)

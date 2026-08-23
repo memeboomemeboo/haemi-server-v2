@@ -4,6 +4,7 @@ import com.memeboo2.haemi.guardian.api.CareAccessQuery;
 import com.memeboo2.haemi.guardian.memory.domain.Memory;
 import com.memeboo2.haemi.guardian.memory.domain.MemoryRegistered;
 import com.memeboo2.haemi.guardian.memory.infrastructure.MemoryRepository;
+import com.memeboo2.haemi.platform.api.MediaPurpose;
 import com.memeboo2.haemi.platform.api.MediaUploadCommand;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
@@ -31,7 +32,7 @@ public class RegisterMemoryUseCase {
         Memory memory = Memory.create(elderId, title, memo, message, memoryYear);
 
         List<String> storageKeys = mediaRefIds.stream()
-                .map(refId -> mediaUploadCommand.confirmUpload(guardianId, refId).toString())
+                .map(refId -> mediaUploadCommand.confirmUpload(guardianId, refId, MediaPurpose.MEMORY_IMAGE).toString())
                 .toList();
         memory.addImages(storageKeys);
 

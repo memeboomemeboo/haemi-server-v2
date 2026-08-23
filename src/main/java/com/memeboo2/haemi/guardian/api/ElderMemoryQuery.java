@@ -5,6 +5,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import com.memeboo2.haemi.guardian.api.GuardianRole;
+
 /**
  * 어르신이 자신에게 등록된 추억을 조회하기 위한 계약.
  * 소유: guardian/memory. elder/memory 가 호출.
@@ -23,6 +25,8 @@ public interface ElderMemoryQuery {
             Integer memoryYear,
             List<String> imageKeys,
             boolean responded,
-            Instant createdAt
+            Instant createdAt,
+            String creatorName,
+            GuardianRole creatorRole
     ) {}
 }

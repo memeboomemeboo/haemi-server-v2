@@ -33,7 +33,7 @@ public class FamilyController {
     public ResponseEntity<ApiResponse<UUID>> create(
             @RequestAttribute UUID guardianId,
             @Valid @RequestBody CreateFamilyRequest req) {
-        UUID familyId = createFamilyUseCase.execute(guardianId, req.name());
+        UUID familyId = createFamilyUseCase.execute(guardianId, req.name(), req.memo(), req.profileImageMediaRefId());
         return ResponseEntity.created(URI.create("/api/v1/guardian/families/" + familyId))
                 .body(ApiResponse.ok(familyId));
     }

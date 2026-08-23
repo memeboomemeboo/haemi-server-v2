@@ -44,7 +44,7 @@ class RequestUploadUseCaseTest {
 
     static final UploadPolicyProperties POLICY = new UploadPolicyProperties(
             new UploadPolicyProperties.Image(10_485_760L, 4, List.of("image/jpeg", "image/png", "image/webp")),
-            new UploadPolicyProperties.Voice(12_582_912L, 180, List.of("audio/aac", "audio/mp4")),
+            new UploadPolicyProperties.Voice(12_582_912L, 60, List.of("audio/aac", "audio/mp4")),
             new UploadPolicyProperties.Profile(5_242_880L, List.of("image/jpeg", "image/png", "image/webp")),
             new UploadPolicyProperties.PresignedUrl(Duration.ofMinutes(15)),
             new UploadPolicyProperties.Retention(365, 365)
@@ -55,7 +55,7 @@ class RequestUploadUseCaseTest {
         // lenient: 검증 실패 경로에서 호출되지 않는 stub을 허용
         lenient().when(clock.now()).thenReturn(NOW);
         lenient().when(storage.buildStorageKey(any(), any())).thenReturn("memory_image/test-key.jpg");
-        lenient().when(storage.generatePresignedPutUrl(any(), any(), anyLong()))
+        lenient().when(storage.generatePresignedPutUrl(any(), any(), anyLong(), any()))
                 .thenReturn(URI.create("http://localhost/presigned"));
         lenient().when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
@@ -66,7 +66,7 @@ class RequestUploadUseCaseTest {
     void 정상_이미지_발급() {
         UUID uploaderId = UUID.randomUUID();
         RequestUploadUseCase.Result result = useCase.request(
-                uploaderId, MediaType.MEMORY_IMAGE, "photo.jpg", "image/jpeg", 1_000_000L);
+                uploaderId, MediaType.MEMORY_IMAGE, "photo.jpg", "image/jpeg", 1_000_000L, null);
 
         assertThat(result.presignedUrl()).isNotNull();
         assertThat(result.expiresAt()).isEqualTo(NOW.plus(Duration.ofMinutes(15)));
@@ -80,7 +80,7 @@ class RequestUploadUseCaseTest {
     @Test
     void 허용되지않는_content_type은_400() {
         assertThatThrownBy(() -> useCase.request(
-                UUID.randomUUID(), MediaType.MEMORY_IMAGE, "file.gif", "image/gif", 500_000L))
+                UUID.randomUUID(), MediaType.MEMORY_IMAGE, "file.gif", "image/gif", 500_000L, null))
                 .isInstanceOf(DomainException.class)
                 .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
                         .isEqualTo(ErrorCode.INVALID_INPUT));
@@ -89,7 +89,7 @@ class RequestUploadUseCaseTest {
     @Test
     void 파일_크기_초과는_400() {
         assertThatThrownBy(() -> useCase.request(
-                UUID.randomUUID(), MediaType.MEMORY_IMAGE, "big.jpg", "image/jpeg", 10_485_761L))
+                UUID.randomUUID(), MediaType.MEMORY_IMAGE, "big.jpg", "image/jpeg", 10_485_761L, null))
                 .isInstanceOf(DomainException.class)
                 .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
                         .isEqualTo(ErrorCode.INVALID_INPUT));
@@ -98,7 +98,7 @@ class RequestUploadUseCaseTest {
     @Test
     void 음성_파일_발급() {
         RequestUploadUseCase.Result result = useCase.request(
-                UUID.randomUUID(), MediaType.GREETING_VOICE, "hello.aac", "audio/aac", 1_000_000L);
+                UUID.randomUUID(), MediaType.GREETING_VOICE, "hello.aac", "audio/aac", 1_000_000L, 60);
 
         assertThat(result.presignedUrl()).isNotNull();
         assertThat(result.expiresAt()).isEqualTo(NOW.plus(Duration.ofMinutes(15)));
@@ -108,9 +108,27 @@ class RequestUploadUseCaseTest {
     void 프로필_이미지_보관기간은_null() {
         ArgumentCaptor<MediaRef> captor = ArgumentCaptor.forClass(MediaRef.class);
 
-        useCase.request(UUID.randomUUID(), MediaType.PROFILE_IMAGE, "profile.jpg", "image/jpeg", 1_000_000L);
+        useCase.request(UUID.randomUUID(), MediaType.PROFILE_IMAGE, "profile.jpg", "image/jpeg", 1_000_000L, null);
 
         verify(repository).save(captor.capture());
         assertThat(captor.getValue().getRetainUntil()).isNull();
+    }
+
+    @Test
+    void 음성은_검증할_길이를_반드시_제공해야_한다() {
+        assertThatThrownBy(() -> useCase.request(
+                UUID.randomUUID(), MediaType.RESPONSE_VOICE, "answer.aac", "audio/aac", 1_000_000L, null))
+                .isInstanceOf(DomainException.class)
+                .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
+                        .isEqualTo(ErrorCode.INVALID_INPUT));
+    }
+
+    @Test
+    void 일분을_초과한_음성은_업로드_URL을_발급하지_않는다() {
+        assertThatThrownBy(() -> useCase.request(
+                UUID.randomUUID(), MediaType.RESPONSE_VOICE, "answer.aac", "audio/aac", 1_000_000L, 61))
+                .isInstanceOf(DomainException.class)
+                .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
+                        .isEqualTo(ErrorCode.INVALID_INPUT));
     }
 }

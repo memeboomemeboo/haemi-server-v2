@@ -1,11 +1,12 @@
-package com.memeboo2.haemi.elder.api;
+package com.memeboo2.haemi.guardian.home.application;
 
+import com.memeboo2.haemi.guardian.api.AttendanceQuery;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.stereotype.Component;
 
 import java.util.UUID;
 
-/** elder/attendance 실구현 전까지 사용하는 빈 구현체 (김연호 4단계에서 대체). */
+/** attendance 실구현 전까지 홈 화면을 위한 안전한 기본값을 제공한다. */
 @Component
 @ConditionalOnMissingBean(name = "attendanceQueryImpl")
 public class AttendanceQueryStub implements AttendanceQuery {

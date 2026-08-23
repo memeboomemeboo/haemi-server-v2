@@ -27,20 +27,29 @@ public class LoginUseCase {
     public record TokenPair(String accessToken, String refreshToken) {}
 
     @Transactional
-    public TokenPair execute(String loginId, String password) {
+    public TokenPair execute(String loginId, String password, String pin, String deviceId) {
         Account account = accountRepository.findByLoginId(loginId)
                 .orElseThrow(() -> new DomainException(ErrorCode.INVALID_CREDENTIALS));
 
-        if (!passwordService.matches(password, account.getPasswordHash())) {
+        boolean passwordMatches = password != null && !password.isBlank()
+                && passwordService.matches(password, account.getPasswordHash());
+        boolean pinMatches = pin != null && !pin.isBlank()
+                && account.isPinLoginEnabled()
+                && account.getPinHash() != null
+                && passwordService.matches(pin, account.getPinHash());
+        if (!passwordMatches && !pinMatches) {
             throw new DomainException(ErrorCode.INVALID_CREDENTIALS);
+        }
+        if (passwordMatches && !account.isPinLoginEnabled()) {
+            account.enablePinLogin();
         }
 
         String accessToken = jwtTokenProvider.createAccessToken(account.getId(), account.getRole());
         String refreshToken = jwtTokenProvider.createRefreshToken(account.getId());
 
         Instant refreshExpiry = Instant.now().plus(jwtProperties.refreshTokenValidity());
-        refreshTokenRepository.deleteByAccountId(account.getId());
-        refreshTokenRepository.save(RefreshToken.of(account.getId(), refreshToken, refreshExpiry));
+        refreshTokenRepository.deleteByAccountIdAndDeviceId(account.getId(), deviceId);
+        refreshTokenRepository.save(RefreshToken.of(account.getId(), deviceId, refreshToken, refreshExpiry));
 
         return new TokenPair(accessToken, refreshToken);
     }

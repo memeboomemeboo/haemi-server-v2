@@ -19,13 +19,25 @@ public class Family extends BaseEntity {
     @Column(nullable = false, length = 50)
     private String name;
 
+    @Column(length = 30)
+    private String memo;
+
+    @Column(name = "profile_image_url", length = 500)
+    private String profileImageUrl;
+
     @OneToMany(mappedBy = "family", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<FamilyMember> members = new ArrayList<>();
 
-    public static Family create(String name) {
+    public static Family create(String name, String memo, String profileImageUrl) {
         Family family = new Family();
         family.name = name;
+        family.memo = memo;
+        family.profileImageUrl = profileImageUrl;
         return family;
+    }
+
+    public static Family create(String name) {
+        return create(name, null, null);
     }
 
     public void addMember(UUID userId) {

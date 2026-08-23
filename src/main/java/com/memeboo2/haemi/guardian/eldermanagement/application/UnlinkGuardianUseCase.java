@@ -22,11 +22,13 @@ public class UnlinkGuardianUseCase {
      */
     @Transactional
     public void execute(UUID actorId, UUID elderId) {
-        var link = linkRepository.findByGuardianIdAndElderId(actorId, elderId)
+        var links = linkRepository.findAllByElderIdForUpdate(elderId);
+        var link = links.stream().filter(candidate -> candidate.getGuardianId().equals(actorId))
+                .findFirst()
                 .orElseThrow(() -> new DomainException(ErrorCode.NOT_RESOURCE_OWNER,
                         "본인 링크만 해제할 수 있습니다."));
 
-        long remaining = linkRepository.countByElderId(elderId);
+        long remaining = links.size();
         if (remaining <= 1) {
             throw new DomainException(ErrorCode.LAST_GUARDIAN_CANNOT_LEAVE);
         }

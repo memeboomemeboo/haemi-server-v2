@@ -40,7 +40,7 @@ public class Memory extends BaseEntity {
     private Integer memoryYear;
 
     @OneToMany(mappedBy = "memory", cascade = CascadeType.ALL, orphanRemoval = true)
-    @OrderColumn(name = "position")
+    @OrderBy("position ASC")
     private List<MemoryImage> images = new ArrayList<>();
 
     /** 어르신 답변 여부 — elder/response 이벤트로 갱신 */
@@ -65,7 +65,7 @@ public class Memory extends BaseEntity {
             throw new DomainException(ErrorCode.INVALID_INPUT, "추억 이미지는 최대 " + MAX_IMAGES + "장입니다.");
         }
         for (String key : storageKeys) {
-            images.add(MemoryImage.of(this, key));
+            images.add(MemoryImage.of(this, key, images.size()));
         }
     }
 

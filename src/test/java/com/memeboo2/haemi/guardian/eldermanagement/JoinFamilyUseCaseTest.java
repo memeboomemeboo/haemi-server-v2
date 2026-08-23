@@ -44,7 +44,7 @@ class JoinFamilyUseCaseTest {
         Elder elder1 = Elder.create(UUID.randomUUID(), familyId, "어르신1", null);
         Elder elder2 = Elder.create(UUID.randomUUID(), familyId, "어르신2", null);
 
-        given(familyRepository.findById(familyId)).willReturn(Optional.of(family));
+        given(familyRepository.findByIdForUpdate(familyId)).willReturn(Optional.of(family));
         given(familyRepository.findByMembers_UserId(guardianId)).willReturn(Optional.empty());
         given(props.maxGuardians()).willReturn(8);
         given(elderRepository.findAllByFamilyId(familyId)).willReturn(List.of(elder1, elder2));
@@ -57,7 +57,7 @@ class JoinFamilyUseCaseTest {
 
     @Test
     void 링크없는_보호자는_403() {
-        given(familyRepository.findById(familyId)).willReturn(Optional.empty());
+        given(familyRepository.findByIdForUpdate(familyId)).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> joinFamilyUseCase.execute(guardianId, familyId))
                 .isInstanceOf(DomainException.class)
@@ -69,7 +69,7 @@ class JoinFamilyUseCaseTest {
     @Test
     void 이미_가족에_속한_보호자는_예외() {
         Family otherFamily = Family.create("다른 가족");
-        given(familyRepository.findById(familyId)).willReturn(Optional.of(Family.create("이 가족")));
+        given(familyRepository.findByIdForUpdate(familyId)).willReturn(Optional.of(Family.create("이 가족")));
         given(familyRepository.findByMembers_UserId(guardianId)).willReturn(Optional.of(otherFamily));
 
         assertThatThrownBy(() -> joinFamilyUseCase.execute(guardianId, familyId))

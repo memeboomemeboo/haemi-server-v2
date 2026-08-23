@@ -21,6 +21,9 @@ public class RefreshToken {
     @Column(name = "account_id", nullable = false, columnDefinition = "uuid")
     private UUID accountId;
 
+    @Column(name = "device_id", nullable = false, length = 100)
+    private String deviceId;
+
     @Column(nullable = false, length = 512)
     private String token;
 
@@ -35,9 +38,10 @@ public class RefreshToken {
         if (id == null) id = UUID.randomUUID();
     }
 
-    public static RefreshToken of(UUID accountId, String token, Instant expiresAt) {
+    public static RefreshToken of(UUID accountId, String deviceId, String token, Instant expiresAt) {
         RefreshToken rt = new RefreshToken();
         rt.accountId = accountId;
+        rt.deviceId = deviceId;
         rt.token = token;
         rt.expiresAt = expiresAt;
         rt.createdAt = Instant.now();

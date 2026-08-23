@@ -14,6 +14,9 @@ public interface CareAccessQuery {
     /** 어르신 본인 확인. 어르신 유스케이스의 첫 줄. */
     void requireSelf(UUID actorId, UUID elderId);
 
+    /** 인증 Account ID를 guardian_elders의 도메인 ID로 해석한다. */
+    UUID elderIdForUser(UUID userId);
+
     boolean canAccess(UUID guardianId, UUID elderId);
 
     /** 목록 조회용. 반환된 것 외에는 노출 금지. */

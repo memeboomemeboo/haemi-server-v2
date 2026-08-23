@@ -84,7 +84,7 @@ haemi:
       allowed-content-types: ${HAEMI_MEDIA_IMAGE_ALLOWED_TYPES:image/jpeg,image/png,image/webp}
     voice:
       max-size-bytes: ${HAEMI_MEDIA_VOICE_MAX_SIZE_BYTES:12582912}
-      max-duration-seconds: ${HAEMI_MEDIA_VOICE_MAX_DURATION_SECONDS:180}
+      max-duration-seconds: ${HAEMI_MEDIA_VOICE_MAX_DURATION_SECONDS:60}
       allowed-content-types: ${HAEMI_MEDIA_VOICE_ALLOWED_TYPES:audio/aac,audio/mp4,audio/webm,audio/ogg}
     profile:
       max-size-bytes: ${HAEMI_MEDIA_PROFILE_MAX_SIZE_BYTES:5242880}

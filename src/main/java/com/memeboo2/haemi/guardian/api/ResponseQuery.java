@@ -1,12 +1,9 @@
-package com.memeboo2.haemi.elder.api;
+package com.memeboo2.haemi.guardian.api;
 
 import java.util.List;
 import java.util.UUID;
 
-/**
- * 보호자가 어르신 답변 내용을 조회하기 위한 계약.
- * 소유: elder/response. guardian/memory 가 호출.
- */
+/** 보호자가 추억에 대한 어르신 답변을 조회하는 공개 계약. */
 public interface ResponseQuery {
 
     List<ResponseItem> findByMemoryId(UUID memoryId);

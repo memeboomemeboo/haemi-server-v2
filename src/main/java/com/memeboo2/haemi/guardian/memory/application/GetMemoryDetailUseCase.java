@@ -11,7 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
-@Service
+@Service("guardianGetMemoryDetailUseCase")
 @RequiredArgsConstructor
 public class GetMemoryDetailUseCase {
 

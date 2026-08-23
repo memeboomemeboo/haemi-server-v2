@@ -26,9 +26,9 @@ public class ElderMemoryController {
     @Operation(summary = "추억 목록 조회")
     @GetMapping
     public ResponseEntity<ApiResponse<List<MemorySummary>>> list(
-            @RequestAttribute UUID elderId) {
+            @RequestAttribute("elderUserId") UUID elderUserId) {
 
-        List<MemorySummary> result = getMemoriesUseCase.execute(elderId)
+        List<MemorySummary> result = getMemoriesUseCase.execute(elderUserId)
                 .stream().map(MemorySummary::from).toList();
         return ResponseEntity.ok(ApiResponse.ok(result));
     }
@@ -36,10 +36,10 @@ public class ElderMemoryController {
     @Operation(summary = "추억 상세 조회")
     @GetMapping("/{memoryId}")
     public ResponseEntity<ApiResponse<MemoryDetail>> detail(
-            @RequestAttribute UUID elderId,
+            @RequestAttribute("elderUserId") UUID elderUserId,
             @PathVariable UUID memoryId) {
 
-        MemoryDetail result = MemoryDetail.from(getMemoryDetailUseCase.execute(elderId, memoryId));
+        MemoryDetail result = MemoryDetail.from(getMemoryDetailUseCase.execute(elderUserId, memoryId));
         return ResponseEntity.ok(ApiResponse.ok(result));
     }
 }

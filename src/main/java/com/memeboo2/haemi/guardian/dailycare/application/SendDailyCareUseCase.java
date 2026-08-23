@@ -7,6 +7,8 @@ import com.memeboo2.haemi.common.time.HaemiClock;
 import com.memeboo2.haemi.guardian.api.CareAccessQuery;
 import com.memeboo2.haemi.guardian.dailycare.domain.DailyCare;
 import com.memeboo2.haemi.guardian.dailycare.infrastructure.DailyCareRepository;
+import com.memeboo2.haemi.platform.api.MediaUploadCommand;
+import com.memeboo2.haemi.platform.api.MediaPurpose;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -25,6 +27,7 @@ public class SendDailyCareUseCase {
     private final DailyCareProperties props;
     private final HaemiClock clock;
     private final ApplicationEventPublisher publisher;
+    private final MediaUploadCommand mediaUploadCommand;
 
     @Transactional
     public UUID sendText(UUID guardianId, UUID elderId, String text) {
@@ -33,13 +36,13 @@ public class SendDailyCareUseCase {
         checkDuplicate(guardianId, elderId, today);
 
         DailyCare care = DailyCare.text(guardianId, elderId, today, text, props.retentionDays());
-        dailyCareRepository.save(care);
+        saveDailyCare(care);
         publisher.publishEvent(new GreetingSent(care.getId(), guardianId, elderId, today));
         return care.getId();
     }
 
     @Transactional
-    public UUID sendVoice(UUID guardianId, UUID elderId, String mediaKey, int durationSeconds) {
+    public UUID sendVoice(UUID guardianId, UUID elderId, UUID mediaRefId, int durationSeconds) {
         careAccessQuery.requireGuardianOf(guardianId, elderId);
         if (durationSeconds > props.maxVoiceDurationSeconds()) {
             throw new DomainException(ErrorCode.INVALID_INPUT,
@@ -48,14 +51,25 @@ public class SendDailyCareUseCase {
         LocalDate today = clock.today();
         checkDuplicate(guardianId, elderId, today);
 
-        DailyCare care = DailyCare.voice(guardianId, elderId, today, mediaKey, durationSeconds, props.retentionDays());
-        dailyCareRepository.save(care);
+        String servingUrl = mediaUploadCommand.confirmUpload(
+                guardianId, mediaRefId, MediaPurpose.GREETING_VOICE, durationSeconds).toString();
+        DailyCare care = DailyCare.voice(guardianId, elderId, today, servingUrl, durationSeconds, props.retentionDays());
+        saveDailyCare(care);
         publisher.publishEvent(new GreetingSent(care.getId(), guardianId, elderId, today));
         return care.getId();
     }
 
     private void checkDuplicate(UUID guardianId, UUID elderId, LocalDate date) {
         if (dailyCareRepository.existsByGuardianIdAndElderIdAndCareDate(guardianId, elderId, date)) {
+            throw new DomainException(ErrorCode.DAILY_CARE_ALREADY_SENT,
+                    "오늘은 이미 하루 한마디를 전했습니다.");
+        }
+    }
+
+    private void saveDailyCare(DailyCare care) {
+        try {
+            dailyCareRepository.saveAndFlush(care);
+        } catch (DataIntegrityViolationException ex) {
             throw new DomainException(ErrorCode.DAILY_CARE_ALREADY_SENT,
                     "오늘은 이미 하루 한마디를 전했습니다.");
         }

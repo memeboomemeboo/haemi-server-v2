@@ -1,6 +1,7 @@
 package com.memeboo2.haemi.guardian.memory.presentation;
 
 import com.memeboo2.haemi.common.web.ApiResponse;
+import com.memeboo2.haemi.guardian.api.ResponseQuery;
 import com.memeboo2.haemi.guardian.memory.application.*;
 import com.memeboo2.haemi.guardian.memory.presentation.dto.*;
 import io.swagger.v3.oas.annotations.Operation;
@@ -24,6 +25,7 @@ public class MemoryController {
     private final RegisterMemoryUseCase registerMemoryUseCase;
     private final GetMemoriesUseCase getMemoriesUseCase;
     private final GetMemoryDetailUseCase getMemoryDetailUseCase;
+    private final GetMemoryResponsesUseCase getMemoryResponsesUseCase;
     private final UpdateMemoryUseCase updateMemoryUseCase;
     private final DeleteMemoryUseCase deleteMemoryUseCase;
 
@@ -75,6 +77,14 @@ public class MemoryController {
 
         return ResponseEntity.ok(ApiResponse.ok(
                 MemoryDetailResponse.from(getMemoryDetailUseCase.execute(guardianId, memoryId))));
+    }
+
+    @Operation(summary = "어르신 답변 조회")
+    @GetMapping("/{memoryId}/responses")
+    public ResponseEntity<ApiResponse<List<ResponseQuery.ResponseItem>>> responses(
+            @RequestAttribute UUID guardianId,
+            @PathVariable UUID memoryId) {
+        return ResponseEntity.ok(ApiResponse.ok(getMemoryResponsesUseCase.execute(guardianId, memoryId)));
     }
 
     @Operation(summary = "추억 수정 (생성자 본인만)")

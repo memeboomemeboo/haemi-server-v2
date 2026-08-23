@@ -8,6 +8,7 @@ import com.memeboo2.haemi.guardian.memory.domain.Memory;
 import com.memeboo2.haemi.guardian.memory.domain.MemoryRegistered;
 import com.memeboo2.haemi.guardian.memory.infrastructure.MemoryRepository;
 import com.memeboo2.haemi.platform.api.MediaUploadCommand;
+import com.memeboo2.haemi.platform.api.MediaPurpose;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -43,7 +44,7 @@ class RegisterMemoryUseCaseTest {
     @Test
     void 정상_등록_이벤트_발행() {
         UUID refId = UUID.randomUUID();
-        given(mediaUploadCommand.confirmUpload(guardianId, refId))
+        given(mediaUploadCommand.confirmUpload(guardianId, refId, MediaPurpose.MEMORY_IMAGE))
                 .willReturn(URI.create("http://localhost/serve?key=memory_image/key.jpg"));
         given(memoryRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
 
@@ -71,7 +72,7 @@ class RegisterMemoryUseCaseTest {
         List<UUID> fiveRefs = List.of(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
                 UUID.randomUUID(), UUID.randomUUID());
         fiveRefs.forEach(refId ->
-                lenient().when(mediaUploadCommand.confirmUpload(guardianId, refId))
+                lenient().when(mediaUploadCommand.confirmUpload(guardianId, refId, MediaPurpose.MEMORY_IMAGE))
                         .thenReturn(URI.create("http://localhost/serve?key=" + refId)));
         lenient().when(memoryRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 

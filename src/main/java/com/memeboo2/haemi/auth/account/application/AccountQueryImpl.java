@@ -22,7 +22,9 @@ public class AccountQueryImpl implements AccountQuery {
     @Transactional(readOnly = true)
     public Optional<AccountInfo> findById(UUID userId) {
         return accountRepository.findById(userId)
-                .map(a -> new AccountInfo(a.getId(), a.getName(), a.getLoginId(), a.getPhone()));
+                .map(a -> new AccountInfo(
+                        a.getId(), a.getName(), a.getLoginId(), a.getPhone(),
+                        a.getBirthDate(), a.getProfileImageUrl()));
     }
 
     @Override
@@ -37,5 +39,13 @@ public class AccountQueryImpl implements AccountQuery {
         Account account = accountRepository.findById(userId)
                 .orElseThrow(() -> new DomainException(ErrorCode.RESOURCE_NOT_FOUND));
         account.updateLoginId(newLoginId);
+    }
+
+    @Override
+    @Transactional
+    public void updateProfileImageUrl(UUID userId, String profileImageUrl) {
+        Account account = accountRepository.findById(userId)
+                .orElseThrow(() -> new DomainException(ErrorCode.RESOURCE_NOT_FOUND));
+        account.updateProfileImageUrl(profileImageUrl);
     }
 }

@@ -25,9 +25,9 @@ public class InboxController {
     @Operation(summary = "오늘 받은 하루 한마디 목록")
     @GetMapping
     public ResponseEntity<ApiResponse<List<InboxItem>>> list(
-            @RequestAttribute UUID elderId) {
+            @RequestAttribute("elderUserId") UUID elderUserId) {
 
-        List<InboxItem> result = getInboxUseCase.execute(elderId)
+        List<InboxItem> result = getInboxUseCase.execute(elderUserId)
                 .stream().map(InboxItem::from).toList();
         return ResponseEntity.ok(ApiResponse.ok(result));
     }
@@ -35,10 +35,10 @@ public class InboxController {
     @Operation(summary = "하루 한마디 읽음 처리")
     @PostMapping("/{dailyCareId}/read")
     public ResponseEntity<ApiResponse<Void>> markRead(
-            @RequestAttribute UUID elderId,
+            @RequestAttribute("elderUserId") UUID elderUserId,
             @PathVariable UUID dailyCareId) {
 
-        markReadUseCase.execute(elderId, dailyCareId);
+        markReadUseCase.execute(elderUserId, dailyCareId);
         return ResponseEntity.ok(ApiResponse.ok(null));
     }
 }

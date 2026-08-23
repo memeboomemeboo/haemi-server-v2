@@ -1,6 +1,9 @@
 package com.memeboo2.haemi.platform.media.presentation;
 
 import com.memeboo2.haemi.common.web.ApiResponse;
+import com.memeboo2.haemi.common.error.DomainException;
+import com.memeboo2.haemi.common.error.ErrorCode;
+import com.memeboo2.haemi.common.security.JwtPrincipal;
 import com.memeboo2.haemi.platform.media.application.ConfirmUploadUseCase;
 import com.memeboo2.haemi.platform.media.application.RequestUploadUseCase;
 import com.memeboo2.haemi.platform.media.presentation.dto.RequestUploadRequest;
@@ -11,6 +14,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
@@ -33,11 +37,14 @@ public class MediaController {
     })
     @PostMapping("/upload-request")
     public ResponseEntity<ApiResponse<RequestUploadResponse>> requestUpload(
-            @RequestAttribute UUID guardianId,
+            @AuthenticationPrincipal JwtPrincipal principal,
             @Valid @RequestBody RequestUploadRequest req) {
 
+        validatePrincipalCanUpload(principal, req.mediaType());
+
         RequestUploadUseCase.Result result = requestUploadUseCase.request(
-                guardianId, req.mediaType(), req.originalFilename(), req.contentType(), req.declaredSizeBytes());
+                principal.userId(), req.mediaType(), req.originalFilename(), req.contentType(),
+                req.declaredSizeBytes(), req.declaredDurationSeconds());
 
         RequestUploadResponse body = new RequestUploadResponse(
                 result.mediaRefId(), result.presignedUrl(), result.expiresAt());
@@ -54,10 +61,19 @@ public class MediaController {
     })
     @PostMapping("/{mediaRefId}/confirm")
     public ResponseEntity<ApiResponse<String>> confirm(
-            @RequestAttribute UUID guardianId,
+            @AuthenticationPrincipal JwtPrincipal principal,
             @PathVariable UUID mediaRefId) {
 
-        URI servingUrl = confirmUploadUseCase.confirmUpload(guardianId, mediaRefId);
+        URI servingUrl = confirmUploadUseCase.confirmUpload(principal.userId(), mediaRefId);
         return ResponseEntity.ok(ApiResponse.ok(servingUrl.toString()));
+    }
+
+    private void validatePrincipalCanUpload(JwtPrincipal principal, com.memeboo2.haemi.platform.media.domain.MediaType mediaType) {
+        boolean guardianType = mediaType == com.memeboo2.haemi.platform.media.domain.MediaType.MEMORY_IMAGE
+                || mediaType == com.memeboo2.haemi.platform.media.domain.MediaType.GREETING_VOICE
+                || mediaType == com.memeboo2.haemi.platform.media.domain.MediaType.PROFILE_IMAGE;
+        if ((guardianType && !principal.isGuardian()) || (!guardianType && !principal.isElder())) {
+            throw new DomainException(ErrorCode.ROLE_NOT_ALLOWED);
+        }
     }
 }

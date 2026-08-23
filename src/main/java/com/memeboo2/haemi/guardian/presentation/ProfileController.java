@@ -36,9 +36,9 @@ public class ProfileController {
         }
     }
 
-    public record FamilyResponse(UUID familyId, String name) {
+    public record FamilyResponse(UUID familyId, String name, String memo, String profileImageUrl) {
         static FamilyResponse from(FamilyInfo f) {
-            return f == null ? null : new FamilyResponse(f.familyId(), f.name());
+            return f == null ? null : new FamilyResponse(f.familyId(), f.name(), f.memo(), f.profileImageUrl());
         }
     }
 
@@ -47,12 +47,14 @@ public class ProfileController {
             String name,
             String loginId,
             String phone,
+            String birthDate,
+            String profileImageUrl,
             FamilyResponse family,
             List<ElderCardResponse> elders
     ) {
         static ProfileResponse from(GuardianProfile p) {
             return new ProfileResponse(
-                    p.userId(), p.name(), p.loginId(), p.phone(),
+                    p.userId(), p.name(), p.loginId(), p.phone(), p.birthDate(), p.profileImageUrl(),
                     FamilyResponse.from(p.family()),
                     p.elders().stream().map(ElderCardResponse::from).toList()
             );
@@ -61,6 +63,7 @@ public class ProfileController {
 
     public record UpdateProfileRequest(
             @Size(min = 3, max = 20) String loginId,
+            UUID profileImageMediaRefId,
             Map<UUID, GuardianRole> elderRoles
     ) {}
 
@@ -78,7 +81,7 @@ public class ProfileController {
             @RequestAttribute UUID guardianId,
             @RequestBody @Valid UpdateProfileRequest req) {
         Map<UUID, GuardianRole> roles = req.elderRoles() != null ? req.elderRoles() : Map.of();
-        updateGuardianProfileUseCase.execute(guardianId, req.loginId(), roles);
+        updateGuardianProfileUseCase.execute(guardianId, req.loginId(), req.profileImageMediaRefId(), roles);
         return ResponseEntity.ok(ApiResponse.ok(null));
     }
 }

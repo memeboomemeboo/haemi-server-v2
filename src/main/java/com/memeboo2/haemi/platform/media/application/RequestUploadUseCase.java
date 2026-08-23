@@ -25,8 +25,9 @@ public class RequestUploadUseCase {
     private final HaemiClock clock;
 
     @Transactional
-    public Result request(UUID uploaderId, MediaType mediaType, String originalFilename, String contentType, long declaredSizeBytes) {
-        validate(mediaType, contentType, declaredSizeBytes);
+    public Result request(UUID uploaderId, MediaType mediaType, String originalFilename, String contentType,
+                          long declaredSizeBytes, Integer declaredDurationSeconds) {
+        validate(mediaType, contentType, declaredSizeBytes, declaredDurationSeconds);
 
         String storageKey = storage.buildStorageKey(mediaType, originalFilename);
         long expirySeconds = policy.presignedUrl().expiry().toSeconds();
@@ -34,16 +35,17 @@ public class RequestUploadUseCase {
         Instant expiresAt = now.plusSeconds(expirySeconds);
         Instant retainUntil = resolveRetainUntil(mediaType, now);
 
-        URI presignedUrl = storage.generatePresignedPutUrl(storageKey, contentType, expirySeconds);
+        URI presignedUrl = storage.generatePresignedPutUrl(
+                storageKey, contentType, expirySeconds, declaredDurationSeconds);
 
         MediaRef ref = MediaRef.pending(mediaType, storageKey, originalFilename, contentType,
-                declaredSizeBytes, uploaderId, expiresAt, retainUntil);
+                declaredSizeBytes, declaredDurationSeconds, uploaderId, expiresAt, retainUntil);
         repository.save(ref);
 
         return new Result(ref.getId(), presignedUrl, expiresAt);
     }
 
-    private void validate(MediaType mediaType, String contentType, long sizeBytes) {
+    private void validate(MediaType mediaType, String contentType, long sizeBytes, Integer declaredDurationSeconds) {
         switch (mediaType) {
             case MEMORY_IMAGE, RESPONSE_IMAGE -> {
                 if (!policy.image().allowedContentTypes().contains(contentType))
@@ -56,6 +58,11 @@ public class RequestUploadUseCase {
                     throw new DomainException(ErrorCode.INVALID_INPUT);
                 if (sizeBytes > policy.voice().maxSizeBytes())
                     throw new DomainException(ErrorCode.INVALID_INPUT);
+                if (declaredDurationSeconds == null || declaredDurationSeconds <= 0
+                        || declaredDurationSeconds > policy.voice().maxDurationSeconds()) {
+                    throw new DomainException(ErrorCode.INVALID_INPUT,
+                            "음성은 " + policy.voice().maxDurationSeconds() + "초 이하입니다.");
+                }
             }
             case PROFILE_IMAGE -> {
                 if (!policy.profile().allowedContentTypes().contains(contentType))
@@ -63,6 +70,10 @@ public class RequestUploadUseCase {
                 if (sizeBytes > policy.profile().maxSizeBytes())
                     throw new DomainException(ErrorCode.INVALID_INPUT);
             }
+        }
+        if (mediaType != MediaType.RESPONSE_VOICE && mediaType != MediaType.GREETING_VOICE
+                && declaredDurationSeconds != null) {
+            throw new DomainException(ErrorCode.INVALID_INPUT, "이미지에는 음성 길이를 입력할 수 없습니다.");
         }
     }
 

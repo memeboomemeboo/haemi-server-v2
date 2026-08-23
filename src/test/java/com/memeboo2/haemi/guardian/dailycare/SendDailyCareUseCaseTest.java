@@ -9,6 +9,7 @@ import com.memeboo2.haemi.guardian.dailycare.application.DailyCareProperties;
 import com.memeboo2.haemi.guardian.dailycare.application.SendDailyCareUseCase;
 import com.memeboo2.haemi.guardian.dailycare.domain.DailyCare;
 import com.memeboo2.haemi.guardian.dailycare.infrastructure.DailyCareRepository;
+import com.memeboo2.haemi.platform.api.MediaUploadCommand;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -17,6 +18,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -35,6 +37,7 @@ class SendDailyCareUseCaseTest {
     @Mock DailyCareProperties props;
     @Mock HaemiClock clock;
     @Mock ApplicationEventPublisher publisher;
+    @Mock MediaUploadCommand mediaUploadCommand;
 
     @InjectMocks SendDailyCareUseCase useCase;
 
@@ -48,7 +51,7 @@ class SendDailyCareUseCaseTest {
         lenient().when(clock.now()).thenReturn(Instant.now());
         lenient().when(props.retentionDays()).thenReturn(30);
         lenient().when(props.maxVoiceDurationSeconds()).thenReturn(60);
-        lenient().when(repo.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        lenient().when(repo.saveAndFlush(any())).thenAnswer(inv -> inv.getArgument(0));
     }
 
     @Test
@@ -57,7 +60,7 @@ class SendDailyCareUseCaseTest {
 
         useCase.sendText(GUARDIAN, ELDER, "오늘도 건강하세요!");
 
-        verify(repo).save(any(DailyCare.class));
+        verify(repo).saveAndFlush(any(DailyCare.class));
         ArgumentCaptor<GreetingSent> cap = ArgumentCaptor.forClass(GreetingSent.class);
         verify(publisher).publishEvent(cap.capture());
         assertThat(cap.getValue().elderId()).isEqualTo(ELDER);
@@ -94,8 +97,19 @@ class SendDailyCareUseCaseTest {
 
     @Test
     void 음성_60초_초과_400() {
-        assertThatThrownBy(() -> useCase.sendVoice(GUARDIAN, ELDER, "key/voice.aac", 61))
+        assertThatThrownBy(() -> useCase.sendVoice(GUARDIAN, ELDER, UUID.randomUUID(), 61))
                 .isInstanceOf(DomainException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_INPUT);
+    }
+
+    @Test
+    void 동시_전송_유니크_충돌은_409로_변환한다() {
+        when(repo.existsByGuardianIdAndElderIdAndCareDate(GUARDIAN, ELDER, TODAY)).thenReturn(false);
+        doThrow(new DataIntegrityViolationException("uk_daily_cares"))
+                .when(repo).saveAndFlush(any(DailyCare.class));
+
+        assertThatThrownBy(() -> useCase.sendText(GUARDIAN, ELDER, "안녕하세요"))
+                .isInstanceOf(DomainException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.DAILY_CARE_ALREADY_SENT);
     }
 }

@@ -1,8 +1,14 @@
 package com.memeboo2.haemi.elder.response.application;
 
 import com.memeboo2.haemi.common.event.ElderResponded;
+import com.memeboo2.haemi.common.security.ElderAccessChecked;
 import com.memeboo2.haemi.elder.response.domain.Emotion;
 import com.memeboo2.haemi.elder.response.domain.Response;
+import com.memeboo2.haemi.common.error.DomainException;
+import com.memeboo2.haemi.common.error.ErrorCode;
+import com.memeboo2.haemi.guardian.api.CareAccessQuery;
+import com.memeboo2.haemi.guardian.api.ElderMemoryQuery;
+import com.memeboo2.haemi.platform.api.MediaPurpose;
 import com.memeboo2.haemi.elder.response.domain.ResponseType;
 import com.memeboo2.haemi.elder.response.infrastructure.ResponseRepository;
 import com.memeboo2.haemi.platform.api.MediaUploadCommand;
@@ -21,10 +27,14 @@ public class CreateResponseUseCase {
     private final ResponseRepository responseRepository;
     private final MediaUploadCommand mediaUploadCommand;
     private final ApplicationEventPublisher eventPublisher;
+    private final CareAccessQuery careAccessQuery;
+    private final ElderMemoryQuery elderMemoryQuery;
 
     /** 마음 전하기 */
     @Transactional
-    public UUID emotion(UUID elderId, UUID memoryId, List<Emotion> emotions) {
+    @ElderAccessChecked
+    public UUID emotion(UUID elderUserId, UUID memoryId, List<Emotion> emotions) {
+        UUID elderId = requireTargetMemory(elderUserId, memoryId);
         Response r = Response.emotion(memoryId, elderId, emotions);
         r = responseRepository.save(r);
         eventPublisher.publishEvent(new ElderResponded(memoryId, elderId));
@@ -33,7 +43,9 @@ public class CreateResponseUseCase {
 
     /** 텍스트 댓글 */
     @Transactional
-    public UUID text(UUID elderId, UUID memoryId, String text) {
+    @ElderAccessChecked
+    public UUID text(UUID elderUserId, UUID memoryId, String text) {
+        UUID elderId = requireTargetMemory(elderUserId, memoryId);
         Response r = Response.text(memoryId, elderId, text);
         r = responseRepository.save(r);
         eventPublisher.publishEvent(new ElderResponded(memoryId, elderId));
@@ -42,8 +54,10 @@ public class CreateResponseUseCase {
 
     /** 이미지 댓글 */
     @Transactional
-    public UUID image(UUID elderId, UUID memoryId, UUID mediaRefId) {
-        String mediaKey = mediaUploadCommand.confirmUpload(elderId, mediaRefId).toString();
+    @ElderAccessChecked
+    public UUID image(UUID elderUserId, UUID memoryId, UUID mediaRefId) {
+        UUID elderId = requireTargetMemory(elderUserId, memoryId);
+        String mediaKey = mediaUploadCommand.confirmUpload(elderUserId, mediaRefId, MediaPurpose.RESPONSE_IMAGE).toString();
         Response r = Response.image(memoryId, elderId, mediaKey);
         r = responseRepository.save(r);
         eventPublisher.publishEvent(new ElderResponded(memoryId, elderId));
@@ -52,11 +66,22 @@ public class CreateResponseUseCase {
 
     /** 음성 메시지 */
     @Transactional
-    public UUID voice(UUID elderId, UUID memoryId, UUID mediaRefId) {
-        String mediaKey = mediaUploadCommand.confirmUpload(elderId, mediaRefId).toString();
+    @ElderAccessChecked
+    public UUID voice(UUID elderUserId, UUID memoryId, UUID mediaRefId) {
+        UUID elderId = requireTargetMemory(elderUserId, memoryId);
+        String mediaKey = mediaUploadCommand.confirmUpload(elderUserId, mediaRefId, MediaPurpose.RESPONSE_VOICE).toString();
         Response r = Response.voice(memoryId, elderId, mediaKey);
         r = responseRepository.save(r);
         eventPublisher.publishEvent(new ElderResponded(memoryId, elderId));
         return r.getId();
+    }
+
+    private UUID requireTargetMemory(UUID elderUserId, UUID memoryId) {
+        UUID elderId = careAccessQuery.elderIdForUser(elderUserId);
+        careAccessQuery.requireSelf(elderUserId, elderId);
+        if (elderMemoryQuery.findForElder(memoryId, elderId).isEmpty()) {
+            throw new DomainException(ErrorCode.RESOURCE_NOT_FOUND);
+        }
+        return elderId;
     }
 }

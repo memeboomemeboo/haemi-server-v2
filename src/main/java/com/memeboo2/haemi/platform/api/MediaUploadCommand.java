@@ -13,4 +13,10 @@ public interface MediaUploadCommand {
      * presigned URL로 업로드한 미디어를 확정하고 서빙 URL을 반환한다.
      */
     URI confirmUpload(UUID actorId, UUID mediaRefId);
+
+    /** 확정할 미디어의 용도를 검증한다. */
+    URI confirmUpload(UUID actorId, UUID mediaRefId, MediaPurpose expectedPurpose);
+
+    /** 확정된 음성의 서버 검증 길이가 요청 길이와 같은지도 검증한다. */
+    URI confirmUpload(UUID actorId, UUID mediaRefId, MediaPurpose expectedPurpose, Integer expectedDurationSeconds);
 }

@@ -14,7 +14,7 @@ public class LogoutUseCase {
     private final RefreshTokenRepository refreshTokenRepository;
 
     @Transactional
-    public void execute(UUID accountId) {
-        refreshTokenRepository.deleteByAccountId(accountId);
+    public void execute(UUID accountId, String deviceId) {
+        refreshTokenRepository.deleteByAccountIdAndDeviceId(accountId, deviceId);
     }
 }

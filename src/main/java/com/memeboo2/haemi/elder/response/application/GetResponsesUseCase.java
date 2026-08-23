@@ -1,7 +1,12 @@
 package com.memeboo2.haemi.elder.response.application;
 
 import com.memeboo2.haemi.elder.response.domain.Response;
+import com.memeboo2.haemi.common.security.ElderAccessChecked;
 import com.memeboo2.haemi.elder.response.infrastructure.ResponseRepository;
+import com.memeboo2.haemi.common.error.DomainException;
+import com.memeboo2.haemi.common.error.ErrorCode;
+import com.memeboo2.haemi.guardian.api.CareAccessQuery;
+import com.memeboo2.haemi.guardian.api.ElderMemoryQuery;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,9 +20,17 @@ import java.util.UUID;
 public class GetResponsesUseCase {
 
     private final ResponseRepository responseRepository;
+    private final CareAccessQuery careAccessQuery;
+    private final ElderMemoryQuery elderMemoryQuery;
 
     @Transactional(readOnly = true)
-    public List<Response> execute(UUID elderId, UUID memoryId) {
+    @ElderAccessChecked
+    public List<Response> execute(UUID elderUserId, UUID memoryId) {
+        UUID elderId = careAccessQuery.elderIdForUser(elderUserId);
+        careAccessQuery.requireSelf(elderUserId, elderId);
+        if (elderMemoryQuery.findForElder(memoryId, elderId).isEmpty()) {
+            throw new DomainException(ErrorCode.RESOURCE_NOT_FOUND);
+        }
         return responseRepository.findByMemoryIdAndElderId(memoryId, elderId);
     }
 }

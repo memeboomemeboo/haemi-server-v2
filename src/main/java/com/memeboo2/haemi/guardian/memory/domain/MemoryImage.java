@@ -24,14 +24,15 @@ public class MemoryImage {
     @Column(nullable = false, length = 500)
     private String storageKey;
 
-    /** @OrderColumn 용 — JPA가 관리 */
+    /** 추억 내 이미지 표시 순서. */
     @Column(name = "position")
     private int position;
 
-    static MemoryImage of(Memory memory, String storageKey) {
+    static MemoryImage of(Memory memory, String storageKey, int position) {
         MemoryImage img = new MemoryImage();
         img.memory = memory;
         img.storageKey = storageKey;
+        img.position = position;
         return img;
     }
 }

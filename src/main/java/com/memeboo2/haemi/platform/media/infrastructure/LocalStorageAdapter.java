@@ -5,6 +5,8 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.stereotype.Component;
 
 import java.net.URI;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
 /**
@@ -15,20 +17,39 @@ import java.util.UUID;
 @ConditionalOnMissingBean(name = "s3StorageAdapter")
 class LocalStorageAdapter implements StoragePort {
 
+    private final LocalObjectStorage objectStorage;
+
+    LocalStorageAdapter(LocalObjectStorage objectStorage) {
+        this.objectStorage = objectStorage;
+    }
+
     @Override
-    public URI generatePresignedPutUrl(String storageKey, String contentType, long expirySeconds) {
-        return URI.create("http://localhost:8080/internal/storage/upload?key=" + storageKey);
+    public URI generatePresignedPutUrl(String storageKey, String contentType, long expirySeconds,
+                                       Integer expectedDurationSeconds) {
+        String durationQuery = expectedDurationSeconds == null ? "" : "&durationSeconds=" + expectedDurationSeconds;
+        return URI.create("http://localhost:8080/internal/storage/upload?key="
+                + URLEncoder.encode(storageKey, StandardCharsets.UTF_8)
+                + "&contentType=" + URLEncoder.encode(contentType, StandardCharsets.UTF_8)
+                + durationQuery);
     }
 
     @Override
     public URI generateServingUrl(String storageKey) {
-        return URI.create("http://localhost:8080/internal/storage/serve?key=" + storageKey);
+        return URI.create("http://localhost:8080/internal/storage/serve?key="
+                + URLEncoder.encode(storageKey, StandardCharsets.UTF_8));
     }
 
     @Override
     public String buildStorageKey(MediaType mediaType, String originalFilename) {
         String ext = extractExtension(originalFilename);
         return mediaType.name().toLowerCase() + "/" + UUID.randomUUID() + ext;
+    }
+
+    @Override
+    public java.util.Optional<ObjectMetadata> headObject(String storageKey) {
+        return objectStorage.get(storageKey)
+                .map(object -> new ObjectMetadata(object.contentType(), object.content().length,
+                        object.durationSeconds()));
     }
 
     private String extractExtension(String filename) {

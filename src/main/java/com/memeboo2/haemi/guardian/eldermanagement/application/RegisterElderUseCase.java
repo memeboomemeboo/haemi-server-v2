@@ -32,7 +32,16 @@ public class RegisterElderUseCase {
     @Transactional
     public UUID execute(UUID guardianId, UUID elderUserId, UUID familyId,
                         String name, LocalDate birthDate) {
-        // 가족 어르신 상한 검증 (R1)
+        var family = familyRepository.findByIdForUpdate(familyId)
+                .orElseThrow(() -> new DomainException(ErrorCode.RESOURCE_NOT_FOUND, "가족을 찾을 수 없습니다."));
+        if (!family.hasMember(guardianId)) {
+            throw new DomainException(ErrorCode.CARE_ACCESS_DENIED);
+        }
+        if (elderRepository.findByUserId(elderUserId).isPresent()) {
+            throw new DomainException(ErrorCode.INVALID_INPUT, "이미 등록된 어르신 계정입니다.");
+        }
+
+        // 가족 행 잠금 뒤 상한을 검증해 동시 등록도 직렬화한다.
         long currentElders = elderRepository.countByFamilyId(familyId);
         if (currentElders >= props.maxElders()) {
             throw new DomainException(ErrorCode.FAMILY_CAPACITY_EXCEEDED,
@@ -43,12 +52,10 @@ public class RegisterElderUseCase {
         elder = elderRepository.save(elder);
 
         // 가족 내 모든 보호자에 대해 링크 자동 생성 (R3)
-        List<UUID> guardianIds = familyRepository.findById(familyId)
-                .map(f -> f.getMembers().stream()
-                        .filter(m -> !m.isElder())
-                        .map(m -> m.getUserId())
-                        .toList())
-                .orElse(List.of());
+        List<UUID> guardianIds = family.getMembers().stream()
+                .filter(m -> !m.isElder())
+                .map(m -> m.getUserId())
+                .toList();
 
         for (UUID gId : guardianIds) {
             linkRepository.save(GuardianElderLink.create(gId, elder.getId()));

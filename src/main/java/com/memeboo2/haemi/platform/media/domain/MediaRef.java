@@ -1,6 +1,8 @@
 package com.memeboo2.haemi.platform.media.domain;
 
 import com.memeboo2.haemi.common.persistence.BaseEntity;
+import com.memeboo2.haemi.common.error.DomainException;
+import com.memeboo2.haemi.common.error.ErrorCode;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -38,6 +40,10 @@ public class MediaRef extends BaseEntity {
     @Column(nullable = false)
     private long declaredSizeBytes;
 
+    /** 음성의 클라이언트 선언 길이. 스토리지 검사 결과와 일치해야 한다. */
+    @Column(name = "declared_duration_seconds")
+    private Integer declaredDurationSeconds;
+
     /** 업로더 UUID (FK 없음 — 모듈 간 FK 금지) */
     @Column(nullable = false)
     private UUID uploaderId;
@@ -56,6 +62,7 @@ public class MediaRef extends BaseEntity {
             String originalFilename,
             String contentType,
             long declaredSizeBytes,
+            Integer declaredDurationSeconds,
             UUID uploaderId,
             Instant presignedUrlExpiresAt,
             Instant retainUntil) {
@@ -67,6 +74,7 @@ public class MediaRef extends BaseEntity {
         ref.originalFilename = originalFilename;
         ref.contentType = contentType;
         ref.declaredSizeBytes = declaredSizeBytes;
+        ref.declaredDurationSeconds = declaredDurationSeconds;
         ref.uploaderId = uploaderId;
         ref.presignedUrlExpiresAt = presignedUrlExpiresAt;
         ref.retainUntil = retainUntil;
@@ -75,11 +83,11 @@ public class MediaRef extends BaseEntity {
 
     public void confirm(Instant now) {
         if (status != UploadStatus.PENDING) {
-            throw new IllegalStateException("already " + status);
+            throw new DomainException(ErrorCode.INVALID_INPUT, "이미 처리된 업로드입니다.");
         }
         if (now.isAfter(presignedUrlExpiresAt)) {
             this.status = UploadStatus.EXPIRED;
-            throw new IllegalStateException("presigned URL expired");
+            throw new DomainException(ErrorCode.INVALID_INPUT, "업로드 URL이 만료되었습니다.");
         }
         this.status = UploadStatus.CONFIRMED;
     }

@@ -1,6 +1,7 @@
 package com.memeboo2.haemi.elder.inbox.application;
 
 import com.memeboo2.haemi.common.time.HaemiClock;
+import com.memeboo2.haemi.common.security.ElderAccessChecked;
 import com.memeboo2.haemi.guardian.api.CareAccessQuery;
 import com.memeboo2.haemi.guardian.api.GreetingQuery;
 import com.memeboo2.haemi.guardian.api.GreetingQuery.ReceivedGreeting;
@@ -20,8 +21,10 @@ public class GetInboxUseCase {
     private final CareAccessQuery careAccessQuery;
     private final HaemiClock clock;
 
-    public List<ReceivedGreeting> execute(UUID elderId) {
-        careAccessQuery.requireSelf(elderId, elderId);
+    @ElderAccessChecked
+    public List<ReceivedGreeting> execute(UUID elderUserId) {
+        UUID elderId = careAccessQuery.elderIdForUser(elderUserId);
+        careAccessQuery.requireSelf(elderUserId, elderId);
         LocalDate today = clock.today();
         return greetingQuery.findFor(elderId, today);
     }

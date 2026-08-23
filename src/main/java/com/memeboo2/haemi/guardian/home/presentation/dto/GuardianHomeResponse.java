@@ -4,8 +4,6 @@ import com.memeboo2.haemi.guardian.api.GuardianRole;
 import com.memeboo2.haemi.guardian.home.application.GetGuardianHomeUseCase.ElderCard;
 import com.memeboo2.haemi.guardian.home.application.GetGuardianHomeUseCase.GuardianHomeData;
 
-import java.time.LocalDate;
-import java.time.Period;
 import java.util.List;
 import java.util.UUID;
 
@@ -18,13 +16,14 @@ public record GuardianHomeResponse(
             String name,
             Integer age,
             GuardianRole role,
+            long daysTogether,
+            boolean attendedToday,
             boolean greetingSentToday
     ) {
         static ElderCardResponse from(ElderCard card) {
-            Integer age = card.birthDate() != null
-                    ? Period.between(card.birthDate(), LocalDate.now()).getYears()
-                    : null;
-            return new ElderCardResponse(card.elderId(), card.name(), age, card.role(), card.greetingSentToday());
+            return new ElderCardResponse(
+                    card.elderId(), card.name(), card.age(), card.role(), card.daysTogether(),
+                    card.attendedToday(), card.greetingSentToday());
         }
     }
 

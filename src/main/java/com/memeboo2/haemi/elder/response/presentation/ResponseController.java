@@ -27,11 +27,11 @@ public class ResponseController {
     @Operation(summary = "마음 전하기")
     @PostMapping("/emotion")
     public ResponseEntity<ApiResponse<UUID>> emotion(
-            @RequestAttribute UUID elderId,
+            @RequestAttribute("elderUserId") UUID elderUserId,
             @PathVariable UUID memoryId,
             @Valid @RequestBody EmotionRequest req) {
 
-        UUID id = createResponseUseCase.emotion(elderId, memoryId, req.emotions());
+        UUID id = createResponseUseCase.emotion(elderUserId, memoryId, req.emotions());
         return ResponseEntity.created(URI.create("/api/v1/elder/memories/" + memoryId + "/responses/" + id))
                 .body(ApiResponse.ok(id));
     }
@@ -39,11 +39,11 @@ public class ResponseController {
     @Operation(summary = "텍스트 댓글")
     @PostMapping("/text")
     public ResponseEntity<ApiResponse<UUID>> text(
-            @RequestAttribute UUID elderId,
+            @RequestAttribute("elderUserId") UUID elderUserId,
             @PathVariable UUID memoryId,
             @Valid @RequestBody TextRequest req) {
 
-        UUID id = createResponseUseCase.text(elderId, memoryId, req.text());
+        UUID id = createResponseUseCase.text(elderUserId, memoryId, req.text());
         return ResponseEntity.created(URI.create("/api/v1/elder/memories/" + memoryId + "/responses/" + id))
                 .body(ApiResponse.ok(id));
     }
@@ -51,11 +51,11 @@ public class ResponseController {
     @Operation(summary = "이미지 댓글")
     @PostMapping("/image")
     public ResponseEntity<ApiResponse<UUID>> image(
-            @RequestAttribute UUID elderId,
+            @RequestAttribute("elderUserId") UUID elderUserId,
             @PathVariable UUID memoryId,
             @Valid @RequestBody MediaRefRequest req) {
 
-        UUID id = createResponseUseCase.image(elderId, memoryId, req.mediaRefId());
+        UUID id = createResponseUseCase.image(elderUserId, memoryId, req.mediaRefId());
         return ResponseEntity.created(URI.create("/api/v1/elder/memories/" + memoryId + "/responses/" + id))
                 .body(ApiResponse.ok(id));
     }
@@ -63,11 +63,11 @@ public class ResponseController {
     @Operation(summary = "음성 메시지")
     @PostMapping("/voice")
     public ResponseEntity<ApiResponse<UUID>> voice(
-            @RequestAttribute UUID elderId,
+            @RequestAttribute("elderUserId") UUID elderUserId,
             @PathVariable UUID memoryId,
             @Valid @RequestBody MediaRefRequest req) {
 
-        UUID id = createResponseUseCase.voice(elderId, memoryId, req.mediaRefId());
+        UUID id = createResponseUseCase.voice(elderUserId, memoryId, req.mediaRefId());
         return ResponseEntity.created(URI.create("/api/v1/elder/memories/" + memoryId + "/responses/" + id))
                 .body(ApiResponse.ok(id));
     }
@@ -75,10 +75,10 @@ public class ResponseController {
     @Operation(summary = "내 답변 목록 조회 (어르신 본인)")
     @GetMapping
     public ResponseEntity<ApiResponse<List<ResponseSummary>>> list(
-            @RequestAttribute UUID elderId,
+            @RequestAttribute("elderUserId") UUID elderUserId,
             @PathVariable UUID memoryId) {
 
-        List<ResponseSummary> result = getResponsesUseCase.execute(elderId, memoryId)
+        List<ResponseSummary> result = getResponsesUseCase.execute(elderUserId, memoryId)
                 .stream().map(ResponseSummary::from).toList();
         return ResponseEntity.ok(ApiResponse.ok(result));
     }

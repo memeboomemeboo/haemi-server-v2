@@ -1,8 +1,9 @@
 package com.memeboo2.haemi.elder.home.application;
 
 import com.memeboo2.haemi.common.time.HaemiClock;
-import com.memeboo2.haemi.elder.api.AttendanceQuery;
+import com.memeboo2.haemi.common.security.ElderAccessChecked;
 import com.memeboo2.haemi.guardian.api.CareAccessQuery;
+import com.memeboo2.haemi.guardian.api.AttendanceQuery;
 import com.memeboo2.haemi.guardian.api.ElderMemoryQuery;
 import com.memeboo2.haemi.guardian.api.ElderMemoryQuery.MemoryItem;
 import com.memeboo2.haemi.guardian.api.GreetingQuery;
@@ -24,8 +25,10 @@ public class GetElderHomeUseCase {
     private final CareAccessQuery careAccessQuery;
     private final HaemiClock clock;
 
-    public ElderHomeData execute(UUID elderId) {
-        careAccessQuery.requireSelf(elderId, elderId);
+    @ElderAccessChecked
+    public ElderHomeData execute(UUID elderUserId) {
+        UUID elderId = careAccessQuery.elderIdForUser(elderUserId);
+        careAccessQuery.requireSelf(elderUserId, elderId);
 
         var greetings = greetingQuery.findFor(elderId, clock.today());
         long unreadCount = greetings.stream().filter(g -> !g.read()).count();

@@ -22,9 +22,9 @@ public class ElderHomeController {
     @Operation(summary = "어르신 홈 화면 조회")
     @GetMapping
     public ResponseEntity<ApiResponse<ElderHomeResponse>> home(
-            @RequestAttribute UUID elderId) {
+            @RequestAttribute("elderUserId") UUID elderUserId) {
 
-        ElderHomeResponse result = ElderHomeResponse.from(getElderHomeUseCase.execute(elderId));
+        ElderHomeResponse result = ElderHomeResponse.from(getElderHomeUseCase.execute(elderUserId));
         return ResponseEntity.ok(ApiResponse.ok(result));
     }
 }

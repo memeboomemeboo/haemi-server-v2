@@ -12,7 +12,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
-@Service
+@Service("guardianGetMemoriesUseCase")
 @RequiredArgsConstructor
 public class GetMemoriesUseCase {
 

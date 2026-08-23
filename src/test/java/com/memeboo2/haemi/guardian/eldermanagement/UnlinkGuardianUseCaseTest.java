@@ -11,7 +11,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.Optional;
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -31,8 +31,8 @@ class UnlinkGuardianUseCaseTest {
     @Test
     void 정상_경로_링크_해제() {
         GuardianElderLink link = GuardianElderLink.create(guardianId, elderId);
-        given(linkRepository.findByGuardianIdAndElderId(guardianId, elderId)).willReturn(Optional.of(link));
-        given(linkRepository.countByElderId(elderId)).willReturn(2L);
+        given(linkRepository.findAllByElderIdForUpdate(elderId)).willReturn(List.of(
+                link, GuardianElderLink.create(UUID.randomUUID(), elderId)));
 
         unlinkUseCase.execute(guardianId, elderId);
 
@@ -41,7 +41,8 @@ class UnlinkGuardianUseCaseTest {
 
     @Test
     void 링크없는_보호자는_403() {
-        given(linkRepository.findByGuardianIdAndElderId(guardianId, elderId)).willReturn(Optional.empty());
+        given(linkRepository.findAllByElderIdForUpdate(elderId)).willReturn(List.of(
+                GuardianElderLink.create(UUID.randomUUID(), elderId)));
 
         assertThatThrownBy(() -> unlinkUseCase.execute(guardianId, elderId))
                 .isInstanceOf(DomainException.class)
@@ -52,8 +53,7 @@ class UnlinkGuardianUseCaseTest {
     @Test
     void 마지막_보호자는_해제_불가() {
         GuardianElderLink link = GuardianElderLink.create(guardianId, elderId);
-        given(linkRepository.findByGuardianIdAndElderId(guardianId, elderId)).willReturn(Optional.of(link));
-        given(linkRepository.countByElderId(elderId)).willReturn(1L);
+        given(linkRepository.findAllByElderIdForUpdate(elderId)).willReturn(List.of(link));
 
         assertThatThrownBy(() -> unlinkUseCase.execute(guardianId, elderId))
                 .isInstanceOf(DomainException.class)

@@ -33,7 +33,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 if ("ROLE_GUARDIAN".equals(principal.role())) {
                     request.setAttribute("guardianId", principal.userId());
                 } else if ("ROLE_ELDER".equals(principal.role())) {
-                    request.setAttribute("elderId", principal.userId());
+                    request.setAttribute("elderUserId", principal.userId());
                 }
             });
         }

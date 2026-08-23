@@ -45,6 +45,13 @@ public class CareAccessQueryImpl implements CareAccessQuery {
     }
 
     @Override
+    public UUID elderIdForUser(UUID userId) {
+        return elderRepository.findByUserId(userId)
+                .map(Elder::getId)
+                .orElseThrow(() -> new DomainException(ErrorCode.RESOURCE_NOT_FOUND));
+    }
+
+    @Override
     public boolean canAccess(UUID guardianId, UUID elderId) {
         return linkRepository.existsByGuardianIdAndElderId(guardianId, elderId);
     }

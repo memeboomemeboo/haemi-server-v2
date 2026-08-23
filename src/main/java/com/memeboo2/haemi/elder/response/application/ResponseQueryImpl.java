@@ -1,6 +1,6 @@
 package com.memeboo2.haemi.elder.response.application;
 
-import com.memeboo2.haemi.elder.api.ResponseQuery;
+import com.memeboo2.haemi.guardian.api.ResponseQuery;
 import com.memeboo2.haemi.elder.response.infrastructure.ResponseRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

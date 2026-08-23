@@ -4,6 +4,9 @@ import com.memeboo2.haemi.common.web.ApiResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.bind.MissingRequestValueException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -24,6 +27,13 @@ public class GlobalExceptionHandler {
         String message = first != null ? first.getDefaultMessage() : ErrorCode.INVALID_INPUT.getDefaultMessage();
         return ResponseEntity.badRequest()
                 .body(ApiResponse.error(ErrorCode.INVALID_INPUT.name(), message, field));
+    }
+
+    @ExceptionHandler({HttpMessageNotReadableException.class, MissingRequestValueException.class,
+            MethodArgumentTypeMismatchException.class})
+    public ResponseEntity<ApiResponse<Void>> handleBadRequest(Exception ex) {
+        return ResponseEntity.badRequest()
+                .body(ApiResponse.error(ErrorCode.INVALID_INPUT.name(), ErrorCode.INVALID_INPUT.getDefaultMessage()));
     }
 
     @ExceptionHandler(Exception.class)

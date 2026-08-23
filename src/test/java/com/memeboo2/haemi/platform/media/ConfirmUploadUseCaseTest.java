@@ -4,6 +4,7 @@ import com.memeboo2.haemi.common.error.DomainException;
 import com.memeboo2.haemi.common.error.ErrorCode;
 import com.memeboo2.haemi.common.time.HaemiClock;
 import com.memeboo2.haemi.platform.media.application.ConfirmUploadUseCase;
+import com.memeboo2.haemi.platform.media.application.UploadPolicyProperties;
 import com.memeboo2.haemi.platform.media.domain.MediaRef;
 import com.memeboo2.haemi.platform.media.domain.MediaType;
 import com.memeboo2.haemi.platform.media.domain.UploadStatus;
@@ -17,6 +18,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.net.URI;
 import java.time.Instant;
+import java.time.Duration;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -31,6 +34,7 @@ class ConfirmUploadUseCaseTest {
     @Mock MediaRefRepository repository;
     @Mock StoragePort storage;
     @Mock HaemiClock clock;
+    @Mock UploadPolicyProperties policy;
     @InjectMocks ConfirmUploadUseCase useCase;
 
     static final Instant NOW    = Instant.parse("2026-08-23T00:00:00Z");
@@ -39,7 +43,7 @@ class ConfirmUploadUseCaseTest {
     private MediaRef pendingRef(UUID uploaderId) {
         return MediaRef.pending(
                 MediaType.MEMORY_IMAGE, "memory_image/key.jpg", "photo.jpg",
-                "image/jpeg", 1_000_000L, uploaderId, EXPIRY, NOW.plusSeconds(86400L * 365));
+                "image/jpeg", 1_000_000L, null, uploaderId, EXPIRY, NOW.plusSeconds(86400L * 365));
     }
 
     @Test
@@ -50,6 +54,8 @@ class ConfirmUploadUseCaseTest {
 
         given(repository.findById(refId)).willReturn(Optional.of(ref));
         given(clock.now()).willReturn(NOW);
+        given(storage.headObject(ref.getStorageKey())).willReturn(Optional.of(
+                new StoragePort.ObjectMetadata("image/jpeg", 1_000_000L)));
         given(storage.generateServingUrl(any())).willReturn(URI.create("http://localhost/serve"));
 
         URI url = useCase.confirmUpload(actorId, refId);
@@ -91,10 +97,47 @@ class ConfirmUploadUseCaseTest {
 
         given(repository.findById(refId)).willReturn(Optional.of(ref));
         given(clock.now()).willReturn(EXPIRY.plusSeconds(1));
+        given(storage.headObject(ref.getStorageKey())).willReturn(Optional.of(
+                new StoragePort.ObjectMetadata("image/jpeg", 1_000_000L)));
 
         assertThatThrownBy(() -> useCase.confirmUpload(actorId, refId))
-                .isInstanceOf(IllegalStateException.class);
+                .isInstanceOf(DomainException.class)
+                .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
+                        .isEqualTo(ErrorCode.INVALID_INPUT));
 
         assertThat(ref.getStatus()).isEqualTo(UploadStatus.EXPIRED);
+    }
+
+    @Test
+    void 실제_업로드_객체가_없으면_확정할_수_없다() {
+        UUID actorId = UUID.randomUUID();
+        UUID refId = UUID.randomUUID();
+        MediaRef ref = pendingRef(actorId);
+        given(repository.findById(refId)).willReturn(Optional.of(ref));
+        given(storage.headObject(ref.getStorageKey())).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> useCase.confirmUpload(actorId, refId))
+                .isInstanceOf(DomainException.class)
+                .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
+                        .isEqualTo(ErrorCode.INVALID_INPUT));
+        assertThat(ref.getStatus()).isEqualTo(UploadStatus.PENDING);
+    }
+
+    @Test
+    void 스토리지에서_검증한_음성이_1분을_넘으면_확정할_수_없다() {
+        UUID actorId = UUID.randomUUID();
+        UUID refId = UUID.randomUUID();
+        MediaRef ref = MediaRef.pending(MediaType.RESPONSE_VOICE, "response_voice/key.aac", "reply.aac",
+                "audio/aac", 1_000_000L, 61, actorId, EXPIRY, NOW.plusSeconds(86400L));
+        given(repository.findById(refId)).willReturn(Optional.of(ref));
+        given(storage.headObject(ref.getStorageKey())).willReturn(Optional.of(
+                new StoragePort.ObjectMetadata("audio/aac", 1_000_000L, 61)));
+        given(policy.voice()).willReturn(new UploadPolicyProperties.Voice(
+                12_582_912L, 60, List.of("audio/aac")));
+
+        assertThatThrownBy(() -> useCase.confirmUpload(actorId, refId))
+                .isInstanceOf(DomainException.class)
+                .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
+                        .isEqualTo(ErrorCode.INVALID_INPUT));
     }
 }

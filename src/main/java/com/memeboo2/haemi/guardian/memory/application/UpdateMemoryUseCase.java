@@ -5,6 +5,7 @@ import com.memeboo2.haemi.common.error.ErrorCode;
 import com.memeboo2.haemi.guardian.memory.domain.Memory;
 import com.memeboo2.haemi.guardian.memory.infrastructure.MemoryRepository;
 import com.memeboo2.haemi.platform.api.MediaUploadCommand;
+import com.memeboo2.haemi.platform.api.MediaPurpose;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,7 +33,7 @@ public class UpdateMemoryUseCase {
         }
 
         List<String> storageKeys = mediaRefIds.stream()
-                .map(refId -> mediaUploadCommand.confirmUpload(guardianId, refId).toString())
+                .map(refId -> mediaUploadCommand.confirmUpload(guardianId, refId, MediaPurpose.MEMORY_IMAGE).toString())
                 .toList();
 
         memory.update(title, memo, message, memoryYear, storageKeys);

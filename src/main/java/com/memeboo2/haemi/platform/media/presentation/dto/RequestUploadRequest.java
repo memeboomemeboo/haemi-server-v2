@@ -9,5 +9,6 @@ public record RequestUploadRequest(
         @NotNull MediaType mediaType,
         @NotBlank String originalFilename,
         @NotBlank String contentType,
-        @Positive long declaredSizeBytes
+        @Positive long declaredSizeBytes,
+        @Positive Integer declaredDurationSeconds
 ) {}
