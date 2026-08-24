@@ -4,7 +4,7 @@ import com.memeboo2.haemi.auth.api.AccountQuery;
 import com.memeboo2.haemi.common.error.DomainException;
 import com.memeboo2.haemi.common.error.ErrorCode;
 import com.memeboo2.haemi.guardian.api.GuardianRole;
-import com.memeboo2.haemi.guardian.eldermanagement.domain.GuardianElderLinkRepository;
+import com.memeboo2.haemi.guardian.eldermanagement.application.ChangeGuardianRoleUseCase;
 import com.memeboo2.haemi.platform.api.MediaUploadCommand;
 import com.memeboo2.haemi.platform.api.MediaPurpose;
 import lombok.RequiredArgsConstructor;
@@ -19,7 +19,7 @@ import java.util.UUID;
 public class UpdateGuardianProfileUseCase {
 
     private final AccountQuery accountQuery;
-    private final GuardianElderLinkRepository linkRepository;
+    private final ChangeGuardianRoleUseCase changeGuardianRoleUseCase;
     private final MediaUploadCommand mediaUploadCommand;
 
     /**
@@ -47,16 +47,11 @@ public class UpdateGuardianProfileUseCase {
             accountQuery.updateProfileImageUrl(guardianId, profileImageUrl);
         }
 
-        elderRoles.forEach((elderId, role) ->
-                linkRepository.findByGuardianIdAndElderId(guardianId, elderId)
-                        .ifPresentOrElse(link -> {
-                            if (role == null) {
-                                throw new DomainException(ErrorCode.INVALID_INPUT, "보호자 역할을 입력해주세요.");
-                            }
-                            link.changeRole(role);
-                        }, () -> {
-                            throw new DomainException(ErrorCode.CARE_ACCESS_DENIED);
-                        })
-        );
+        elderRoles.forEach((elderId, role) -> {
+            if (role == null) {
+                throw new DomainException(ErrorCode.INVALID_INPUT, "보호자 역할을 입력해주세요.");
+            }
+            changeGuardianRoleUseCase.execute(guardianId, elderId, role);
+        });
     }
 }
