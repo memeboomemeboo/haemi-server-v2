@@ -57,8 +57,8 @@ class GetElderReportListUseCaseTest {
         Elder watchElder = Elder.create(UUID.randomUUID(), UUID.randomUUID(), "관찰필요 어르신", null);
         given(elderRepository.findById(goodElderId)).willReturn(Optional.of(goodElder));
         given(elderRepository.findById(watchElderId)).willReturn(Optional.of(watchElder));
-        given(careAccessQuery.roleOf(guardianId, goodElderId)).willReturn(GuardianRole.딸);
-        given(careAccessQuery.roleOf(guardianId, watchElderId)).willReturn(GuardianRole.아들);
+        given(careAccessQuery.roleOf(guardianId, goodElderId)).willReturn(GuardianRole.DAUGHTER);
+        given(careAccessQuery.roleOf(guardianId, watchElderId)).willReturn(GuardianRole.SON);
 
         given(participationRepository.findByElderId(goodElderId)).willReturn(List.of(
                 ReportParticipation.of(goodElderId, today),
