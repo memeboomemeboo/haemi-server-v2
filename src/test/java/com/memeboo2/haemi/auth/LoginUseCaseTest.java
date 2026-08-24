@@ -6,10 +6,13 @@ import com.memeboo2.haemi.auth.account.infrastructure.AccountRepository;
 import com.memeboo2.haemi.auth.api.JwtTokenProvider;
 import com.memeboo2.haemi.auth.credential.PasswordService;
 import com.memeboo2.haemi.auth.session.application.JwtProperties;
+import com.memeboo2.haemi.auth.session.application.LoginProperties;
 import com.memeboo2.haemi.auth.session.application.LoginUseCase;
 import com.memeboo2.haemi.auth.session.infrastructure.RefreshTokenRepository;
 import com.memeboo2.haemi.common.error.DomainException;
 import com.memeboo2.haemi.common.error.ErrorCode;
+import com.memeboo2.haemi.common.time.HaemiClock;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -17,22 +20,35 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.lenient;
 
 @ExtendWith(MockitoExtension.class)
 class LoginUseCaseTest {
+
+    private static final Instant NOW = Instant.parse("2026-08-25T00:00:00Z");
 
     @Mock AccountRepository accountRepository;
     @Mock RefreshTokenRepository refreshTokenRepository;
     @Mock PasswordService passwordService;
     @Mock JwtTokenProvider jwtTokenProvider;
     @Mock JwtProperties jwtProperties;
+    @Mock LoginProperties loginProperties;
+    @Mock HaemiClock clock;
     @InjectMocks LoginUseCase useCase;
+
+    @BeforeEach
+    void setUp() {
+        given(clock.now()).willReturn(NOW);
+        lenient().when(loginProperties.maxFailedAttempts()).thenReturn(5);
+        lenient().when(loginProperties.lockDurationSeconds()).thenReturn(900L);
+    }
 
     @Test
     void 첫_로그인은_PIN만으로_할_수_없다() {
@@ -62,6 +78,26 @@ class LoginUseCaseTest {
 
         assertThat(account.isPinLoginEnabled()).isTrue();
         assertThat(pinLogin.accessToken()).isEqualTo("access");
+    }
+
+    @Test
+    void 로그인_실패가_상한에_도달하면_계정이_잠긴다() {
+        Account account = guardian();
+        given(accountRepository.findByLoginId("guardian01")).willReturn(Optional.of(account));
+        given(passwordService.matches("wrong", "password-hash")).willReturn(false);
+
+        for (int i = 0; i < 5; i++) {
+            assertThatThrownBy(() -> useCase.execute("guardian01", "wrong", null, "device-a"))
+                    .isInstanceOf(DomainException.class)
+                    .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
+                            .isEqualTo(ErrorCode.INVALID_CREDENTIALS));
+        }
+
+        assertThat(account.isLocked(NOW)).isTrue();
+        assertThatThrownBy(() -> useCase.execute("guardian01", "password1", null, "device-a"))
+                .isInstanceOf(DomainException.class)
+                .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
+                        .isEqualTo(ErrorCode.AUTH_ACCOUNT_LOCKED));
     }
 
     private static Account guardian() {
