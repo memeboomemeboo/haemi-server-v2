@@ -8,13 +8,19 @@ import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 import java.util.Optional;
 import java.util.UUID;
 
+import com.memeboo2.haemi.common.security.JwtPrincipal;
+import org.springframework.security.core.context.SecurityContextHolder;
+
 @Configuration
 @EnableJpaAuditing(auditorAwareRef = "auditorProvider")
 public class AuditingConfig {
 
     @Bean
     public AuditorAware<UUID> auditorProvider() {
-        // SecurityContext에서 현재 사용자 ID를 꺼냄 (auth 모듈 완성 후 연결)
-        return Optional::empty;
+        return () -> Optional.ofNullable(SecurityContextHolder.getContext().getAuthentication())
+                .map(authentication -> authentication.getPrincipal())
+                .filter(JwtPrincipal.class::isInstance)
+                .map(JwtPrincipal.class::cast)
+                .map(JwtPrincipal::userId);
     }
 }

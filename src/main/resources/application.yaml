@@ -21,11 +21,8 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
-  servlet:
-    multipart:
-      # 앨범 사진 계약(파일당 20MB, 최대 30장)을 보장한다. 음성 AI 한도는 아래 Gemini 설정에서 별도 강제한다.
-      max-file-size: ${haemi.upload.max-file-size}
-      max-request-size: ${haemi.upload.max-request-size}
+    baseline-on-migrate: ${FLYWAY_BASELINE_ON_MIGRATE:false}
+    baseline-version: ${FLYWAY_BASELINE_VERSION:1}
 
 management:
   endpoints:
@@ -51,72 +48,13 @@ springdoc:
   default-produces-media-type: application/json
 
 haemi:
-  upload:
-    # 전역 multipart는 사진 업로드 계약을 보장하고, 음성은 Gemini adapter에서 12MB로 더 엄격히 제한한다.
-    max-file-size: ${MULTIPART_MAX_FILE_SIZE:20MB}
-    max-request-size: ${MULTIPART_MAX_REQUEST_SIZE:650MB}
   openapi:
     server-url: ${OPENAPI_SERVER_URL:}
     local-server-url: ${OPENAPI_LOCAL_SERVER_URL:http://localhost:8080}
     include-local-server: ${OPENAPI_INCLUDE_LOCAL_SERVER:true}
-  storage:
-    upload-path: ${java.io.tmpdir}/haemi/photos
-  report:
-    pdf:
-      # 상대 경로로 두면 컨테이너 작업 디렉터리에 쌓였다가 재배포 때 사라진다 (#93)
-      output-dir: ${HAEMI_REPORT_PDF_OUTPUT_DIR:${java.io.tmpdir}/haemi/reports}
-  album:
-    max-group-members: 10
-    max-photos-per-upload: 30
-    max-photo-size-mb: 20
-    min-photos-for-ai: 20
-    sync-low-battery-threshold: 20
-  ai:
-    rotation-days: 7
-    gemini:
-      api-key: ${GEMINI_API_KEY:}
-      model: ${GEMINI_MODEL:gemini-3.6-flash}
-      # 타임아웃이 없으면 업스트림이 멈췄을 때 야간 배치가 무한 대기한다 (#98)
-      connect-timeout: ${GEMINI_CONNECT_TIMEOUT:5s}
-      read-timeout: ${GEMINI_READ_TIMEOUT:20s}
-      # 12MB raw audio는 base64 후 약 16MB다. Gemini inlineData 20MB 제한과 JSON·힙 여유를 남긴다.
-      inline-audio-max-bytes: ${GEMINI_INLINE_AUDIO_MAX_BYTES:12MB}
-      # 12MB 음성은 byte[]·base64·JSON 버퍼를 함께 사용하므로 작은 인스턴스의 힙을 보호한다.
-      max-concurrent-audio-requests: ${GEMINI_MAX_CONCURRENT_AUDIO_REQUESTS:2}
-  reminiscence:
-    cron: "0 0 8 * * *"
-    time-zone: Asia/Seoul
-  notification:
-    elder-daily-limit: 3
-    elder-quiet-hours-start: 21
-    elder-quiet-hours-end: 8
-    fcm:
-      # 서비스 계정 JSON 원문 또는 JSON 파일 경로. 비우면 발송 대신 로그만 남긴다.
-      credentials: ${FIREBASE_CREDENTIALS:}
-      project-id: ${FIREBASE_PROJECT_ID:}
-  predownload:
-    # 배치 순서: 08:00 콘텐츠 → 08:45 선다운로드 → 09:00 알림
-    cron: "0 45 8 * * *"
-    time-zone: Asia/Seoul
-  offline:
-    # 오프라인 결과 로컬 큐 보관 정책
-    retention-days: 7
-    cleanup-cron: "0 0 4 * * *"
-    time-zone: Asia/Seoul
-  elder:
-    bereavement:
-      # 사별 확정 후 무음기간 / 오등록 복구 허용 시간
-      silent-days: 7
-      recovery-window-hours: 48
-  eventlog:
-    # 06:00 일일 이벤트 집계
-    aggregate-cron: "0 0 6 * * *"
-    time-zone: Asia/Seoul
-  access-mode:
-    # 14일 주기 재평가 (제안만)
-    review-interval-days: 14
-    review-cron: "0 30 6 * * *"
-    time-zone: Asia/Seoul
+  family:
+    max-elders: ${HAEMI_FAMILY_MAX_ELDERS:4}
+    max-guardians: ${HAEMI_FAMILY_MAX_GUARDIANS:8}
   jwt:
     secret: ${JWT_SECRET:haemi-dev-jwt-secret-key-must-be-at-least-256-bits-long-for-hs256!!}
     access-token-validity: PT30M
@@ -124,9 +62,39 @@ haemi:
   mail:
     from: ${MAIL_FROM:no-reply@haemi.local}
     public-url: ${APP_PUBLIC_URL:http://localhost:8080}
-  security:
-    institution-admin:
-      # 기관 관리자로 가입할 수 있는 이메일 목록. 비우면 아무도 가입할 수 없다 (#96)
-      allowed-emails: ${INSTITUTION_ADMIN_EMAILS:}
-    # 개발 환경용 키. 운영 프로필은 ELDER_HEALTH_ENCRYPTION_KEY 없이는 기동하지 않는다.
-    elder-health-encryption-key: ${ELDER_HEALTH_ENCRYPTION_KEY:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=}
+  notification:
+    elder-daily-limit: 3
+    elder-quiet-hours-start: 21
+    elder-quiet-hours-end: 8
+    fcm:
+      credentials: ${FIREBASE_CREDENTIALS:}
+      project-id: ${FIREBASE_PROJECT_ID:}
+  ai:
+    gemini:
+      api-key: ${GEMINI_API_KEY:}
+      model: ${GEMINI_MODEL:gemini-2.0-flash}
+      connect-timeout: ${GEMINI_CONNECT_TIMEOUT:5s}
+      read-timeout: ${GEMINI_READ_TIMEOUT:20s}
+      inline-audio-max-bytes: ${GEMINI_INLINE_AUDIO_MAX_BYTES:12582912}
+      max-concurrent-audio-requests: ${GEMINI_MAX_CONCURRENT_AUDIO_REQUESTS:2}
+  media:
+    image:
+      max-size-bytes: ${HAEMI_MEDIA_IMAGE_MAX_SIZE_BYTES:10485760}
+      memory-max-count: ${HAEMI_MEDIA_IMAGE_MEMORY_MAX_COUNT:4}
+      allowed-content-types: ${HAEMI_MEDIA_IMAGE_ALLOWED_TYPES:image/jpeg,image/png,image/webp}
+    voice:
+      max-size-bytes: ${HAEMI_MEDIA_VOICE_MAX_SIZE_BYTES:12582912}
+      max-duration-seconds: ${HAEMI_MEDIA_VOICE_MAX_DURATION_SECONDS:60}
+      allowed-content-types: ${HAEMI_MEDIA_VOICE_ALLOWED_TYPES:audio/aac,audio/mp4,audio/webm,audio/ogg}
+    profile:
+      max-size-bytes: ${HAEMI_MEDIA_PROFILE_MAX_SIZE_BYTES:5242880}
+      allowed-content-types: ${HAEMI_MEDIA_PROFILE_ALLOWED_TYPES:image/jpeg,image/png,image/webp}
+    presigned-url:
+      expiry: ${HAEMI_MEDIA_PRESIGNED_URL_EXPIRY:PT15M}
+    retention:
+      memory-days: ${HAEMI_MEDIA_RETENTION_MEMORY_DAYS:365}
+      response-days: ${HAEMI_MEDIA_RETENTION_RESPONSE_DAYS:365}
+  dailycare:
+    retention-days: ${HAEMI_DAILYCARE_RETENTION_DAYS:30}
+    inbox-look-back-days: ${HAEMI_DAILYCARE_INBOX_LOOKBACK_DAYS:30}
+    max-voice-duration-seconds: ${HAEMI_DAILYCARE_MAX_VOICE_SECONDS:60}

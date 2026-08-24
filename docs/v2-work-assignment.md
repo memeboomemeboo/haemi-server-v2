@@ -1,7 +1,7 @@
 # 해미 v2 — 업무 분담 (개발자 2인 · 에이전트 실행용)
 
-> 확정일: 2026-08-22
-> 대상: 실력이 대등한 백엔드 개발자 2명. 각자 코딩 에이전트를 병렬로 운용.
+> 확정일: 2026-08-22 / 업데이트: 2026-08-23 (Phase 0 전담 변경)
+> 대상: 황정빈 단독 (Phase 0 포함 전체 담당)
 
 **이 문서는 사람과 에이전트가 함께 읽습니다.** 에이전트는 §1을 먼저 읽고, 자신에게 배정된 라인의 태스크 카드만 수행합니다.
 
@@ -9,10 +9,9 @@
 
 | 담당자 | 주 담당 | 추가 책임 |
 | --- | --- | --- |
-| **황정빈** | 추억·소통 라인 | 공통 토대 주도, **에이전트 하네스·백로그 정리/운영** |
-| **김연호** | 훈련·분석 라인 | **인증(`auth`) 선행 개발, 배포 구성·검증** |
+| **황정빈** | **전체** (추억·소통 + 훈련·분석 + Phase 0) | `auth`, 배포, 하네스·백로그 |
 
-> Phase 0의 공통 계약·인가·baseline은 두 사람이 함께 확인합니다. 다만 `auth`는 김연호가 구현을 먼저 진행하고 황정빈이 리뷰하며, 하네스는 황정빈이 관리하고 배포는 김연호가 담당합니다.
+> **2026-08-23 변경**: Phase 0(auth·배포·baseline 포함)을 황정빈이 전담한다. 김연호 라인(CIST·RPT·auth·배포)도 황정빈이 이어받는다.
 
 ---
 
@@ -112,11 +111,11 @@
 | 0-0 | 에이전트 하네스 + `BACKLOG.md` 정리 | **황정빈 담당 · 김연호 리뷰** | 실행 규칙·컨벤션·태스크 카드가 연결된 하네스 / 지속 갱신 가능한 백로그 |
 | 0-1 | Gradle 프로젝트, 패키지 트리, Spring Modulith, CI | **페어** | `ApplicationModules.verify()` 통과하는 빈 뼈대 |
 | 0-2 | `common` 전체 | **황정빈 주도 · 김연호 리뷰** | web·error·security·persistence·**time**·event·test |
-| 0-3 | `auth` 전체 | **김연호 담당 · 황정빈 리뷰** | account·credential·verification·session + `auth/api` |
-| 0-4 | `guardian/family` + `guardian/eldermanagement` + **`access`** | **페어 필수** | `CareAccessQuery` 구현 + ArchUnit AU-1 |
-| 0-5 | `V1__baseline.sql` | **페어** | 전 모듈 테이블 |
-| 0-6 | §3 계약 시그니처 합의 + 스텁 머지 | **페어** | 인터페이스만, 구현 없음 |
-| 0-7 | 배포 기반 구성·실행 검증 | **김연호 담당 · 황정빈 리뷰** | 현재 확정된 아키텍처 범위 안에서 배포 가능한 실행 경로와 배포 관련 설정/문서 |
+| 0-3 | `auth` 전체 | **황정빈** | account·credential·verification·session + `auth/api` |
+| 0-4 | `guardian/family` + `guardian/eldermanagement` + **`access`** | ✅ 완료 | `CareAccessQuery` 구현 + ArchUnit AU-1 |
+| 0-5 | `V1__baseline.sql` | **황정빈** | 전 모듈 테이블 |
+| 0-6 | §3 계약 시그니처 합의 + 스텁 머지 | ✅ 완료 | MemoryQuery·GreetingQuery·AttendanceQuery 스텁 머지 |
+| 0-7 | 배포 기반 구성·실행 검증 | **황정빈** | Docker + EC2 배포 경로 |
 
 **0-4를 페어로 하는 이유**: `CareAccessQuery`는 이후 모든 유스케이스의 첫 줄에서 호출됩니다. 한 사람만 이해하면 나머지 절반의 코드에서 호출이 빠지고, 그게 v1이 깨진 방식입니다.
 
