@@ -49,10 +49,6 @@ public class Family extends BaseEntity {
     }
 
     public long guardianCount() {
-        return members.size();
-    }
-
-    public long elderCount() {
-        return members.stream().filter(FamilyMember::isElder).count();
+        return members.stream().filter(m -> !m.isElder()).count();
     }
 }
