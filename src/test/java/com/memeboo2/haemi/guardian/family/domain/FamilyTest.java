@@ -10,7 +10,7 @@ class FamilyTest {
 
     @Test
     void guardianCount은_추가된_보호자_수를_반환한다() {
-        Family family = Family.create("테스트 가족");
+        Family family = Family.create("테스트 가족", "TESTCODE");
         family.addMember(UUID.randomUUID());
         family.addMember(UUID.randomUUID());
 
@@ -19,7 +19,7 @@ class FamilyTest {
 
     @Test
     void 멤버가_없으면_guardianCount는_0이다() {
-        Family family = Family.create("테스트 가족");
+        Family family = Family.create("테스트 가족", "TESTCODE");
 
         assertThat(family.guardianCount()).isEqualTo(0);
     }
