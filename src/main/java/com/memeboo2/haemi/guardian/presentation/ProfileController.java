@@ -4,7 +4,6 @@ import com.memeboo2.haemi.common.web.ApiResponse;
 import com.memeboo2.haemi.guardian.api.GuardianRole;
 import com.memeboo2.haemi.guardian.profile.application.GetGuardianProfileUseCase;
 import com.memeboo2.haemi.guardian.profile.application.GetGuardianProfileUseCase.ElderCard;
-import com.memeboo2.haemi.guardian.profile.application.GetGuardianProfileUseCase.FamilyInfo;
 import com.memeboo2.haemi.guardian.profile.application.GetGuardianProfileUseCase.GuardianProfile;
 import com.memeboo2.haemi.guardian.profile.application.UpdateGuardianProfileUseCase;
 import io.swagger.v3.oas.annotations.Operation;
@@ -20,7 +19,6 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Tag(name = "프로필 (보호자)", description = "보호자 프로필 조회 및 수정")
 @RestController
@@ -37,12 +35,6 @@ public class ProfileController {
         }
     }
 
-    public record FamilyResponse(UUID familyId, String name, String memo, String profileImageUrl) {
-        static FamilyResponse from(FamilyInfo f) {
-            return f == null ? null : new FamilyResponse(f.familyId(), f.name(), f.memo(), f.profileImageUrl());
-        }
-    }
-
     public record ProfileResponse(
             UUID userId,
             String name,
@@ -50,13 +42,11 @@ public class ProfileController {
             String phone,
             String birthDate,
             String profileImageUrl,
-            FamilyResponse family,
             List<ElderCardResponse> elders
     ) {
         static ProfileResponse from(GuardianProfile p) {
             return new ProfileResponse(
                     p.userId(), p.name(), p.loginId(), p.phone(), p.birthDate(), p.profileImageUrl(),
-                    FamilyResponse.from(p.family()),
                     p.elders().stream().map(ElderCardResponse::from).toList()
             );
         }
@@ -68,7 +58,7 @@ public class ProfileController {
             Map<UUID, GuardianRole> elderRoles
     ) {}
 
-    @Operation(summary = "보호자 프로필 조회")
+    @Operation(summary = "보호자 프로필 조회", description = "가족 정보는 GET /api/v1/guardian/families/my에서 조회한다 (중복 제거).")
     @GetMapping
     public ResponseEntity<ApiResponse<ProfileResponse>> getProfile(
             @RequestAttribute UUID guardianId) {
