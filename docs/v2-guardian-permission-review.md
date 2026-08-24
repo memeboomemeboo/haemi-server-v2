@@ -5,6 +5,8 @@
 > 근거 문서: [v2-authorization.md](./v2-authorization.md), [v2-funcctional-spec.md](./v2-funcctional-spec.md)
 > 범위: 보호자 간 권한, 가족 합류·조회, 관계 라벨, 보호자 홈 컨디션 카드
 
+> 브랜치명은 당시 검토 대상의 이력일 뿐 업무 담당을 뜻하지 않습니다. 담당 기준은 [v2-work-assignment.md](./v2-work-assignment.md)를 따릅니다.
+
 ## 1. 결론
 
 인가 단위는 가족이 아니라 보호자와 어르신 사이의 `GuardianElderLink`다. 가족에 보호자나 어르신이 추가되면 링크가 자동 생성되므로, 같은 가족 보호자는 각자 연결된 어르신의 추억과 답변을 함께 조회한다. 추억 수정·삭제와 관계 라벨 변경은 작성자 또는 링크 소유자 본인만 가능하고, 하루 한마디는 예외적으로 사적이다.

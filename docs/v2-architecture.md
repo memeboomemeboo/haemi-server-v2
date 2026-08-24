@@ -1,6 +1,6 @@
 # 해미 v2 — 아키텍처 설계
 
-> 기준: [기능명세서.md](./기능명세서.md) · [v2-module-architecture.md](./v2-module-architecture.md)
+> 기준: [v2-funcctional-spec.md](./v2-funcctional-spec.md) · [v2-module-architecture.md](./v2-module-architecture.md)
 > 확정일: 2026-08-22
 
 패키지 구조와 의존 규칙은 [모듈 구조 문서](./v2-module-architecture.md)에 있습니다. 이 문서는 **그 위에서 내린 기술 결정과 근거**를 다룹니다. 각 항목은 "무엇을 정했는가 / 왜 / 안 그러면 무엇이 깨지는가" 순입니다.
@@ -172,10 +172,10 @@ platform_notifications        guardian_report_participation
 | PK | `UUID v7` (`common/persistence/UuidGenerator`) | 시간순 정렬 가능해 인덱스 분산 완화 |
 | 동시성 | `@Version` 낙관적 락 | 어르신 세션·추억 답변에 경합 낮음 |
 | 삭제 | **소프트 삭제 기본** (`deleted_at`) | 추억·훈련 기록은 복구 요구 가능성 높음 |
-| 마이그레이션 | Flyway, `V1__baseline.sql`부터 새로 | v1의 34개를 승계하지 않음 |
+| 마이그레이션 | Flyway, `V100`부터 순차 적용 | v1의 34개를 승계하지 않음. 중복 생성 위험이 있는 `V1__baseline.sql`은 미사용 |
 | 감사 | `created_at` · `updated_at` · `created_by` (`common/persistence/BaseEntity`) | 보호자 여러 명이 같은 가족을 수정 |
 
-**인덱스는 규칙에서 역산합니다.** 콘텐츠 쿨다운이 "최근 7일 제외 + 가장 오래된 것 우선"이므로 `platform_content_exposures(elder_id, exposed_at DESC)`가 필요하고, 이건 나중이 아니라 `V1`에 넣습니다.
+**인덱스는 규칙에서 역산합니다.** 콘텐츠 쿨다운이 "최근 7일 제외 + 가장 오래된 것 우선"이므로 `platform_content_exposures(elder_id, exposed_at DESC)`가 필요하고, 이건 나중이 아니라 해당 모듈의 첫 마이그레이션에 넣습니다.
 
 ---
 
@@ -375,4 +375,4 @@ elder/training ──이벤트──▶ guardian_report_participation (원천, �
 | **어르신 홈 화면** 정의 | 7 |
 | **하루 한마디 수신 화면** (읽음 처리·보관) | 7 |
 
-상세는 [기능명세서 부록 B](./기능명세서.md#부록-b-명세-결손-목록) 참조.
+상세는 [기능명세서 부록 B](./v2-funcctional-spec.md#부록-b-명세-결손-목록) 참조.
