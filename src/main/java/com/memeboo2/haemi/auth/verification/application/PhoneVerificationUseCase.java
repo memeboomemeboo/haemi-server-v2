@@ -24,9 +24,15 @@ public class PhoneVerificationUseCase {
     private final VerificationCodeGenerator codeGenerator;
     private final SmsSender smsSender;
     private final HaemiClock clock;
+    private final PhoneVerificationProperties properties;
 
     @Transactional
     public UUID request(String phone) {
+        Instant windowStart = clock.now().minusSeconds(properties.resendWindowSeconds());
+        if (repository.countByPhoneAndCreatedAtAfter(phone, windowStart) >= properties.maxResendPerWindow()) {
+            throw new DomainException(ErrorCode.AUTH_VERIFICATION_RESEND_LIMITED);
+        }
+
         String code = codeGenerator.nextCode();
         Instant expiresAt = clock.now().plusSeconds(EXPIRY_SECONDS);
         PhoneVerification verification = repository.save(
@@ -38,7 +44,11 @@ public class PhoneVerificationUseCase {
     @Transactional
     public void confirm(UUID verificationId, String code) {
         PhoneVerification verification = find(verificationId);
+        if (verification.isLocked(properties.maxConfirmAttempts())) {
+            throw new DomainException(ErrorCode.AUTH_VERIFICATION_LOCKED);
+        }
         if (!passwordService.matches(code, verification.getCodeHash())) {
+            verification.recordFailedAttempt();
             throw new DomainException(ErrorCode.INVALID_INPUT, "인증번호가 올바르지 않습니다.");
         }
         verification.markVerified(clock.now());

@@ -19,6 +19,6 @@ class FlywayMigrationTest {
                 .load();
 
         assertThat(Path.of("src/main/resources/db/migration/V1__baseline.sql")).doesNotExist();
-        assertThat(flyway.info().all()).hasSize(12);
+        assertThat(flyway.info().all()).hasSize(14);
     }
 }

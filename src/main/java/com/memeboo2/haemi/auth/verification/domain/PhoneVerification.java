@@ -33,6 +33,9 @@ public class PhoneVerification extends BaseEntity {
     @Column(name = "consumed_at")
     private Instant consumedAt;
 
+    @Column(name = "fail_count", nullable = false)
+    private int failCount;
+
     public static PhoneVerification pending(String phone, String codeHash, Instant expiresAt) {
         PhoneVerification verification = new PhoneVerification();
         verification.phone = phone;
@@ -47,6 +50,14 @@ public class PhoneVerification extends BaseEntity {
             throw new DomainException(ErrorCode.PHONE_VERIFICATION_REQUIRED, "이미 사용된 휴대폰 인증입니다.");
         }
         verifiedAt = now;
+    }
+
+    public boolean isLocked(int maxAttempts) {
+        return failCount >= maxAttempts;
+    }
+
+    public void recordFailedAttempt() {
+        failCount++;
     }
 
     public void consumeFor(String requestedPhone, Instant now) {

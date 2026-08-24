@@ -6,6 +6,8 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.time.Instant;
+
 @Entity
 @Table(name = "accounts",
         uniqueConstraints = @UniqueConstraint(name = "uk_accounts_login_id", columnNames = "login_id"))
@@ -43,6 +45,15 @@ public class Account extends BaseEntity {
 
     @Column(name = "profile_image_url", length = 500)
     private String profileImageUrl;
+
+    @Column(name = "failed_login_attempts", nullable = false)
+    private int failedLoginAttempts;
+
+    @Column(name = "locked_until")
+    private Instant lockedUntil;
+
+    @Column(name = "last_login_at")
+    private Instant lastLoginAt;
 
     public static Account guardian(String name, String loginId, String passwordHash,
                                    String birthDate, String phone, String pinHash) {
@@ -85,6 +96,23 @@ public class Account extends BaseEntity {
 
     public void enablePinLogin() {
         this.pinLoginEnabled = true;
+    }
+
+    public boolean isLocked(Instant now) {
+        return lockedUntil != null && lockedUntil.isAfter(now);
+    }
+
+    public void recordLoginFailure(Instant now, int maxAttempts, long lockDurationSeconds) {
+        failedLoginAttempts++;
+        if (failedLoginAttempts >= maxAttempts) {
+            lockedUntil = now.plusSeconds(lockDurationSeconds);
+        }
+    }
+
+    public void recordLoginSuccess(Instant now) {
+        failedLoginAttempts = 0;
+        lockedUntil = null;
+        lastLoginAt = now;
     }
 
 }

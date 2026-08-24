@@ -1,6 +1,7 @@
 package com.memeboo2.haemi.auth;
 
 import com.memeboo2.haemi.auth.credential.PasswordService;
+import com.memeboo2.haemi.auth.verification.application.PhoneVerificationProperties;
 import com.memeboo2.haemi.auth.verification.application.PhoneVerificationUseCase;
 import com.memeboo2.haemi.auth.verification.application.SmsSender;
 import com.memeboo2.haemi.auth.verification.application.VerificationCodeGenerator;
@@ -23,6 +24,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -36,11 +38,15 @@ class PhoneVerificationUseCaseTest {
     @Mock VerificationCodeGenerator codeGenerator;
     @Mock SmsSender smsSender;
     @Mock HaemiClock clock;
+    @Mock PhoneVerificationProperties properties;
     @InjectMocks PhoneVerificationUseCase useCase;
 
     @BeforeEach
     void setUp() {
-        given(clock.now()).willReturn(NOW);
+        lenient().when(clock.now()).thenReturn(NOW);
+        lenient().when(properties.maxConfirmAttempts()).thenReturn(5);
+        lenient().when(properties.maxResendPerWindow()).thenReturn(5);
+        lenient().when(properties.resendWindowSeconds()).thenReturn(3600L);
     }
 
     @Test
@@ -69,6 +75,36 @@ class PhoneVerificationUseCaseTest {
                 .isInstanceOf(DomainException.class)
                 .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
                         .isEqualTo(ErrorCode.PHONE_VERIFICATION_REQUIRED));
+    }
+
+    @Test
+    void 인증번호_확인을_상한만큼_틀리면_잠긴다() {
+        UUID verificationId = UUID.randomUUID();
+        PhoneVerification verification = PhoneVerification.pending(PHONE, "hashed-code", NOW.plusSeconds(300));
+        given(repository.findById(verificationId)).willReturn(Optional.of(verification));
+        given(passwordService.matches("000000", "hashed-code")).willReturn(false);
+
+        for (int i = 0; i < 5; i++) {
+            assertThatThrownBy(() -> useCase.confirm(verificationId, "000000"))
+                    .isInstanceOf(DomainException.class)
+                    .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
+                            .isEqualTo(ErrorCode.INVALID_INPUT));
+        }
+
+        assertThatThrownBy(() -> useCase.confirm(verificationId, "123456"))
+                .isInstanceOf(DomainException.class)
+                .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
+                        .isEqualTo(ErrorCode.AUTH_VERIFICATION_LOCKED));
+    }
+
+    @Test
+    void 재발송_제한을_초과하면_거부된다() {
+        given(repository.countByPhoneAndCreatedAtAfter(PHONE, NOW.minusSeconds(3600))).willReturn(5L);
+
+        assertThatThrownBy(() -> useCase.request(PHONE))
+                .isInstanceOf(DomainException.class)
+                .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
+                        .isEqualTo(ErrorCode.AUTH_VERIFICATION_RESEND_LIMITED));
     }
 
     @Test

@@ -1,12 +1,13 @@
 package com.memeboo2.haemi.auth.api;
 
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
 public interface AccountQuery {
 
     record AccountInfo(UUID userId, String name, String loginId, String phone,
-                       String birthDate, String profileImageUrl) {}
+                       String birthDate, String profileImageUrl, Instant lastLoginAt) {}
 
     Optional<AccountInfo> findById(UUID userId);
 
