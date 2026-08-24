@@ -8,6 +8,7 @@ import com.memeboo2.haemi.guardian.profile.application.GetGuardianProfileUseCase
 import com.memeboo2.haemi.guardian.profile.application.GetGuardianProfileUseCase.GuardianProfile;
 import com.memeboo2.haemi.guardian.profile.application.UpdateGuardianProfileUseCase;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Size;
@@ -76,6 +77,12 @@ public class ProfileController {
     }
 
     @Operation(summary = "보호자 프로필 수정 (아이디·어르신별 역할)")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "수정 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "역할 값 누락 — INVALID_INPUT"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "본인 링크 아님 — NOT_RESOURCE_OWNER"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "이미 사용 중인 아이디 — LOGIN_ID_ALREADY_TAKEN")
+    })
     @PatchMapping
     public ResponseEntity<ApiResponse<Void>> updateProfile(
             @RequestAttribute UUID guardianId,
