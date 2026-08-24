@@ -2,9 +2,11 @@ package com.memeboo2.haemi.guardian.presentation;
 
 import com.memeboo2.haemi.common.web.ApiResponse;
 import com.memeboo2.haemi.guardian.family.application.CreateFamilyUseCase;
+import com.memeboo2.haemi.guardian.family.application.GetFamilyDetailUseCase;
 import com.memeboo2.haemi.guardian.family.application.JoinFamilyUseCase;
 import com.memeboo2.haemi.guardian.presentation.dto.CreateFamilyRequest;
 import com.memeboo2.haemi.guardian.presentation.dto.CreateFamilyResponse;
+import com.memeboo2.haemi.guardian.presentation.dto.FamilyDetailResponse;
 import com.memeboo2.haemi.guardian.presentation.dto.JoinFamilyRequest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -25,6 +27,7 @@ public class FamilyController {
 
     private final CreateFamilyUseCase createFamilyUseCase;
     private final JoinFamilyUseCase joinFamilyUseCase;
+    private final GetFamilyDetailUseCase getFamilyDetailUseCase;
 
     @Operation(summary = "가족 생성", description = "생성 시 초대 코드가 함께 발급된다 (D4).")
     @ApiResponses({
@@ -53,5 +56,23 @@ public class FamilyController {
             @Valid @RequestBody JoinFamilyRequest req) {
         joinFamilyUseCase.execute(guardianId, req.inviteCode());
         return ResponseEntity.noContent().build();
+    }
+
+    @Operation(summary = "내 가족 조회 (D10)",
+            description = "가족 요약·구성원·어르신 목록을 한 응답으로 내려준다. 화면 분할은 프론트가 담당한다. "
+                    + "소속 가족이 없으면 404가 아니라 data: null로 응답한다. "
+                    + "elderId를 지정하면 그 어르신 기준으로 다른 보호자의 관계 라벨(guardians[].role)을 계산하고, "
+                    + "생략하면 어르신이 정확히 1명일 때만 그 어르신을 기준으로 삼는다 (그 외에는 null).")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공 (미소속 시 data: null)")
+    })
+    @GetMapping("/my")
+    public ResponseEntity<ApiResponse<FamilyDetailResponse>> myFamily(
+            @RequestAttribute UUID guardianId,
+            @RequestParam(required = false) UUID elderId) {
+        FamilyDetailResponse response = getFamilyDetailUseCase.execute(guardianId, elderId)
+                .map(FamilyDetailResponse::from)
+                .orElse(null);
+        return ResponseEntity.ok(ApiResponse.ok(response));
     }
 }
