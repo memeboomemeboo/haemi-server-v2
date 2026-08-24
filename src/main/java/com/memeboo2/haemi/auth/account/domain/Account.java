@@ -52,6 +52,9 @@ public class Account extends BaseEntity {
     @Column(name = "locked_until")
     private Instant lockedUntil;
 
+    @Column(name = "last_login_at")
+    private Instant lastLoginAt;
+
     public static Account guardian(String name, String loginId, String passwordHash,
                                    String birthDate, String phone, String pinHash) {
         Account a = new Account();
@@ -106,9 +109,10 @@ public class Account extends BaseEntity {
         }
     }
 
-    public void recordLoginSuccess() {
+    public void recordLoginSuccess(Instant now) {
         failedLoginAttempts = 0;
         lockedUntil = null;
+        lastLoginAt = now;
     }
 
 }

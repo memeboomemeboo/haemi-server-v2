@@ -49,7 +49,7 @@ public class LoginUseCase {
             account.recordLoginFailure(now, loginProperties.maxFailedAttempts(), loginProperties.lockDurationSeconds());
             throw new DomainException(ErrorCode.INVALID_CREDENTIALS);
         }
-        account.recordLoginSuccess();
+        account.recordLoginSuccess(now);
         if (passwordMatches && !account.isPinLoginEnabled()) {
             account.enablePinLogin();
         }
