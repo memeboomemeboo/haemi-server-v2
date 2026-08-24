@@ -23,12 +23,13 @@ public class JoinFamilyUseCase {
     private final FamilyProperties props;
 
     /**
-     * 보호자가 기존 가족에 합류. 가족의 모든 어르신에 대해 링크 자동 생성 (R3).
+     * 보호자가 초대 코드로 기존 가족에 합류 (D4). 가족의 모든 어르신에 대해 링크 자동 생성 (R3).
+     * 어르신 계정은 SecurityConfig에서 /api/v1/guardian/** 자체를 호출할 수 없어 별도 검증이 불필요하다.
      */
     @Transactional
-    public void execute(UUID guardianId, UUID familyId) {
-        Family family = familyRepository.findByIdForUpdate(familyId)
-                .orElseThrow(() -> new DomainException(ErrorCode.RESOURCE_NOT_FOUND, "가족을 찾을 수 없습니다."));
+    public void execute(UUID guardianId, String inviteCode) {
+        Family family = familyRepository.findByInviteCodeForUpdate(inviteCode)
+                .orElseThrow(() -> new DomainException(ErrorCode.RESOURCE_NOT_FOUND, "유효하지 않은 초대 코드입니다."));
 
         // 이미 다른 가족에 속해 있는지 (R2: 보호자는 한 가족만)
         familyRepository.findByMembers_UserId(guardianId).ifPresent(f -> {
@@ -44,7 +45,7 @@ public class JoinFamilyUseCase {
         family.addMember(guardianId);
 
         // 가족의 모든 어르신에 대해 링크 자동 생성 (R3)
-        elderRepository.findAllByFamilyId(familyId).forEach(elder ->
+        elderRepository.findAllByFamilyId(family.getId()).forEach(elder ->
                 linkRepository.save(GuardianElderLink.create(guardianId, elder.getId()))
         );
     }
