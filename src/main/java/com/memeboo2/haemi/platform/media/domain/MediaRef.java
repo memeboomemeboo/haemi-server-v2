@@ -82,7 +82,10 @@ public class MediaRef extends BaseEntity {
     }
 
     public void confirm(Instant now) {
-        if (status != UploadStatus.PENDING) {
+        if (status == UploadStatus.CONFIRMED) {
+            return; // 멱등: 이미 확정된 경우 재호출 허용
+        }
+        if (status == UploadStatus.EXPIRED) {
             throw new DomainException(ErrorCode.INVALID_INPUT, "이미 처리된 업로드입니다.");
         }
         if (now.isAfter(presignedUrlExpiresAt)) {
