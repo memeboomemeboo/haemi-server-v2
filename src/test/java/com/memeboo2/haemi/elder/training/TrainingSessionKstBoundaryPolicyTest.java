@@ -14,6 +14,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -39,12 +40,13 @@ class TrainingSessionKstBoundaryPolicyTest {
     @Mock TrainingSessionRepository trainingSessionRepository;
     @Mock HaemiClock clock;
     @Mock CareAccessQuery careAccessQuery;
+    @Mock ApplicationEventPublisher eventPublisher;
 
     private TrainingSessionService service;
 
     @BeforeEach
     void setUp() {
-        service = new TrainingSessionService(trainingSessionRepository, clock, careAccessQuery);
+        service = new TrainingSessionService(trainingSessionRepository, clock, careAccessQuery, eventPublisher);
         given(careAccessQuery.elderIdForUser(ELDER_ID)).willReturn(ELDER_ID);
     }
 

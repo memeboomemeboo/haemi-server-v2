@@ -11,6 +11,8 @@ public record TrainingSessionView(
         UUID id,
         SessionStatus status,
         QuestionType currentStep,
+        Integer currentQuestionNumber,
+        int totalQuestionCount,
         Instant startedAt,
         Instant completedAt
 ) {
@@ -20,6 +22,8 @@ public record TrainingSessionView(
                 session.getId(),
                 session.getStatus(),
                 session.getCurrentStep(),
+                session.getCurrentQuestionNumber(),
+                TrainingSession.TOTAL_QUESTION_COUNT,
                 session.getStartedAt(),
                 session.getCompletedAt()
         );

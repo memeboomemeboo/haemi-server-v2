@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 
 import java.time.Instant;
@@ -42,12 +43,13 @@ class TrainingSessionEdgeCaseTest {
     @Mock TrainingSessionRepository repository;
     @Mock HaemiClock clock;
     @Mock CareAccessQuery careAccessQuery;
+    @Mock ApplicationEventPublisher eventPublisher;
 
     private TrainingSessionService service;
 
     @BeforeEach
     void setUp() {
-        service = new TrainingSessionService(repository, clock, careAccessQuery);
+        service = new TrainingSessionService(repository, clock, careAccessQuery, eventPublisher);
         lenient().when(clock.now()).thenReturn(NOW);
         lenient().when(clock.today()).thenReturn(TODAY);
         lenient().when(careAccessQuery.elderIdForUser(ELDER_ID)).thenReturn(ELDER_ID);
@@ -65,7 +67,7 @@ class TrainingSessionEdgeCaseTest {
         given(repository.findFirstByElderIdAndStatusOrderByStartedAtAsc(ELDER_ID, SessionStatus.IN_PROGRESS))
                 .willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.completeCurrentStep(ELDER_ID, QuestionType.DELAYED_RECALL))
+        assertThatThrownBy(() -> service.completeCurrentQuestion(ELDER_ID, QuestionType.DELAYED_RECALL))
                 .isInstanceOf(DomainException.class);
 
         verify(repository, never()).saveAndFlush(any(TrainingSession.class));
@@ -78,22 +80,23 @@ class TrainingSessionEdgeCaseTest {
                 .willReturn(Optional.of(session));
         clearInvocations(repository);
 
-        assertThatThrownBy(() -> service.completeCurrentStep(ELDER_ID, QuestionType.RECALL))
+        assertThatThrownBy(() -> service.completeCurrentQuestion(ELDER_ID, QuestionType.RECALL))
                 .isInstanceOf(DomainException.class);
 
         verify(repository, never()).saveAndFlush(any(TrainingSession.class));
     }
 
     @Test
-    void 마지막_지연회상_단계_전에는_세션이_완료되지_않는다() {
+    void 열번째_문항_전에는_세션이_완료되지_않는다() {
         TrainingSession session = startSession();
         given(repository.findFirstByElderIdAndStatusOrderByStartedAtAsc(ELDER_ID, SessionStatus.IN_PROGRESS))
                 .willReturn(Optional.of(session));
 
-        TrainingSessionView afterOrientation = service.completeCurrentStep(ELDER_ID, QuestionType.ORIENTATION);
+        TrainingSessionView afterOrientation = service.completeCurrentQuestion(ELDER_ID, QuestionType.ORIENTATION);
 
         assertThat(afterOrientation.status()).isEqualTo(SessionStatus.IN_PROGRESS);
-        assertThat(afterOrientation.currentStep()).isEqualTo(QuestionType.RECALL);
+        assertThat(afterOrientation.currentStep()).isEqualTo(QuestionType.ORIENTATION);
+        assertThat(afterOrientation.currentQuestionNumber()).isEqualTo(2);
         assertThat(afterOrientation.completedAt()).isNull();
     }
 
@@ -114,9 +117,15 @@ class TrainingSessionEdgeCaseTest {
     }
 
     private void completeAllSteps() {
-        service.completeCurrentStep(ELDER_ID, QuestionType.ORIENTATION);
-        service.completeCurrentStep(ELDER_ID, QuestionType.RECALL);
-        service.completeCurrentStep(ELDER_ID, QuestionType.LANGUAGE);
-        service.completeCurrentStep(ELDER_ID, QuestionType.DELAYED_RECALL);
+        complete(QuestionType.ORIENTATION, 3);
+        complete(QuestionType.RECALL, 3);
+        complete(QuestionType.LANGUAGE, 2);
+        complete(QuestionType.DELAYED_RECALL, 2);
+    }
+
+    private void complete(QuestionType questionType, int count) {
+        for (int i = 0; i < count; i++) {
+            service.completeCurrentQuestion(ELDER_ID, questionType);
+        }
     }
 }

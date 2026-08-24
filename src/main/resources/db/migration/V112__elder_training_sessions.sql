@@ -6,6 +6,7 @@ CREATE TABLE elder_training_sessions (
     session_date    DATE        NOT NULL,
     status          VARCHAR(20) NOT NULL,
     current_step    VARCHAR(20),
+    current_question_number INTEGER,
     started_at      TIMESTAMPTZ NOT NULL,
     completed_at    TIMESTAMPTZ,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),

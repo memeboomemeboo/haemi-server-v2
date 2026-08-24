@@ -2,6 +2,7 @@ package com.memeboo2.haemi.elder.training.application;
 
 import com.memeboo2.haemi.common.error.DomainException;
 import com.memeboo2.haemi.common.error.ErrorCode;
+import com.memeboo2.haemi.common.event.TrainingSessionCompleted;
 import com.memeboo2.haemi.common.security.ElderAccessChecked;
 import com.memeboo2.haemi.common.time.HaemiClock;
 import com.memeboo2.haemi.elder.training.domain.QuestionType;
@@ -10,6 +11,7 @@ import com.memeboo2.haemi.elder.training.domain.TrainingSession;
 import com.memeboo2.haemi.elder.training.infrastructure.TrainingSessionRepository;
 import com.memeboo2.haemi.guardian.api.CareAccessQuery;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,6 +31,7 @@ public class TrainingSessionService implements TrainingSessionUseCase {
     private final TrainingSessionRepository trainingSessionRepository;
     private final HaemiClock clock;
     private final CareAccessQuery careAccessQuery;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @ElderAccessChecked
@@ -44,14 +47,19 @@ public class TrainingSessionService implements TrainingSessionUseCase {
     @Override
     @ElderAccessChecked
     @Transactional
-    public TrainingSessionView completeCurrentStep(UUID elderUserId, QuestionType step) {
+    public TrainingSessionView completeCurrentQuestion(UUID elderUserId, QuestionType questionType) {
         UUID elderId = requireElderId(elderUserId);
         TrainingSession session = trainingSessionRepository
                 .findFirstByElderIdAndStatusOrderByStartedAtAsc(elderId, SessionStatus.IN_PROGRESS)
                 .orElseThrow(() -> new DomainException(ErrorCode.RESOURCE_NOT_FOUND, "진행 중인 인지 훈련 세션이 없습니다."));
 
-        session.completeCurrentStep(step, clock.now());
-        return TrainingSessionView.from(trainingSessionRepository.saveAndFlush(session));
+        session.completeCurrentQuestion(questionType, clock.now());
+        TrainingSession saved = trainingSessionRepository.saveAndFlush(session);
+        if (saved.getStatus() == SessionStatus.COMPLETED) {
+            eventPublisher.publishEvent(new TrainingSessionCompleted(
+                    saved.getId(), saved.getElderId(), saved.getSessionDate(), clock.today(), saved.getCompletedAt()));
+        }
+        return TrainingSessionView.from(saved);
     }
 
     private TrainingSessionView completedTodayOrStart(UUID elderId) {

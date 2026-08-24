@@ -36,6 +36,8 @@ import java.util.UUID;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class TrainingSession extends BaseEntity {
 
+    public static final int TOTAL_QUESTION_COUNT = 10;
+
     @Column(nullable = false)
     private UUID elderId;
 
@@ -55,6 +57,10 @@ public class TrainingSession extends BaseEntity {
     @Column(length = 20)
     private QuestionType currentStep;
 
+    /** 세션 전체 기준 1부터 시작하는 현재 문항 번호. 완료되면 null이다. */
+    @Column
+    private Integer currentQuestionNumber;
+
     @Column(nullable = false, updatable = false)
     private Instant startedAt;
 
@@ -69,12 +75,13 @@ public class TrainingSession extends BaseEntity {
         session.sessionDate = sessionDate;
         session.status = SessionStatus.IN_PROGRESS;
         session.currentStep = QuestionType.ORIENTATION;
+        session.currentQuestionNumber = 1;
         session.startedAt = startedAt;
         return session;
     }
 
-    /** 현재 단계만 완료할 수 있으며, 마지막 단계에서만 세션이 완료된다. */
-    public void completeCurrentStep(QuestionType step, Instant completedAt) {
+    /** 현재 문항만 완료할 수 있으며, 10번째 문항에서만 세션이 완료된다. */
+    public void completeCurrentQuestion(QuestionType step, Instant completedAt) {
         if (status == SessionStatus.COMPLETED) {
             throw new DomainException(ErrorCode.INVALID_INPUT, "이미 완료한 인지 훈련 세션입니다.");
         }
@@ -82,14 +89,21 @@ public class TrainingSession extends BaseEntity {
             throw new DomainException(ErrorCode.INVALID_INPUT, "현재 진행 중인 훈련 단계가 아닙니다.");
         }
 
+        if (currentQuestionNumber < lastQuestionNumberOf(step)) {
+            currentQuestionNumber++;
+            return;
+        }
+
         QuestionType nextStep = nextOf(step);
         if (nextStep != null) {
             currentStep = nextStep;
+            currentQuestionNumber++;
             return;
         }
 
         status = SessionStatus.COMPLETED;
         currentStep = null;
+        currentQuestionNumber = null;
         this.completedAt = completedAt;
         activeElderId = null;
     }
@@ -100,6 +114,15 @@ public class TrainingSession extends BaseEntity {
             case RECALL -> QuestionType.LANGUAGE;
             case LANGUAGE -> QuestionType.DELAYED_RECALL;
             case DELAYED_RECALL -> null;
+        };
+    }
+
+    private int lastQuestionNumberOf(QuestionType step) {
+        return switch (step) {
+            case ORIENTATION -> 3;
+            case RECALL -> 6;
+            case LANGUAGE -> 8;
+            case DELAYED_RECALL -> TOTAL_QUESTION_COUNT;
         };
     }
 }

@@ -12,5 +12,5 @@ public interface TrainingSessionUseCase {
     TrainingSessionView enter(UUID elderUserId);
 
     @ElderAccessChecked
-    TrainingSessionView completeCurrentStep(UUID elderUserId, QuestionType step);
+    TrainingSessionView completeCurrentQuestion(UUID elderUserId, QuestionType questionType);
 }
