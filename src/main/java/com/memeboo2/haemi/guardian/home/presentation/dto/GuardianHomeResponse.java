@@ -18,6 +18,7 @@ public record GuardianHomeResponse(
             String name,
             Integer age,
             GuardianRole role,
+            String roleLabel,
             long daysTogether,
             boolean attendedToday,
             boolean greetingSentToday,
@@ -26,8 +27,8 @@ public record GuardianHomeResponse(
     ) {
         static ElderCardResponse from(ElderCard card) {
             return new ElderCardResponse(
-                    card.elderId(), card.name(), card.age(), card.role(), card.daysTogether(),
-                    card.attendedToday(), card.greetingSentToday(), card.lastLoginAt());
+                    card.elderId(), card.name(), card.age(), card.role(), card.role().getLabel(),
+                    card.daysTogether(), card.attendedToday(), card.greetingSentToday(), card.lastLoginAt());
         }
     }
 

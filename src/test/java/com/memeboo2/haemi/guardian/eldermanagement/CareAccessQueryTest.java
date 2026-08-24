@@ -84,6 +84,6 @@ class CareAccessQueryTest {
 
         GuardianRole role = careAccessQuery.roleOf(guardianId, elderId);
 
-        assertThat(role).isEqualTo(GuardianRole.보호자);
+        assertThat(role).isEqualTo(GuardianRole.GUARDIAN);
     }
 }

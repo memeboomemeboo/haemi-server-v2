@@ -36,30 +36,31 @@ class JoinFamilyUseCaseTest {
     @InjectMocks JoinFamilyUseCase joinFamilyUseCase;
 
     UUID guardianId = UUID.randomUUID();
-    UUID familyId   = UUID.randomUUID();
+    String inviteCode = "ABCD2345";
 
     @Test
     void 정상_합류_시_어르신_링크_자동_생성() {
-        Family family = Family.create("테스트 가족");
+        Family family = Family.create("테스트 가족", inviteCode);
+        UUID familyId = family.getId();
         Elder elder1 = Elder.create(UUID.randomUUID(), familyId, "어르신1", null);
         Elder elder2 = Elder.create(UUID.randomUUID(), familyId, "어르신2", null);
 
-        given(familyRepository.findByIdForUpdate(familyId)).willReturn(Optional.of(family));
+        given(familyRepository.findByInviteCodeForUpdate(inviteCode)).willReturn(Optional.of(family));
         given(familyRepository.findByMembers_UserId(guardianId)).willReturn(Optional.empty());
         given(props.maxGuardians()).willReturn(8);
         given(elderRepository.findAllByFamilyId(familyId)).willReturn(List.of(elder1, elder2));
 
-        joinFamilyUseCase.execute(guardianId, familyId);
+        joinFamilyUseCase.execute(guardianId, inviteCode);
 
         // 어르신 수만큼 링크 생성
         verify(linkRepository, times(2)).save(any());
     }
 
     @Test
-    void 링크없는_보호자는_403() {
-        given(familyRepository.findByIdForUpdate(familyId)).willReturn(Optional.empty());
+    void 유효하지_않은_초대코드는_404() {
+        given(familyRepository.findByInviteCodeForUpdate(inviteCode)).willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> joinFamilyUseCase.execute(guardianId, familyId))
+        assertThatThrownBy(() -> joinFamilyUseCase.execute(guardianId, inviteCode))
                 .isInstanceOf(DomainException.class)
                 .satisfies(ex ->
                         org.assertj.core.api.Assertions.assertThat(((DomainException) ex).getErrorCode())
@@ -68,11 +69,12 @@ class JoinFamilyUseCaseTest {
 
     @Test
     void 이미_가족에_속한_보호자는_예외() {
-        Family otherFamily = Family.create("다른 가족");
-        given(familyRepository.findByIdForUpdate(familyId)).willReturn(Optional.of(Family.create("이 가족")));
+        Family otherFamily = Family.create("다른 가족", "OTHER1234");
+        given(familyRepository.findByInviteCodeForUpdate(inviteCode))
+                .willReturn(Optional.of(Family.create("이 가족", inviteCode)));
         given(familyRepository.findByMembers_UserId(guardianId)).willReturn(Optional.of(otherFamily));
 
-        assertThatThrownBy(() -> joinFamilyUseCase.execute(guardianId, familyId))
+        assertThatThrownBy(() -> joinFamilyUseCase.execute(guardianId, inviteCode))
                 .isInstanceOf(DomainException.class)
                 .satisfies(ex ->
                         org.assertj.core.api.Assertions.assertThat(((DomainException) ex).getErrorCode())

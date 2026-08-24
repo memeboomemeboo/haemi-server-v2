@@ -62,12 +62,12 @@ class ElderMemoryQueryImplTest {
         given(accountQuery.findById(creatorId))
                 .willReturn(Optional.of(new AccountQuery.AccountInfo(creatorId, "황정빈", "id", "010", null, null)));
         GuardianElderLink link = GuardianElderLink.create(creatorId, elderId);
-        link.changeRole(GuardianRole.기타);
+        link.changeRole(GuardianRole.OTHER);
         given(linkRepository.findByGuardianIdAndElderId(creatorId, elderId)).willReturn(Optional.of(link));
 
         var result = query.listForElder(elderId);
 
         assertThat(result).hasSize(1);
-        assertThat(result.get(0).creatorRole()).isEqualTo(GuardianRole.보호자);
+        assertThat(result.get(0).creatorRole()).isEqualTo(GuardianRole.GUARDIAN);
     }
 }

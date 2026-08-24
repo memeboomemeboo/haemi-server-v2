@@ -34,7 +34,7 @@ public class GuardianElderLink extends BaseEntity {
         GuardianElderLink link = new GuardianElderLink();
         link.guardianId = guardianId;
         link.elderId = elderId;
-        link.role = GuardianRole.보호자;
+        link.role = GuardianRole.GUARDIAN;
         link.linkedAt = Instant.now();
         return link;
     }

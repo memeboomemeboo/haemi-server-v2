@@ -1,5 +1,20 @@
 package com.memeboo2.haemi.guardian.api;
 
 public enum GuardianRole {
-    보호자, 딸, 아들, 손녀, 손자, 기타
+    GUARDIAN("보호자"),
+    DAUGHTER("딸"),
+    SON("아들"),
+    GRANDDAUGHTER("손녀"),
+    GRANDSON("손자"),
+    OTHER("기타");
+
+    private final String label;
+
+    GuardianRole(String label) {
+        this.label = label;
+    }
+
+    public String getLabel() {
+        return label;
+    }
 }

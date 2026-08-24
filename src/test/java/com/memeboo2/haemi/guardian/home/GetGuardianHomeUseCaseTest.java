@@ -51,7 +51,7 @@ class GetGuardianHomeUseCaseTest {
         given(clock.today()).willReturn(today);
         Elder elder = Elder.create(elderUserId, UUID.randomUUID(), "황정빈", LocalDate.of(1950, 1, 1));
         given(elderRepository.findById(elderId)).willReturn(Optional.of(elder));
-        given(careAccessQuery.roleOf(guardianId, elderId)).willReturn(GuardianRole.딸);
+        given(careAccessQuery.roleOf(guardianId, elderId)).willReturn(GuardianRole.DAUGHTER);
         given(dailyCareRepository.existsByGuardianIdAndElderIdAndCareDate(guardianId, elderId, today))
                 .willReturn(false);
         given(accountQuery.findById(elderUserId)).willReturn(Optional.of(
@@ -75,7 +75,7 @@ class GetGuardianHomeUseCaseTest {
         given(clock.today()).willReturn(today);
         Elder elder = Elder.create(elderUserId, UUID.randomUUID(), "황정빈", LocalDate.of(1950, 1, 1));
         given(elderRepository.findById(elderId)).willReturn(Optional.of(elder));
-        given(careAccessQuery.roleOf(guardianId, elderId)).willReturn(GuardianRole.딸);
+        given(careAccessQuery.roleOf(guardianId, elderId)).willReturn(GuardianRole.DAUGHTER);
         given(dailyCareRepository.existsByGuardianIdAndElderIdAndCareDate(guardianId, elderId, today))
                 .willReturn(false);
         given(accountQuery.findById(elderUserId)).willReturn(Optional.empty());

@@ -49,13 +49,13 @@ class MemoryCreatorResolverTest {
         given(accountQuery.findById(createdBy))
                 .willReturn(Optional.of(new AccountQuery.AccountInfo(createdBy, "황정빈", "id", "010", null, null)));
         GuardianElderLink link = GuardianElderLink.create(createdBy, elderId);
-        link.changeRole(GuardianRole.딸);
+        link.changeRole(GuardianRole.DAUGHTER);
         given(linkRepository.findByGuardianIdAndElderId(createdBy, elderId)).willReturn(Optional.of(link));
 
         MemoryWithCreator result = resolver.resolve(memory, createdBy);
 
         assertThat(result.creatorName()).isEqualTo("황정빈");
-        assertThat(result.creatorRole()).isEqualTo(GuardianRole.딸);
+        assertThat(result.creatorRole()).isEqualTo(GuardianRole.DAUGHTER);
         assertThat(result.isMine()).isTrue();
     }
 

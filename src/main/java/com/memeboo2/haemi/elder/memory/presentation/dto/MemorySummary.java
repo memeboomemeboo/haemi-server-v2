@@ -19,13 +19,16 @@ public record MemorySummary(
         @Schema(description = "추억 생성자 이름. 생성자 계정을 특정할 수 없으면(createdBy=null) null")
         String creatorName,
         @Schema(description = "추억 생성자의 어르신 기준 관계 라벨. 생성자가 해당 어르신과의 링크를 해제한 경우 null (A13)")
-        GuardianRole creatorRole
+        GuardianRole creatorRole,
+        String creatorRoleLabel
 ) {
     public static MemorySummary from(MemoryItem item) {
+        GuardianRole role = item.creatorRole();
         return new MemorySummary(
                 item.id(), item.title(), item.message(),
                 item.memoryYear(), item.imageKeys(),
-                item.responded(), item.createdAt(), item.creatorName(), item.creatorRole()
+                item.responded(), item.createdAt(), item.creatorName(), role,
+                role == null ? null : role.getLabel()
         );
     }
 }
