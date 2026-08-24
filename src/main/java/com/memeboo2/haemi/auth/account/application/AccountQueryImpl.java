@@ -24,7 +24,7 @@ public class AccountQueryImpl implements AccountQuery {
         return accountRepository.findById(userId)
                 .map(a -> new AccountInfo(
                         a.getId(), a.getName(), a.getLoginId(), a.getPhone(),
-                        a.getBirthDate(), a.getProfileImageUrl()));
+                        a.getBirthDate(), a.getProfileImageUrl(), a.getLastLoginAt()));
     }
 
     @Override
