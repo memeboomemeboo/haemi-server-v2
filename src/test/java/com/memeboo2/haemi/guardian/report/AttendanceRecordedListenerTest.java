@@ -1,0 +1,46 @@
+package com.memeboo2.haemi.guardian.report;
+
+import com.memeboo2.haemi.common.event.AttendanceRecorded;
+import com.memeboo2.haemi.guardian.report.infrastructure.ReportParticipationRepository;
+import com.memeboo2.haemi.guardian.report.listener.AttendanceRecordedListener;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.time.LocalDate;
+import java.util.UUID;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+
+@ExtendWith(MockitoExtension.class)
+class AttendanceRecordedListenerTest {
+
+    @Mock ReportParticipationRepository repository;
+    @InjectMocks AttendanceRecordedListener listener;
+
+    UUID elderId = UUID.randomUUID();
+    LocalDate date = LocalDate.of(2026, 8, 25);
+
+    @Test
+    void 정상_경로_스냅샷을_적재한다() {
+        given(repository.existsByElderIdAndParticipationDate(elderId, date)).willReturn(false);
+
+        listener.on(new AttendanceRecorded(elderId, date));
+
+        verify(repository).saveAndFlush(any());
+    }
+
+    @Test
+    void 이미_적재됐으면_중복_저장하지_않는다_멱등() {
+        given(repository.existsByElderIdAndParticipationDate(elderId, date)).willReturn(true);
+
+        listener.on(new AttendanceRecorded(elderId, date));
+
+        verify(repository, never()).saveAndFlush(any());
+    }
+}
