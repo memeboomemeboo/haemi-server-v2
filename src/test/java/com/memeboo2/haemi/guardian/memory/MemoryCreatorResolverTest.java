@@ -33,7 +33,7 @@ class MemoryCreatorResolverTest {
         Memory memory = createMemoryWithCreator(elderId, UUID.randomUUID());
         UUID createdBy = memory.getCreatedBy();
         given(accountQuery.findById(createdBy))
-                .willReturn(Optional.of(new AccountQuery.AccountInfo(createdBy, "황정빈", "id", "010", null, null)));
+                .willReturn(Optional.of(new AccountQuery.AccountInfo(createdBy, "황정빈", "id", "010", null, null, null)));
         given(linkRepository.findByGuardianIdAndElderId(createdBy, elderId)).willReturn(Optional.empty());
 
         MemoryWithCreator result = resolver.resolve(memory, UUID.randomUUID());
@@ -47,7 +47,7 @@ class MemoryCreatorResolverTest {
         Memory memory = createMemoryWithCreator(elderId, UUID.randomUUID());
         UUID createdBy = memory.getCreatedBy();
         given(accountQuery.findById(createdBy))
-                .willReturn(Optional.of(new AccountQuery.AccountInfo(createdBy, "황정빈", "id", "010", null, null)));
+                .willReturn(Optional.of(new AccountQuery.AccountInfo(createdBy, "황정빈", "id", "010", null, null, null)));
         GuardianElderLink link = GuardianElderLink.create(createdBy, elderId);
         link.changeRole(GuardianRole.DAUGHTER);
         given(linkRepository.findByGuardianIdAndElderId(createdBy, elderId)).willReturn(Optional.of(link));

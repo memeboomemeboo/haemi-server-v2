@@ -60,7 +60,7 @@ class ElderMemoryQueryImplTest {
         given(memoryRepository.findByElderIdSince(elderId, now.minusSeconds(365L * 24 * 3600)))
                 .willReturn(List.of(memory));
         given(accountQuery.findById(creatorId))
-                .willReturn(Optional.of(new AccountQuery.AccountInfo(creatorId, "황정빈", "id", "010", null, null)));
+                .willReturn(Optional.of(new AccountQuery.AccountInfo(creatorId, "황정빈", "id", "010", null, null, null)));
         GuardianElderLink link = GuardianElderLink.create(creatorId, elderId);
         link.changeRole(GuardianRole.OTHER);
         given(linkRepository.findByGuardianIdAndElderId(creatorId, elderId)).willReturn(Optional.of(link));
