@@ -111,11 +111,7 @@ public MemoryId register(UserId actor, RegisterMemoryCommand cmd) {
 
 어르신은 **자기 것만** 봅니다. 관계 조회가 필요 없으므로 `requireSelf(actor, elderId)`로 끝냅니다. 어르신 토큰으로 다른 어르신 리소스에 접근하는 경로는 아예 만들지 않습니다.
 
-### 미확정
-
-- 한 가족의 **보호자 최대 인원** — `GuardianElderLink` 카디널리티
-- 나중에 합류한 보호자가 **이전 추억·리포트를 볼 수 있는가**
-- 어르신이 **보호자의 하루 한마디를 거부**할 수 있는가
+세부 인가 정책은 [인가 규칙](./v2-authorization.md)이 유일한 근거입니다. 가족당 보호자는 8명, 나중에 합류한 보호자는 이전 추억·답변·리포트도 조회할 수 있으며, 어르신의 보호자 차단·해제는 MVP 제외입니다.
 
 ---
 
@@ -200,7 +196,7 @@ sequenceDiagram
 
 도메인은 `MediaRef`(키 + 타입 + 크기)만 보관합니다. 스토리지 종류는 `platform/media/infrastructure`가 감춥니다.
 
-**정책 미확정** — 이미지 용량·포맷 상한, 음성 코덱, 보관 기간(추억 "최대 1년" 경과 후 삭제인지 숨김인지)이 명세에 없습니다. 스토리지 비용에 직결되므로 `V1` 전에 정해야 합니다.
+**정책 미확정** — 이미지 용량·포맷 상한, 음성 코덱, 보관 기간(추억 "최대 1년" 경과 후 삭제인지 숨김인지)이 명세에 없습니다. 스토리지 비용에 직결되므로 `platform/media`의 첫 마이그레이션 전에 정해야 합니다.
 
 ---
 
@@ -346,7 +342,7 @@ elder/training ──TrainingSessionCompleted──▶ guardian_report_cognition
 | 프레임워크 | Spring Boot 4.0.x | v1 동일 |
 | 모듈 경계 | **Spring Modulith** | v2 신규 |
 | DB | PostgreSQL | v1 동일 |
-| 마이그레이션 | Flyway (`V1`부터 새로) | 승계 안 함 |
+| 마이그레이션 | Flyway (`V100`부터 새로) | 승계 안 함 |
 | 인증 | Spring Security + JWT | v1 자산 재사용 |
 | 푸시 | FCM | v1 자산 재사용 |
 | 스토리지 | 오브젝트 스토리지 + presigned URL | 신규 |
@@ -378,15 +374,15 @@ elder/training ──TrainingSessionCompleted──▶ guardian_report_cognition
 
 ---
 
-## 13. 착수 전 확정 필요
+## 13. 추가 기능 착수 전 확정 필요
 
-| 항목 | 막히는 단계 |
+| 항목 | 영향 범위 |
 | --- | --- |
-| **인가 규칙** (보호자 최대 인원, 합류 시점 기준 접근) | 3 |
-| 미디어 정책 (용량·포맷·보관 기간) | 4 |
-| PIN 재설정 플로우 | 2 |
-| 탈퇴·연결 해제 시 추억/훈련 기록 처리 | 5 |
-| **어르신 홈 화면** 정의 | 7 |
-| **하루 한마디 수신 화면** (읽음 처리·보관) | 7 |
+| 계정·가족 생애주기 (계정 삭제, 가족 해체, 전화번호 중복, 초대 코드 수명주기) | 삭제·합류 기능 |
+| 미디어 정책 (용량·포맷·보관 기간) | 미디어 업로드·보관 |
+| PIN 재설정 플로우 | `auth/credential` |
+| 탈퇴·연결 해제 시 추억/훈련 기록 처리 | `guardian/memory` · `elder/training` · `guardian/report` |
+| **어르신 홈 화면** 정의 | `elder/home` |
+| **하루 한마디 수신 화면** (읽음 처리·보관) | `elder/inbox` |
 
 상세는 [기능명세서 부록 B](./v2-funcctional-spec.md#부록-b-명세-결손-목록) 참조.

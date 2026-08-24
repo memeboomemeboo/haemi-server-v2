@@ -169,7 +169,7 @@ elder ──────────▶ guardian ──────▶ auth ─�
 | # | 규칙 |
 | --- | --- |
 | 1 | 그룹 간 호출은 **`api` 패키지를 통해서만**. `domain`·`infrastructure` 직접 import 금지 |
-| 2 | 역방향(`guardian` → `elder`)은 **도메인 이벤트로만**. `elder/training` 완료 → `guardian/report`가 유일한 역방향 경로 |
+| 2 | 역방향(`elder` → `guardian`)은 **도메인 이벤트로만**. `TrainingSessionCompleted`는 인지 결과를, `AttendanceRecorded`는 출석·참여 결과를 `guardian/report`에 전달 |
 | 3 | 엔티티를 그룹 밖으로 넘기지 않음. **ID와 DTO만** |
 | 4 | `common`에 **엔티티 금지** |
 | 5 | 트랜잭션 경계는 `application`. `domain`·`presentation`에 `@Transactional` 금지 |
@@ -274,7 +274,7 @@ DB도 같은 원칙 — **테이블 접두사를 그룹·모듈명으로** 통�
 
 | 미정 사항 | 영향받는 모듈 | 왜 먼저 정해야 하나 |
 | --- | --- | --- |
-| **인가 규칙** (보호자 최대 인원, 합류 시점 기준 접근) | `guardian/eldermanagement/access` | v2를 새로 짓는 근본 이유. 코드 첫 줄 전에 확정 |
+| 계정·가족 생애주기 (계정 삭제 데이터 처리, 가족 해체, 전화번호 중복, 초대 코드 수명주기) | `guardian/family` · `guardian/eldermanagement` | 삭제·합류 기능을 추가하기 전에 데이터·동시성 규칙을 정해야 함 |
 | **어르신 홈 화면** | `elder/home` | 어르신 앱의 진입점. 정의 없으면 만들 수 없음 |
 | **하루 한마디 수신 화면** | `elder/inbox` | 읽음 처리·보관 기간이 스키마에 직접 영향 |
 | 미디어 정책 (용량·포맷·보관) | `platform/media` | 스토리지 비용 직결 |

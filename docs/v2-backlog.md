@@ -154,8 +154,8 @@
 
 ### RPT 공통 완료 조건
 
-- [ ] `elder/training` 테이블 직접 조회 금지
-- [ ] `TrainingSessionCompleted` 이벤트 기반 스냅샷 적재
+- [ ] 원천 테이블 직접 조회 금지 — 인지는 `TrainingSessionCompleted`, 출석·참여는 `AttendanceRecorded` 스냅샷만 사용
+- [ ] `TrainingSessionCompleted`(인지)·`AttendanceRecorded`(출석·참여) 이벤트 기반 스냅샷 적재
 - [ ] 3색 상태는 조회 시 계산
 - [ ] `accessibleElders()` 범위 밖의 어르신 노출 금지
 - [ ] 어르신 간 비교·순위 기능 구현 금지
@@ -264,27 +264,27 @@
 `auth`는 황정빈 주도이며, 다른 작업의 병목을 해소하는 과정에서 김연호가 함께 해결했습니다.
 
 ### ID 미부여 기능
-- [ ] MYP 프로필 조회
-- [ ] MYP 프로필 수정
-- [ ] ALB 추억 앨범 등록
-- [ ] ALB 추억 앨범 조회
-- [ ] ALB 어르신 답변 조회
-- [ ] HOME 하루 한마디
-- [ ] HOME 도전과제
-- [ ] HOME 어르신 정보
-- [ ] E-ALB 받은 추억 조회
-- [ ] E-ALB 추억 답변
+- [x] MYP 프로필 조회
+- [x] MYP 프로필 수정
+- [x] ALB 추억 앨범 등록
+- [x] ALB 추억 앨범 조회
+- [x] ALB 어르신 답변 조회
+- [x] HOME 하루 한마디
+- [x] HOME 도전과제
+- [x] HOME 어르신 정보
+- [x] E-ALB 받은 추억 조회
+- [x] E-ALB 추억 답변
 
 ### 기반 책임
-- [ ] 하네스
-- [ ] `platform/media`
-- [ ] `MemoryQuery` 스텁/실구현
-- [ ] `common` 주도
+- [x] 하네스
+- [x] `platform/media`
+- [x] `MemoryQuery` 스텁/실구현
+- [x] `common` 주도
 - [x] `auth` 주도 (김연호 협업)
 - [x] 초기 스키마 마이그레이션 (`V100`~`V105`)
 - [x] 배포 기반 구성·검증
-- [ ] 추억·소통 라인
-- [ ] 백로그 지속 갱신
+- [x] 추억·소통 라인
+- [x] 백로그 운영 (상시 갱신)
 
 ---
 
