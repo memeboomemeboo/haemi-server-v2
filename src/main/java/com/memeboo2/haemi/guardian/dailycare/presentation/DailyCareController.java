@@ -7,6 +7,7 @@ import com.memeboo2.haemi.guardian.dailycare.presentation.dto.SendTextRequest;
 import com.memeboo2.haemi.guardian.dailycare.presentation.dto.SendVoiceRequest;
 import com.memeboo2.haemi.guardian.dailycare.presentation.dto.SentDailyCareItem;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -53,6 +54,10 @@ public class DailyCareController {
     }
 
     @Operation(summary = "내가 보낸 하루 한마디 이력", description = "R6: 발신자 본인 것만 반환한다.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "인가 실패 — CARE_ACCESS_DENIED")
+    })
     @GetMapping("/sent")
     public ResponseEntity<ApiResponse<List<SentDailyCareItem>>> sentHistory(
             @RequestAttribute UUID guardianId,

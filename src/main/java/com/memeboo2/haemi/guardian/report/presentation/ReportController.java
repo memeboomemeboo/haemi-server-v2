@@ -28,6 +28,9 @@ public class ReportController {
 
     @Operation(summary = "어르신 리포트 목록 (RPT-LST-001)",
             description = "관찰필요(🟠) → 보통(🟡) → 좋음(🟢) 순 정렬. 어르신 간 비교·순위는 제공하지 않는다.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공")
+    })
     @GetMapping("/api/v1/guardian/report/elders")
     public ResponseEntity<ApiResponse<List<ElderReportCardResponse>>> list(
             @RequestAttribute UUID guardianId) {
