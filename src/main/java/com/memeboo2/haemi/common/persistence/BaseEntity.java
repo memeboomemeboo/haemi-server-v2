@@ -36,6 +36,13 @@ public abstract class BaseEntity {
 
     @PrePersist
     protected void prePersist() {
+        assignIdIfAbsent();
+    }
+
+    /**
+     * 영속화 전에도 식별자가 필요한 도메인 객체가 사용할 수 있는 UUID 초기화 지점이다.
+     */
+    protected void assignIdIfAbsent() {
         if (id == null) {
             id = UuidGenerator.generate();
         }
