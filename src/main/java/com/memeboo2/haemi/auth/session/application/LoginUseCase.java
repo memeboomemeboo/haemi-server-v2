@@ -8,6 +8,7 @@ import com.memeboo2.haemi.auth.session.domain.RefreshToken;
 import com.memeboo2.haemi.auth.session.infrastructure.RefreshTokenRepository;
 import com.memeboo2.haemi.common.error.DomainException;
 import com.memeboo2.haemi.common.error.ErrorCode;
+import com.memeboo2.haemi.common.time.HaemiClock;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +24,8 @@ public class LoginUseCase {
     private final PasswordService passwordService;
     private final JwtTokenProvider jwtTokenProvider;
     private final JwtProperties jwtProperties;
+    private final LoginProperties loginProperties;
+    private final HaemiClock clock;
 
     public record TokenPair(String accessToken, String refreshToken) {}
 
@@ -31,6 +34,11 @@ public class LoginUseCase {
         Account account = accountRepository.findByLoginId(loginId)
                 .orElseThrow(() -> new DomainException(ErrorCode.INVALID_CREDENTIALS));
 
+        Instant now = clock.now();
+        if (account.isLocked(now)) {
+            throw new DomainException(ErrorCode.AUTH_ACCOUNT_LOCKED);
+        }
+
         boolean passwordMatches = password != null && !password.isBlank()
                 && passwordService.matches(password, account.getPasswordHash());
         boolean pinMatches = pin != null && !pin.isBlank()
@@ -38,8 +46,10 @@ public class LoginUseCase {
                 && account.getPinHash() != null
                 && passwordService.matches(pin, account.getPinHash());
         if (!passwordMatches && !pinMatches) {
+            account.recordLoginFailure(now, loginProperties.maxFailedAttempts(), loginProperties.lockDurationSeconds());
             throw new DomainException(ErrorCode.INVALID_CREDENTIALS);
         }
+        account.recordLoginSuccess();
         if (passwordMatches && !account.isPinLoginEnabled()) {
             account.enablePinLogin();
         }
@@ -47,7 +57,7 @@ public class LoginUseCase {
         String accessToken = jwtTokenProvider.createAccessToken(account.getId(), account.getRole());
         String refreshToken = jwtTokenProvider.createRefreshToken(account.getId());
 
-        Instant refreshExpiry = Instant.now().plus(jwtProperties.refreshTokenValidity());
+        Instant refreshExpiry = now.plus(jwtProperties.refreshTokenValidity());
         refreshTokenRepository.deleteByAccountIdAndDeviceId(account.getId(), deviceId);
         refreshTokenRepository.save(RefreshToken.of(account.getId(), deviceId, refreshToken, refreshExpiry));
 
