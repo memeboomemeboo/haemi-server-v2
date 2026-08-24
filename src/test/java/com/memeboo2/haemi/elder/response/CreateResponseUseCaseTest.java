@@ -54,7 +54,7 @@ class CreateResponseUseCaseTest {
         lenient().when(careAccessQuery.elderIdForUser(elderUserId)).thenReturn(elderId);
         lenient().when(elderMemoryQuery.findForElder(memoryId, elderId)).thenReturn(Optional.of(
                 new ElderMemoryQuery.MemoryItem(memoryId, "추억", null, "한마디", null,
-                        List.of(), false, Instant.now(), "보호자", GuardianRole.보호자)));
+                        List.of(), false, Instant.now(), "보호자", GuardianRole.GUARDIAN)));
     }
 
     @Test

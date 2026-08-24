@@ -34,9 +34,9 @@ class UpdateGuardianProfileUseCaseTest {
 
     @Test
     void 역할_변경은_ChangeGuardianRoleUseCase에_위임한다() {
-        useCase.execute(guardianId, null, null, Map.of(elderId, GuardianRole.딸));
+        useCase.execute(guardianId, null, null, Map.of(elderId, GuardianRole.DAUGHTER));
 
-        verify(changeGuardianRoleUseCase).execute(guardianId, elderId, GuardianRole.딸);
+        verify(changeGuardianRoleUseCase).execute(guardianId, elderId, GuardianRole.DAUGHTER);
     }
 
     @Test
@@ -53,9 +53,9 @@ class UpdateGuardianProfileUseCaseTest {
     @Test
     void 본인_링크가_아니면_NOT_RESOURCE_OWNER를_그대로_전파한다() {
         willThrow(new DomainException(ErrorCode.NOT_RESOURCE_OWNER))
-                .given(changeGuardianRoleUseCase).execute(guardianId, elderId, GuardianRole.딸);
+                .given(changeGuardianRoleUseCase).execute(guardianId, elderId, GuardianRole.DAUGHTER);
 
-        assertThatThrownBy(() -> useCase.execute(guardianId, null, null, Map.of(elderId, GuardianRole.딸)))
+        assertThatThrownBy(() -> useCase.execute(guardianId, null, null, Map.of(elderId, GuardianRole.DAUGHTER)))
                 .isInstanceOf(DomainException.class)
                 .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
                         .isEqualTo(ErrorCode.NOT_RESOURCE_OWNER));
