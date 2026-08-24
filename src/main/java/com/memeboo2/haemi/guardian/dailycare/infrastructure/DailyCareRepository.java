@@ -21,4 +21,7 @@ public interface DailyCareRepository extends JpaRepository<DailyCare, UUID> {
     List<DailyCare> findByElderIdSince(UUID elderId, LocalDate from, Instant now);
 
     Optional<DailyCare> findByGuardianIdAndElderIdAndCareDate(UUID guardianId, UUID elderId, LocalDate careDate);
+
+    /** 보낸 사람 본인의 전송 이력 (R6). 보관 만료 여부와 무관하게 전부 반환한다. */
+    List<DailyCare> findByGuardianIdAndElderIdOrderByCareDateDescCreatedAtDesc(UUID guardianId, UUID elderId);
 }
