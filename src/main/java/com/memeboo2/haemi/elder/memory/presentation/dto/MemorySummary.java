@@ -16,13 +16,16 @@ public record MemorySummary(
         boolean responded,
         Instant createdAt,
         String creatorName,
-        GuardianRole creatorRole
+        GuardianRole creatorRole,
+        String creatorRoleLabel
 ) {
     public static MemorySummary from(MemoryItem item) {
+        GuardianRole role = item.creatorRole();
         return new MemorySummary(
                 item.id(), item.title(), item.message(),
                 item.memoryYear(), item.imageKeys(),
-                item.responded(), item.createdAt(), item.creatorName(), item.creatorRole()
+                item.responded(), item.createdAt(), item.creatorName(), role,
+                role == null ? null : role.getLabel()
         );
     }
 }

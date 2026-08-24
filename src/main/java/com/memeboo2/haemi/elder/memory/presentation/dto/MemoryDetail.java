@@ -17,13 +17,16 @@ public record MemoryDetail(
         boolean responded,
         Instant createdAt,
         String creatorName,
-        GuardianRole creatorRole
+        GuardianRole creatorRole,
+        String creatorRoleLabel
 ) {
     public static MemoryDetail from(MemoryItem item) {
+        GuardianRole role = item.creatorRole();
         return new MemoryDetail(
                 item.id(), item.title(), item.memo(), item.message(),
                 item.memoryYear(), item.imageKeys(),
-                item.responded(), item.createdAt(), item.creatorName(), item.creatorRole()
+                item.responded(), item.createdAt(), item.creatorName(), role,
+                role == null ? null : role.getLabel()
         );
     }
 }
