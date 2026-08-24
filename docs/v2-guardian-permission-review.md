@@ -2,7 +2,7 @@
 
 > 검증일: 2026-08-24
 > 기준 브랜치: `feat/hjb-cist-rpt` (`ec62050`)
-> 근거 문서: [v2-authorization.md](./v2-authorization.md), [v2-funcctional-spec.md](./v2-funcctional-spec.md)
+> 근거 문서: [v2-authorization.md](./v2-authorization.md), [v2-functional-spec.md](./v2-functional-spec.md)
 > 범위: 보호자 간 권한, 가족 합류·조회, 관계 라벨, 보호자 홈 컨디션 카드
 
 > 브랜치명은 당시 검토 대상의 이력일 뿐 업무 담당을 뜻하지 않습니다. 담당 기준은 [v2-work-assignment.md](./v2-work-assignment.md)를 따릅니다.

@@ -1,6 +1,6 @@
 # 해미 v2 — 기능 백로그
 
-> 기준: [v2-funcctional-spec.md](./v2-funcctional-spec.md) · [v2-work-assignment.md](./v2-work-assignment.md)
+> 기준: [v2-functional-spec.md](./v2-functional-spec.md) · [v2-work-assignment.md](./v2-work-assignment.md)
 > 최초 작성: 2026-08-22
 > 목적: 기능 ID 기준 개발 진행도 및 담당자 추적
 > 운영 파일명: `BACKLOG.md`

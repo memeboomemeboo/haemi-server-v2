@@ -24,7 +24,7 @@
 
 | 문서 | 무엇의 근거인가 |
 | --- | --- |
-| [v2-funcctional-spec.md](./v2-funcctional-spec.md) | 기능 요구사항. 수치·문구는 여기가 유일한 출처 |
+| [v2-functional-spec.md](./v2-functional-spec.md) | 기능 요구사항. 수치·문구는 여기가 유일한 출처 |
 | [v2-module-architecture.md](./v2-module-architecture.md) | 패키지 위치, 의존 방향, 모듈 간 통로 |
 | [v2-architecture.md](./v2-architecture.md) | 기술 결정 (시간·영속성·이벤트·API 규약) |
 | [v2-authorization.md](./v2-authorization.md) | 인가 규칙. **여기 없는 인가 판단은 구현 금지** |
@@ -35,7 +35,7 @@
 
 1. 명세에 수치·문구가 없는데 필요한 경우 (예: 이미지 용량 상한)
 2. [v2-authorization.md §6](./v2-authorization.md)의 미확정 항목에 부딪힌 경우
-3. 기능명세서 [부록 B](./v2-funcctional-spec.md#부록-b-명세-결손-목록)의 결손 항목을 구현해야 하는 경우
+3. 기능명세서 [부록 B](./v2-functional-spec.md#부록-b-명세-결손-목록)의 결손 항목을 구현해야 하는 경우
 4. 상대 라인의 파일을 수정해야만 진행되는 경우
 5. 문서 간 내용이 서로 어긋나는 경우
 
@@ -258,7 +258,7 @@ public interface AttendanceQuery {
 | --- | --- |
 | **목표** | 콘텐츠 풀과 출제 이력 |
 | **산출** | `platform/content/**` (헥사고날) |
-| **참조** | [기능명세서 §4.4 정량](./v2-funcctional-spec.md#4-인지-훈련-cist-정량-명세) |
+| **참조** | [기능명세서 §4.4 정량](./v2-functional-spec.md#4-인지-훈련-cist-정량-명세) |
 | **핵심 수치** | 풀 500개 · 쿨다운 **7일** · 재투입 **14~30일** · 세션당 신규 3~5개 · 고갈 임계 **eligible < 20개** |
 | **완료 조건** | 전부 `@ConfigurationProperties` · 고갈 시 쿨다운 무시 재투입 동작 · `availability.until` 만료 자동 제외 · `platform_content_exposures(elder_id, exposed_at DESC)` 인덱스 |
 | **테스트 필수** | 고정 Clock으로 **30일 시나리오** — 7일 쿨다운이 실제로 걸리는가, 풀 고갈 시 재투입되는가 |
@@ -308,7 +308,7 @@ public interface AttendanceQuery {
 | **핵심 수치** | 영역별 정답률 **≥70% 🟢 / 40~70% 🟡 / <40% 또는 4주 연속 하락 🟠** · 출석 주 5일↑🟢 / 3~4일🟡 / 2일↓🟠 · 표시창 최근 7일 + 4주 |
 | **완료 조건** | **두 원천 테이블 직접 조회 금지** — 인지는 `TrainingSessionCompleted`, 출석·참여는 `AttendanceRecorded`로 받은 스냅샷만 사용 · 출석 스냅샷은 `(elder_id, participation_date)` 멱등 적재 · 3색·스트릭은 **조회 시 계산** (배치 금지) · `accessibleElders()`로 목록 구성 · 어르신 간 비교·순위 기능 **미구현** · 정렬 🟠→🟡→🟢 |
 | **문구 규칙** | 🟠도 "나쁨"이 아닌 관찰 신호 ("요즘 조금 어려워하세요") · 진단명·등수 미노출 |
-| **참고** | `RPT-SUM-002`·`RPT-COG-004`는 존재하지 않는 ID ([부록 B](./v2-funcctional-spec.md#부록-b-명세-결손-목록)). 각각 `RPT-LST-002`·`RPT-ATT-004`로 해석 |
+| **참고** | `RPT-SUM-002`·`RPT-COG-004`는 존재하지 않는 ID ([부록 B](./v2-functional-spec.md#부록-b-명세-결손-목록)). 각각 `RPT-LST-002`·`RPT-ATT-004`로 해석 |
 
 ---
 

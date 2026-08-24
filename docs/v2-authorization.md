@@ -1,6 +1,6 @@
 # 해미 v2 — 인가 규칙 (확정)
 
-> 기준: [v2-funcctional-spec.md](./v2-funcctional-spec.md) · [v2-module-architecture.md](./v2-module-architecture.md)
+> 기준: [v2-functional-spec.md](./v2-functional-spec.md) · [v2-module-architecture.md](./v2-module-architecture.md)
 > 확정일: 2026-08-24
 > 소유 모듈: `guardian/eldermanagement/access`
 > 구현 검증: [v2-guardian-permission-review.md](./v2-guardian-permission-review.md)

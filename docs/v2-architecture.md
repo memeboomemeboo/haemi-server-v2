@@ -1,6 +1,6 @@
 # 해미 v2 — 아키텍처 설계
 
-> 기준: [v2-funcctional-spec.md](./v2-funcctional-spec.md) · [v2-module-architecture.md](./v2-module-architecture.md)
+> 기준: [v2-functional-spec.md](./v2-functional-spec.md) · [v2-module-architecture.md](./v2-module-architecture.md)
 > 확정일: 2026-08-22
 
 패키지 구조와 의존 규칙은 [모듈 구조 문서](./v2-module-architecture.md)에 있습니다. 이 문서는 **그 위에서 내린 기술 결정과 근거**를 다룹니다. 각 항목은 "무엇을 정했는가 / 왜 / 안 그러면 무엇이 깨지는가" 순입니다.
@@ -385,4 +385,4 @@ elder/training ──TrainingSessionCompleted──▶ guardian_report_cognition
 | **어르신 홈 화면** 정의 | `elder/home` |
 | **하루 한마디 수신 화면** (읽음 처리·보관) | `elder/inbox` |
 
-상세는 [기능명세서 부록 B](./v2-funcctional-spec.md#부록-b-명세-결손-목록) 참조.
+상세는 [기능명세서 부록 B](./v2-functional-spec.md#부록-b-명세-결손-목록) 참조.
