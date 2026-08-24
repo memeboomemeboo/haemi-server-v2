@@ -244,8 +244,10 @@ sequenceDiagram
 ```mermaid
 flowchart LR
     T[elder/training] -->|TrainingSessionCompleted| OB[(event_publication)]
-    OB --> R[guardian/report]
-    OB --> AT[elder/attendance]
+    OB -->|출석 기록| AT[elder/attendance]
+    OB -->|인지 결과 스냅샷| R[guardian/report]
+    AT -->|AttendanceRecorded| OB
+    OB -->|출석·참여 스냅샷| R
     RS[elder/response] -->|ElderResponded| OB
     DC[guardian/dailycare] -->|GreetingSent| OB
     OB --> IB[elder/inbox]
@@ -255,6 +257,8 @@ flowchart LR
 **근거**: 리포트는 보호자가 어르신 상태를 판단하는 근거입니다. **이벤트가 유실되면 리포트가 조용히 틀립니다** — 에러도 안 나고 며칠 뒤에야 발견됩니다. 아웃박스로 최소 1회 전달을 보장하고, 소비자는 멱등하게 만듭니다(`UNIQUE(elder_id, session_date)`가 자연 멱등키).
 
 `spring-modulith-events-jpa`가 레지스트리를 기본 제공하므로 별도 구현이 필요 없습니다.
+
+**출석은 `elder/attendance`가 유일한 원천입니다.** `TrainingSessionCompleted`의 "그날 훈련을 완료했다"는 사실을 출석 모듈이 소비해 `DailyParticipation`을 멱등 기록하고 `AttendanceRecorded`를 발행합니다. `guardian/report`는 그 이벤트로 RPT-ATT-003의 참여일 읽기 모델을 만들고, 같은 훈련 완료 이벤트의 **영역별 결과**만 RPT-ATT-004용 인지 읽기 모델에 직접 적재합니다. 리포트가 훈련 완료를 출석으로 해석하지 않습니다.
 
 **트랜잭션 경계는 `application`**. `domain`과 `presentation`에는 `@Transactional`을 쓰지 않습니다.
 
@@ -287,12 +291,22 @@ stateDiagram-v2
 **근거**: 데이터가 작습니다(어르신 1명당 하루 1행 = 1년에 365행). 반면 판정 규칙(70%/40%, 4주 연속 하락, 주 5일)은 **바뀔 가능성이 큽니다.** 미리 구워두면 규칙이 바뀔 때마다 재계산 배치가 필요합니다.
 
 ```
-elder/training ──이벤트──▶ guardian_report_participation (원천, 불변)
-                                     │
-                              조회 시 판정
-                                     ▼
+elder/training ──TrainingSessionCompleted──▶ elder/attendance
+                                                    │
+                                            AttendanceRecorded
+                                                    ▼
+                              guardian_report_participation (출석 원천 스냅샷)
+
+elder/training ──TrainingSessionCompleted──▶ guardian_report_cognition (인지 원천 스냅샷)
+                                                    │
+                                             조회 시 판정·조합
+                                                    ▼
         RPT-ATT-003 출석 · 004 영역별 · 005 하이라이트 · 006 서포트
 ```
+
+- `guardian_report_participation`은 `(elder_id, participation_date)`를 유일 키로 하여 `AttendanceRecorded`를 멱등 적재합니다. 최근 7일의 ●/○와 최근 4주 막대는 이 날짜 행으로 만들고, 오늘 행이 없으면 ○입니다.
+- 스트릭과 최고 기록은 이벤트에 담긴 가변 숫자를 복사하지 않고, 출석 날짜 스냅샷과 `HaemiClock`으로 **조회 시** 계산합니다. 따라서 자정을 넘겨 미완료가 되면 별도 배치 없이 현재 스트릭이 0으로 보입니다.
+- `guardian/report`는 두 모듈의 테이블을 직접 조회하지 않습니다. `TrainingSessionCompleted`는 인지 결과에만, `AttendanceRecorded`는 출석·참여에만 사용합니다.
 
 `guardian/report`는 **`elder/training`의 테이블을 직접 조회하지 않습니다.**
 

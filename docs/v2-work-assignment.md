@@ -295,8 +295,8 @@ public interface AttendanceQuery {
 | **산출** | `elder/attendance/**`, `AttendanceQuery` 인터페이스 |
 | **참조** | 기능명세서 §4.5 |
 | **핵심 수치** | 스트릭 = 정수, **자정 미완료 시 리셋** · 뱃지 7·30·100일 |
-| **완료 조건** | `TrainingSessionCompleted` 멱등 소비 · **`AttendanceQuery` 머지** (황정빈의 5단계가 대기 중) |
-| **테스트 필수** | "7일 연속 후 하루 빠지면 리셋되는가" |
+| **완료 조건** | `TrainingSessionCompleted` 멱등 소비 → 일별 `DailyParticipation` 기록 → `AttendanceRecorded` 발행 · **`AttendanceQuery` 머지** (황정빈의 5단계가 대기 중) |
+| **테스트 필수** | 중복 훈련 이벤트가 출석을 중복 만들지 않는가 · "7일 연속 후 하루 빠지면 리셋되는가" |
 
 ### 김연호-5 · `guardian/report`
 
@@ -306,7 +306,7 @@ public interface AttendanceQuery {
 | **산출** | `guardian/report/**` (헥사고날 out 포트), `ReportController` |
 | **참조** | 기능명세서 §2.4, [인가 R7](./v2-authorization.md) |
 | **핵심 수치** | 영역별 정답률 **≥70% 🟢 / 40~70% 🟡 / <40% 또는 4주 연속 하락 🟠** · 출석 주 5일↑🟢 / 3~4일🟡 / 2일↓🟠 · 표시창 최근 7일 + 4주 |
-| **완료 조건** | **`elder/training` 테이블 직접 조회 금지** (이벤트로 받은 스냅샷만) · 3색 판정은 **조회 시 계산** (배치 금지) · `accessibleElders()`로 목록 구성 · 어르신 간 비교·순위 기능 **미구현** · 정렬 🟠→🟡→🟢 |
+| **완료 조건** | **두 원천 테이블 직접 조회 금지** — 인지는 `TrainingSessionCompleted`, 출석·참여는 `AttendanceRecorded`로 받은 스냅샷만 사용 · 출석 스냅샷은 `(elder_id, participation_date)` 멱등 적재 · 3색·스트릭은 **조회 시 계산** (배치 금지) · `accessibleElders()`로 목록 구성 · 어르신 간 비교·순위 기능 **미구현** · 정렬 🟠→🟡→🟢 |
 | **문구 규칙** | 🟠도 "나쁨"이 아닌 관찰 신호 ("요즘 조금 어려워하세요") · 진단명·등수 미노출 |
 | **참고** | `RPT-SUM-002`·`RPT-COG-004`는 존재하지 않는 ID ([부록 B](./v2-funcctional-spec.md#부록-b-명세-결손-목록)). 각각 `RPT-LST-002`·`RPT-ATT-004`로 해석 |
 
