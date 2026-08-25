@@ -16,9 +16,11 @@ public record AttendanceDetailResponse(
         int bestStreak,
         ReportStatus weeklyStatus
 ) {
-    public record DayMarkResponse(LocalDate date, DayOfWeek dayOfWeek, boolean participated) {
+    public record DayMarkResponse(LocalDate date, DayOfWeek dayOfWeek, boolean participated,
+                                  boolean training, boolean greetingRead, boolean memoryViewed, boolean replied) {
         static DayMarkResponse from(DayMark m) {
-            return new DayMarkResponse(m.date(), m.dayOfWeek(), m.participated());
+            return new DayMarkResponse(m.date(), m.dayOfWeek(), m.participated(),
+                    m.training(), m.greetingRead(), m.memoryViewed(), m.replied());
         }
     }
 

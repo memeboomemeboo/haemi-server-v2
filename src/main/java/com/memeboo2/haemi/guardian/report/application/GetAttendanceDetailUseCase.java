@@ -29,7 +29,17 @@ public class GetAttendanceDetailUseCase {
     private final ReportProperties props;
     private final HaemiClock clock;
 
-    public record DayMark(LocalDate date, DayOfWeek dayOfWeek, boolean participated) {}
+    public record DayMark(LocalDate date, DayOfWeek dayOfWeek, boolean participated,
+                          boolean training, boolean greetingRead, boolean memoryViewed, boolean replied) {
+        static DayMark absent(LocalDate date) {
+            return new DayMark(date, date.getDayOfWeek(), false, false, false, false, false);
+        }
+
+        static DayMark from(LocalDate date, ReportParticipation p) {
+            return new DayMark(date, date.getDayOfWeek(), true,
+                    p.isTrainingDone(), p.isGreetingReadDone(), p.isMemoryViewedDone(), p.isRepliedDone());
+        }
+    }
 
     public record WeekBar(LocalDate weekStart, LocalDate weekEnd, int participatedDays) {}
 
@@ -49,14 +59,17 @@ public class GetAttendanceDetailUseCase {
         int monthlyWeeks = props.monthlyWindowWeeks();
         LocalDate windowStart = today.minusDays((long) monthlyWeeks * 7 - 1);
 
-        Set<LocalDate> recentDates = participationRepository
-                .findByElderIdAndParticipationDateGreaterThanEqual(elderId, windowStart).stream()
+        List<ReportParticipation> recent = participationRepository
+                .findByElderIdAndParticipationDateGreaterThanEqual(elderId, windowStart);
+        Set<LocalDate> recentDates = recent.stream()
                 .map(ReportParticipation::getParticipationDate)
                 .collect(Collectors.toSet());
+        java.util.Map<LocalDate, ReportParticipation> byDate = recent.stream()
+                .collect(Collectors.toMap(ReportParticipation::getParticipationDate, p -> p, (a, b) -> a));
 
         List<DayMark> last7Days = IntStream.range(0, weeklyWindow)
                 .mapToObj(i -> today.minusDays(weeklyWindow - 1L - i))
-                .map(d -> new DayMark(d, d.getDayOfWeek(), recentDates.contains(d)))
+                .map(d -> byDate.containsKey(d) ? DayMark.from(d, byDate.get(d)) : DayMark.absent(d))
                 .toList();
 
         List<WeekBar> last4Weeks = IntStream.range(0, monthlyWeeks)
