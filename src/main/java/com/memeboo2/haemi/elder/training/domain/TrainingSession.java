@@ -36,8 +36,6 @@ import java.util.UUID;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class TrainingSession extends BaseEntity {
 
-    public static final int TOTAL_QUESTION_COUNT = 10;
-
     @Column(nullable = false)
     private UUID elderId;
 
@@ -80,22 +78,29 @@ public class TrainingSession extends BaseEntity {
         return session;
     }
 
-    /** 현재 문항만 완료할 수 있으며, 10번째 문항에서만 세션이 완료된다. */
-    public void completeCurrentQuestion(QuestionType step, Instant completedAt) {
+    /** 현재 세션의 현재 문항만 완료할 수 있으며, 마지막 문항에서만 세션이 완료된다. */
+    public void completeCurrentQuestion(
+            UUID sessionId,
+            QuestionType step,
+            int questionNumber,
+            QuestionType nextStep,
+            boolean lastQuestion,
+            Instant completedAt
+    ) {
         if (status == SessionStatus.COMPLETED) {
             throw new DomainException(ErrorCode.INVALID_INPUT, "이미 완료한 인지 훈련 세션입니다.");
+        }
+        if (!getId().equals(sessionId)) {
+            throw new DomainException(ErrorCode.INVALID_INPUT, "현재 진행 중인 인지 훈련 세션이 아닙니다.");
         }
         if (currentStep != step) {
             throw new DomainException(ErrorCode.INVALID_INPUT, "현재 진행 중인 훈련 단계가 아닙니다.");
         }
-
-        if (currentQuestionNumber < lastQuestionNumberOf(step)) {
-            currentQuestionNumber++;
-            return;
+        if (!Integer.valueOf(questionNumber).equals(currentQuestionNumber)) {
+            throw new DomainException(ErrorCode.INVALID_INPUT, "현재 문항 번호와 일치하지 않습니다.");
         }
 
-        QuestionType nextStep = nextOf(step);
-        if (nextStep != null) {
+        if (!lastQuestion) {
             currentStep = nextStep;
             currentQuestionNumber++;
             return;
@@ -106,23 +111,5 @@ public class TrainingSession extends BaseEntity {
         currentQuestionNumber = null;
         this.completedAt = completedAt;
         activeElderId = null;
-    }
-
-    private QuestionType nextOf(QuestionType step) {
-        return switch (step) {
-            case ORIENTATION -> QuestionType.RECALL;
-            case RECALL -> QuestionType.LANGUAGE;
-            case LANGUAGE -> QuestionType.DELAYED_RECALL;
-            case DELAYED_RECALL -> null;
-        };
-    }
-
-    private int lastQuestionNumberOf(QuestionType step) {
-        return switch (step) {
-            case ORIENTATION -> 3;
-            case RECALL -> 6;
-            case LANGUAGE -> 8;
-            case DELAYED_RECALL -> TOTAL_QUESTION_COUNT;
-        };
     }
 }

@@ -14,18 +14,33 @@ public record TrainingSessionView(
         Integer currentQuestionNumber,
         int totalQuestionCount,
         Instant startedAt,
-        Instant completedAt
+        Instant completedAt,
+        int inactivityReminderSeconds,
+        String feedback,
+        TrainingQuestionView currentQuestion,
+        TrainingResultView result
 ) {
 
-    public static TrainingSessionView from(TrainingSession session) {
+    public static TrainingSessionView from(
+            TrainingSession session,
+            int totalQuestionCount,
+            int inactivityReminderSeconds,
+            String feedback,
+            TrainingQuestionView currentQuestion,
+            TrainingResultView result
+    ) {
         return new TrainingSessionView(
                 session.getId(),
                 session.getStatus(),
                 session.getCurrentStep(),
                 session.getCurrentQuestionNumber(),
-                TrainingSession.TOTAL_QUESTION_COUNT,
+                totalQuestionCount,
                 session.getStartedAt(),
-                session.getCompletedAt()
+                session.getCompletedAt(),
+                inactivityReminderSeconds,
+                feedback,
+                currentQuestion,
+                result
         );
     }
 }

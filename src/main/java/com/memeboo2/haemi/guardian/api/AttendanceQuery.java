@@ -1,5 +1,6 @@
 package com.memeboo2.haemi.guardian.api;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -16,4 +17,10 @@ public interface AttendanceQuery {
 
     /** 첫 등록일부터 D+ 정수. */
     long daysTogether(UUID elderId);
+
+    /** 누적 훈련 완료일에 따라 해금된 배지. */
+    List<AttendanceBadge> unlockedBadges(UUID elderId);
+
+    /** 방금 완료한 세션까지 반영한 결과 화면용 배지. */
+    List<AttendanceBadge> unlockedBadgesAfterCompletion(UUID elderId, UUID trainingSessionId);
 }

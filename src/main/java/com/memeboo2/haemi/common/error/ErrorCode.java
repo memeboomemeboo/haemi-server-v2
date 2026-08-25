@@ -20,7 +20,10 @@ public enum ErrorCode {
     PHONE_VERIFICATION_REQUIRED(HttpStatus.BAD_REQUEST, "휴대폰 인증이 필요합니다."),
 
     // 하루 한마디
-    DAILY_CARE_ALREADY_SENT(HttpStatus.CONFLICT, "오늘은 이미 하루 한마디를 전했습니다.");
+    DAILY_CARE_ALREADY_SENT(HttpStatus.CONFLICT, "오늘은 이미 하루 한마디를 전했습니다."),
+
+    // 인지 훈련
+    TRAINING_MATERIAL_UNAVAILABLE(HttpStatus.CONFLICT, "인지 훈련에 필요한 사진 자료를 준비하고 있습니다.");
 
     private final HttpStatus status;
     private final String defaultMessage;

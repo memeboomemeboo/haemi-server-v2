@@ -121,9 +121,10 @@ public MemoryId register(UserId actor, RegisterMemoryCommand cmd) {
 
 ```java
 public interface HaemiClock {
+    ZoneId KST = ZoneId.of("Asia/Seoul");
     Instant now();
     LocalDate today();                      // Asia/Seoul 기준
-    LocalDate todayFor(ElderId elderId);    // 향후 타임존 확장 여지
+    static LocalDate dateInKst(Instant instant);
 }
 ```
 
@@ -152,10 +153,11 @@ auth_users                    guardian_families            elder_responses
 auth_credentials              guardian_elders              elder_inbox_greetings
 auth_verifications            guardian_elder_links         elder_training_sessions
 auth_sessions                 guardian_memories            elder_training_answers
-                              guardian_memory_images       elder_training_difficulty
-platform_media_refs           guardian_greetings           elder_attendance
+                              guardian_memory_images       elder_training_questions
+platform_media_refs           guardian_greetings           elder_training_difficulties
 platform_content_items        guardian_challenges
-platform_content_exposures    guardian_report_snapshots
+platform_content_exposures    elder_training_question_options
+                              elder_daily_participations
 platform_notifications        guardian_report_participation
 ```
 
@@ -166,12 +168,12 @@ platform_notifications        guardian_report_participation
 | 항목 | 결정 | 근거 |
 | --- | --- | --- |
 | PK | `UUID v7` (`common/persistence/UuidGenerator`) | 시간순 정렬 가능해 인덱스 분산 완화 |
-| 동시성 | `@Version` 낙관적 락 | 어르신 세션·추억 답변에 경합 낮음 |
+| 동시성 | 인지 훈련 응답은 `PESSIMISTIC_WRITE` | 같은 문항의 재전송이 다음 문항을 건너뛰지 않게 세션 행을 잠금 |
 | 삭제 | **소프트 삭제 기본** (`deleted_at`) | 추억·훈련 기록은 복구 요구 가능성 높음 |
 | 마이그레이션 | Flyway, `V100`부터 순차 적용 | v1의 34개를 승계하지 않음. 중복 생성 위험이 있는 `V1__baseline.sql`은 미사용 |
 | 감사 | `created_at` · `updated_at` · `created_by` (`common/persistence/BaseEntity`) | 보호자 여러 명이 같은 가족을 수정 |
 
-**인덱스는 규칙에서 역산합니다.** 콘텐츠 쿨다운이 "최근 7일 제외 + 가장 오래된 것 우선"이므로 `platform_content_exposures(elder_id, exposed_at DESC)`가 필요하고, 이건 나중이 아니라 해당 모듈의 첫 마이그레이션에 넣습니다.
+**인덱스는 규칙에서 역산합니다.** 콘텐츠 쿨다운이 "최근 7일 제외 + 가장 오래된 것 우선"이므로 `platform_content_exposures(elder_id, exposed_at)`가 필요하고, 이건 해당 모듈의 첫 마이그레이션에 넣습니다.
 
 ---
 
@@ -231,6 +233,16 @@ sequenceDiagram
 
 에러 코드는 `common/error/ErrorCode` enum으로 관리하고 HTTP 상태와 1:1 매핑합니다. 어르신 앱에 내려가는 메시지는 **명세의 정서 톤**을 따릅니다 — "실패했습니다" 대신 "다시 한 번 해볼까요?".
 
+### CIST 세션 API (구현 상태)
+
+| 요청 | 경로 | 핵심 계약 |
+| --- | --- | --- |
+| POST | `/api/v1/elder/training/session/enter` | 새 세션을 시작하거나 진행 중 세션을 같은 문항으로 이어 간다. 당일 완료 세션은 결과만 포함해 반환한다. |
+| POST | `/api/v1/elder/training/session/current-question/complete` | `sessionId`·`questionId`·`questionNumber`을 모두 현재 상태와 대조한 뒤 답변을 한 번만 반영한다. 선택형은 `selectedOption`, 참여형은 `textAnswer` 또는 `voiceMediaRefId`를 보낸다. |
+| GET | `/api/v1/elder/training/session/result` | 당일 완료한 세션의 참여 시간·지연 회상 성공 수·해금 배지를 반환한다. |
+
+`questionType`은 클라이언트 입력으로 받지 않는다. 문항 ID와 번호가 현재 세션 진행 상태에 함께 일치해야 하므로, 유실된 응답을 재전송해도 다른 문항을 완료할 수 없다. `inactivityReminderSeconds`는 앱이 90초 무입력 음성 안내를 예약할 수 있게 하는 설정값이며, 어르신 응답에는 정답·점수·정답률을 포함하지 않는다.
+
 ---
 
 ## 7. 이벤트와 트랜잭션 (`common/event`)
@@ -254,7 +266,7 @@ flowchart LR
 
 `spring-modulith-events-jpa`가 레지스트리를 기본 제공하므로 별도 구현이 필요 없습니다.
 
-**출석은 `elder/attendance`가 유일한 원천입니다.** `TrainingSessionCompleted`의 "그날 훈련을 완료했다"는 사실을 출석 모듈이 소비해 `DailyParticipation`을 멱등 기록하고 `AttendanceRecorded`를 발행합니다. `guardian/report`는 그 이벤트로 RPT-ATT-003의 참여일 읽기 모델을 만들고, 같은 훈련 완료 이벤트의 **영역별 결과**만 RPT-ATT-004용 인지 읽기 모델에 직접 적재합니다. 리포트가 훈련 완료를 출석으로 해석하지 않습니다.
+**출석은 `elder/attendance`가 유일한 원천입니다.** `TrainingSessionCompleted`의 완료 사실을 출석 모듈이 소비해 `DailyParticipation`을 세션 ID와 `(elder_id, participation_date)`로 멱등 기록하고 `AttendanceRecorded`를 발행합니다. `AttendanceQuery`는 오늘 완료 여부·현재 스트릭·D+·7/30/100일 배지를 이 원천에서 계산합니다. `guardian/report`의 이벤트 소비·스냅샷 적재는 아직 구현 전이므로, 리포트는 현재 훈련 완료를 출석으로 직접 해석하지 않습니다.
 
 **트랜잭션 경계는 `application`**. `domain`과 `presentation`에는 `@Transactional`을 쓰지 않습니다.
 

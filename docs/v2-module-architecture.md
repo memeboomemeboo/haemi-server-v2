@@ -113,12 +113,10 @@ com.haemi
 │   │   └── application
 │   ├── training                # 인지 훈련 (CIST-TRN-001~006)
 │   │   ├── domain
-│   │   │   ├── session         # TrainingSession, SessionState, Progress
-│   │   │   ├── question        # Orientation, Recall, Language 문항 생성
-│   │   │   ├── difficulty      # Lv.1~3, 영역별 독립, 상향 80% / 하향 40%
-│   │   │   └── delayedrecall   # 지연 회상, 질문 프레임 전환
+│   │   │   ├── TrainingSession, TrainingQuestion, TrainingAnswer
+│   │   │   └── TrainingDifficulty # Lv.1~3, 영역별 독립, 상향 80% / 하향 40%
 │   │   ├── application         # 세션 시작·이어하기·응답·완료·결과 조회
-│   │   ├── event               # TrainingSessionCompleted → elder.attendance (출석 원천), guardian.report (인지 결과)
+│   │   ├── event               # TrainingSessionCompleted → elder.attendance (구현), guardian.report (예정)
 │   │   └── infrastructure
 │   ├── attendance              # 출석·일일 활동
 │   │   ├── domain              # DailyParticipation, Streak, Badge
@@ -131,7 +129,7 @@ com.haemi
 │       ├── MemoryController            # 받은 추억 조회·상세
 │       ├── ResponseController          # 마음 전하기·댓글·음성
 │       ├── InboxController             # 하루 한마디 수신
-│       ├── TrainingController          # CIST 세션·응답·결과
+│       ├── TrainingSessionController   # CIST 세션·응답·결과
 │       └── dto                         # ※ 점수·정답률 필드 금지
 │
 └── platform
@@ -140,7 +138,7 @@ com.haemi
     │   ├── application         # presigned URL 발급, 키 확정
     │   └── infrastructure      # 스토리지 어댑터
     ├── content                 # 큐레이션 콘텐츠 풀 (CIST 재료)
-    │   ├── domain              # ContentItem, ContentTag, ExposureHistory
+    │   ├── domain              # ContentItem, ContentExposure
     │   ├── application         # 쿨다운 7일, 재투입 14~30일, 고갈 임계 20개
     │   └── infrastructure
     ├── notification            # FCM 발송, 발송 실패·재시도
@@ -189,8 +187,8 @@ elder ──────────▶ guardian ──────▶ auth ─�
 
 | 발행 | 이벤트 | 구독 |
 | --- | --- | --- |
-| `elder/training` | `TrainingSessionCompleted` | `elder/attendance` (출석 기록), `guardian/report` (인지 결과 스냅샷) |
-| `elder/attendance` | `AttendanceRecorded` | `guardian/report` (출석·참여 스냅샷) |
+| `elder/training` | `TrainingSessionCompleted` | `elder/attendance` (출석 기록, 구현), `guardian/report` (인지 결과 스냅샷, 예정) |
+| `elder/attendance` | `AttendanceRecorded` | `guardian/report` (출석·참여 스냅샷, 예정) |
 | `elder/response` | `ElderResponded` | `platform/notification` |
 | `guardian/dailycare` | `GreetingSent` | `elder/inbox`, `platform/notification` |
 | `guardian/memory` | `MemoryRegistered` | `platform/notification` |
@@ -241,7 +239,7 @@ elder ──────────▶ guardian ──────▶ auth ─�
 - **ACC-REG-002 어르신 회원가입** — `guardian/eldermanagement`가 `auth/api/AccountCommand`에 User 생성을 요청하고, 반환받은 ID로 `GuardianElderLink`를 맺습니다. 가입 플로우 문서의 *"보호자 계정 아래에 종속시키지 않는다"* 를 지키는 순서입니다. 반대로 하면 종속 구조가 됩니다.
 - **CIST-TRN-003/004** — 소스 우선순위(추억앨범 → 큐레이션)의 판단 주체는 `elder/training`입니다. `guardian/api/MemoryQuery`와 `platform/content`를 순서대로 조회합니다.
 - **RPT-ATT-003** — `guardian/report`는 `elder/attendance`가 발행한 `AttendanceRecorded`만 받아 참여일 읽기 모델을 쌓습니다. 따라서 최근 7일의 ●/○, 최근 4주 막대, 스트릭·최고 기록은 출석 데이터에서만 만듭니다.
-- **RPT-ATT-004** — `guardian/report`는 `elder/training`의 테이블을 직접 조회하지 않습니다. `TrainingSessionCompleted`로 받은 영역별 결과만 인지 읽기 모델에 쌓습니다.
+- **RPT-ATT-004** — `guardian/report`는 `elder/training`의 테이블을 직접 조회하지 않습니다. 현재 `TrainingSessionCompleted`는 완료 시각·참여 시간·지연 회상 성공 수를 담고, 영역별 리포트가 시작될 때는 이벤트 저장 크기를 넘지 않는 전용 스냅샷 계약을 추가합니다.
 
 ---
 

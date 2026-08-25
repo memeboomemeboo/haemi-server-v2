@@ -180,7 +180,7 @@ public interface AttendanceQuery {
 | `elder/presentation/MemoryController` | **황정빈** |
 | `elder/presentation/ResponseController` | **황정빈** |
 | `elder/presentation/InboxController` | **황정빈** |
-| `elder/presentation/TrainingController` | **김연호** |
+| `elder/training/presentation/TrainingSessionController` | **김연호** |
 
 ---
 
@@ -260,7 +260,7 @@ public interface AttendanceQuery {
 | **산출** | `platform/content/**` (헥사고날) |
 | **참조** | [기능명세서 §4.4 정량](./v2-functional-spec.md#4-인지-훈련-cist-정량-명세) |
 | **핵심 수치** | 풀 500개 · 쿨다운 **7일** · 재투입 **14~30일** · 세션당 신규 3~5개 · 고갈 임계 **eligible < 20개** |
-| **완료 조건** | 전부 `@ConfigurationProperties` · 고갈 시 쿨다운 무시 재투입 동작 · `availability.until` 만료 자동 제외 · `platform_content_exposures(elder_id, exposed_at DESC)` 인덱스 |
+| **완료 조건** | 전부 `@ConfigurationProperties` · 고갈 시 쿨다운 무시 재투입 동작 · `availability.until` 만료 자동 제외 · `platform_content_exposures(elder_id, exposed_at)` 인덱스 |
 | **테스트 필수** | 고정 Clock으로 **30일 시나리오** — 7일 쿨다운이 실제로 걸리는가, 풀 고갈 시 재투입되는가 |
 
 ### 김연호-2 · `elder/training` 세션 상태 머신
@@ -268,7 +268,7 @@ public interface AttendanceQuery {
 | | |
 | --- | --- |
 | **목표** | CIST-TRN-001, 006 — 세션 진입·이어하기·완료·결과 |
-| **산출** | `elder/training/domain/session/**`, `TrainingController` |
+| **산출** | `elder/training/domain/TrainingSession`·`TrainingQuestion`·`TrainingAnswer`, `elder/training/presentation/TrainingSessionController` |
 | **참조** | 기능명세서 §3.1, §4.1, [v2-architecture §8](./v2-architecture.md) |
 | **핵심 규칙** | 하루 1회 (00:00 KST 리셋) · 미완료는 이어하기 · **완료 시 잠금, 당일 재진입은 결과 조회만** |
 | **완료 조건** | `UNIQUE(elder_id, session_date)` 제약 · `session_date`는 `DATE` 컬럼 (시각에서 계산 금지) · 이탈은 정상 경로로 처리 · `TrainingSessionCompleted` 이벤트 발행 |

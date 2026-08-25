@@ -1,131 +1,77 @@
 package com.memeboo2.haemi.elder.training;
 
 import com.memeboo2.haemi.common.error.DomainException;
-import com.memeboo2.haemi.common.time.HaemiClock;
-import com.memeboo2.haemi.elder.training.application.TrainingSessionService;
-import com.memeboo2.haemi.elder.training.application.TrainingSessionView;
+import com.memeboo2.haemi.elder.training.domain.AnswerMode;
+import com.memeboo2.haemi.elder.training.domain.QuestionKind;
 import com.memeboo2.haemi.elder.training.domain.QuestionType;
 import com.memeboo2.haemi.elder.training.domain.SessionStatus;
+import com.memeboo2.haemi.elder.training.domain.TrainingQuestion;
 import com.memeboo2.haemi.elder.training.domain.TrainingSession;
-import com.memeboo2.haemi.elder.training.infrastructure.TrainingSessionRepository;
-import com.memeboo2.haemi.guardian.api.CareAccessQuery;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.dao.DataIntegrityViolationException;
 
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.Optional;
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.clearInvocations;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.lenient;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.BDDMockito.given;
 
-/** CIST-TRN-001의 완료·순서·동시성 경계 조건을 고정한다. */
-@ExtendWith(MockitoExtension.class)
+/** CIST 세션의 완료 경계와 참여형 언어 응답의 도메인 규칙을 검증한다. */
 class TrainingSessionEdgeCaseTest {
 
-    private static final UUID ELDER_ID = UUID.randomUUID();
-    private static final Instant NOW = Instant.parse("2026-08-24T01:00:00Z");
-    private static final LocalDate TODAY = LocalDate.of(2026, 8, 24);
-
-    @Mock TrainingSessionRepository repository;
-    @Mock HaemiClock clock;
-    @Mock CareAccessQuery careAccessQuery;
-    @Mock ApplicationEventPublisher eventPublisher;
-
-    private TrainingSessionService service;
-
-    @BeforeEach
-    void setUp() {
-        service = new TrainingSessionService(repository, clock, careAccessQuery, eventPublisher);
-        lenient().when(clock.now()).thenReturn(NOW);
-        lenient().when(clock.today()).thenReturn(TODAY);
-        lenient().when(careAccessQuery.elderIdForUser(ELDER_ID)).thenReturn(ELDER_ID);
-        lenient().when(repository.saveAndFlush(any(TrainingSession.class)))
-                .thenAnswer(invocation -> invocation.getArgument(0));
-    }
-
     @Test
-    void 완료한_세션에는_단계를_다시_제출할_수_없고_재저장하지_않는다() {
-        TrainingSession session = startSession();
-        given(repository.findFirstByElderIdAndStatusOrderByStartedAtAsc(ELDER_ID, SessionStatus.IN_PROGRESS))
-                .willReturn(Optional.of(session));
-        completeAllSteps();
-        clearInvocations(repository);
-        given(repository.findFirstByElderIdAndStatusOrderByStartedAtAsc(ELDER_ID, SessionStatus.IN_PROGRESS))
-                .willReturn(Optional.empty());
+    void 마지막인_10번_문항에서만_세션을_완료하고_이전_문항의_재전송은_막는다() {
+        TrainingSession session = TrainingSession.start(
+                UUID.randomUUID(), Instant.parse("2026-08-25T00:00:00Z"), LocalDate.of(2026, 8, 25));
 
-        assertThatThrownBy(() -> service.completeCurrentQuestion(ELDER_ID, QuestionType.DELAYED_RECALL))
-                .isInstanceOf(DomainException.class);
-
-        verify(repository, never()).saveAndFlush(any(TrainingSession.class));
-    }
-
-    @Test
-    void 현재_단계를_건너뛰어_제출할_수_없다() {
-        TrainingSession session = startSession();
-        given(repository.findFirstByElderIdAndStatusOrderByStartedAtAsc(ELDER_ID, SessionStatus.IN_PROGRESS))
-                .willReturn(Optional.of(session));
-        clearInvocations(repository);
-
-        assertThatThrownBy(() -> service.completeCurrentQuestion(ELDER_ID, QuestionType.RECALL))
-                .isInstanceOf(DomainException.class);
-
-        verify(repository, never()).saveAndFlush(any(TrainingSession.class));
-    }
-
-    @Test
-    void 열번째_문항_전에는_세션이_완료되지_않는다() {
-        TrainingSession session = startSession();
-        given(repository.findFirstByElderIdAndStatusOrderByStartedAtAsc(ELDER_ID, SessionStatus.IN_PROGRESS))
-                .willReturn(Optional.of(session));
-
-        TrainingSessionView afterOrientation = service.completeCurrentQuestion(ELDER_ID, QuestionType.ORIENTATION);
-
-        assertThat(afterOrientation.status()).isEqualTo(SessionStatus.IN_PROGRESS);
-        assertThat(afterOrientation.currentStep()).isEqualTo(QuestionType.ORIENTATION);
-        assertThat(afterOrientation.currentQuestionNumber()).isEqualTo(2);
-        assertThat(afterOrientation.completedAt()).isNull();
-    }
-
-    @Test
-    void 동시_시작으로_하루_세션_유니크_제약이_충돌하면_도메인_예외로_변환한다() {
-        doThrow(new DataIntegrityViolationException("uk_training_sessions_elder_date"))
-                .when(repository).saveAndFlush(any(TrainingSession.class));
-
-        assertThatThrownBy(() -> service.enter(ELDER_ID))
-                .isInstanceOf(DomainException.class);
-    }
-
-    private TrainingSession startSession() {
-        service.enter(ELDER_ID);
-        org.mockito.ArgumentCaptor<TrainingSession> captor = org.mockito.ArgumentCaptor.forClass(TrainingSession.class);
-        verify(repository).saveAndFlush(captor.capture());
-        return captor.getValue();
-    }
-
-    private void completeAllSteps() {
-        complete(QuestionType.ORIENTATION, 3);
-        complete(QuestionType.RECALL, 3);
-        complete(QuestionType.LANGUAGE, 2);
-        complete(QuestionType.DELAYED_RECALL, 2);
-    }
-
-    private void complete(QuestionType questionType, int count) {
-        for (int i = 0; i < count; i++) {
-            service.completeCurrentQuestion(ELDER_ID, questionType);
+        for (int number = 1; number < 10; number++) {
+            session.completeCurrentQuestion(
+                    session.getId(), session.getCurrentStep(), number, nextType(number), false,
+                    Instant.parse("2026-08-25T00:00:00Z"));
         }
+
+        assertThat(session.getStatus()).isEqualTo(SessionStatus.IN_PROGRESS);
+        assertThat(session.getCurrentQuestionNumber()).isEqualTo(10);
+        assertThatThrownBy(() -> session.completeCurrentQuestion(
+                session.getId(), QuestionType.DELAYED_RECALL, 9, QuestionType.DELAYED_RECALL, false, Instant.now()))
+                .isInstanceOf(DomainException.class);
+
+        session.completeCurrentQuestion(
+                session.getId(), QuestionType.DELAYED_RECALL, 10, null, true, Instant.parse("2026-08-25T00:05:00Z"));
+
+        assertThat(session.getStatus()).isEqualTo(SessionStatus.COMPLETED);
+        assertThat(session.getCurrentQuestionNumber()).isNull();
+    }
+
+    @Test
+    void 언어_문항은_텍스트나_음성_참여를_요구하지만_정확성으로_판단하지_않는다() {
+        TrainingQuestion question = TrainingQuestion.textOrVoice(
+                UUID.randomUUID(), 7, QuestionType.LANGUAGE, QuestionKind.LANGUAGE_DESCRIPTION,
+                "사진을 설명해 주세요.", "memory/example.jpg", null, "어린 시절", null);
+
+        assertThat(question.getAnswerMode()).isEqualTo(AnswerMode.TEXT_OR_VOICE);
+        assertThat(question.evaluate(null, "가족과 함께 찍은 사진이에요.", null)).isNull();
+        assertThatThrownBy(() -> question.evaluate(null, " ", null)).isInstanceOf(DomainException.class);
+    }
+
+    @Test
+    void 연도_문항은_레벨별_허용_오차_안에서만_수용한다() {
+        TrainingQuestion question = TrainingQuestion.choice(
+                UUID.randomUUID(), 4, QuestionType.RECALL, QuestionKind.RECALL_YEAR,
+                "몇 년도쯤인가요?", "content/example.jpg", null, "1970", 10, null,
+                List.of("1970", "1980", "1990"));
+
+        assertThat(question.evaluate("1980", null, null)).isTrue();
+        assertThat(question.evaluate("1990", null, null)).isFalse();
+    }
+
+    private QuestionType nextType(int currentNumber) {
+        return switch (currentNumber) {
+            case 1, 2 -> QuestionType.ORIENTATION;
+            case 3, 4, 5 -> QuestionType.RECALL;
+            case 6, 7 -> QuestionType.LANGUAGE;
+            default -> QuestionType.DELAYED_RECALL;
+        };
     }
 }
