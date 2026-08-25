@@ -70,4 +70,4 @@
 - ✅ **본인 인증 수단을 SMS → 이메일로 전환** — 완료 (SMS 발송 경로는 제거)
 - ✅ **초대 코드 발급·합류** — 완료
 - ✅ **가족 세부 조회 API** — 완료
-- ✅ **출석 집계** — 발행(`POST /api/v1/elder/training-sessions/today/complete`) → 집계 → 리포트 적재까지 전 경로 구현 완료. 다만 이 발행처는 "오늘 훈련을 마쳤다"는 사실만 남기는 얇은 경로이고, CIST 세션·문항·영역별 결과는 [#37](https://github.com/memeboomemeboo/haemi-server-v2/pull/37) 범위입니다. #37 머지 시 발행 지점을 `TrainingSessionService`로 옮기고 이 경로는 제거합니다
+- ✅ **출석 집계** — PR [#37](https://github.com/memeboomemeboo/haemi-server-v2/pull/37)의 10문항 CIST 세션 완료 → 출석 집계 → 리포트 참여 스냅샷 적재 경로를 사용합니다. 출석 이벤트에는 일자별 참여 사실만 담기며, 영역별 인지 결과 스냅샷은 별도 후속 범위입니다.

@@ -98,3 +98,15 @@ haemi:
     retention-days: ${HAEMI_DAILYCARE_RETENTION_DAYS:30}
     inbox-look-back-days: ${HAEMI_DAILYCARE_INBOX_LOOKBACK_DAYS:30}
     max-voice-duration-seconds: ${HAEMI_DAILYCARE_MAX_VOICE_SECONDS:60}
+  training:
+    orientation-question-count: ${HAEMI_TRAINING_ORIENTATION_COUNT:3}
+    recall-question-count: ${HAEMI_TRAINING_RECALL_COUNT:3}
+    language-question-count: ${HAEMI_TRAINING_LANGUAGE_COUNT:2}
+    delayed-recall-question-count: ${HAEMI_TRAINING_DELAYED_RECALL_COUNT:2}
+    inactivity-reminder-seconds: ${HAEMI_TRAINING_INACTIVITY_REMINDER_SECONDS:90}
+    promotion-accuracy: ${HAEMI_TRAINING_PROMOTION_ACCURACY:0.8}
+    demotion-accuracy: ${HAEMI_TRAINING_DEMOTION_ACCURACY:0.4}
+    promotion-consecutive-days: ${HAEMI_TRAINING_PROMOTION_DAYS:2}
+  content:
+    cooldown-days: ${HAEMI_CONTENT_COOLDOWN_DAYS:7}
+    depletion-threshold: ${HAEMI_CONTENT_DEPLETION_THRESHOLD:20}

@@ -4,12 +4,9 @@ import org.springframework.stereotype.Component;
 
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneId;
 
 @Component
 public class KstClock implements HaemiClock {
-
-    private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
     @Override
     public Instant now() {
@@ -18,6 +15,6 @@ public class KstClock implements HaemiClock {
 
     @Override
     public LocalDate today() {
-        return LocalDate.now(KST);
+        return LocalDate.now(HaemiClock.KST);
     }
 }

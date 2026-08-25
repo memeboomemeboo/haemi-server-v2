@@ -21,9 +21,16 @@ public interface ReportParticipationRepository extends JpaRepository<ReportParti
     /** 존재하면 아무것도 하지 않는 원자적 삽입 — exists-then-insert의 REQUIRES_NEW 커밋 실패를 피한다. */
     @Modifying
     @Query(value = """
-            INSERT INTO guardian_report_participations (elder_id, participation_date)
-            VALUES (:elderId, :participationDate)
-            ON CONFLICT (elder_id, participation_date) DO NOTHING
+            MERGE INTO guardian_report_participations AS target
+            USING (VALUES (:id, :elderId, :participationDate)) AS source(id, elder_id, participation_date)
+            ON target.elder_id = source.elder_id AND target.participation_date = source.participation_date
+            WHEN NOT MATCHED THEN
+                INSERT (id, elder_id, participation_date, created_at, updated_at)
+                VALUES (source.id, source.elder_id, source.participation_date, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             """, nativeQuery = true)
-    int insertIfAbsent(@Param("elderId") UUID elderId, @Param("participationDate") LocalDate participationDate);
+    int insertIfAbsent(
+            @Param("id") UUID id,
+            @Param("elderId") UUID elderId,
+            @Param("participationDate") LocalDate participationDate
+    );
 }
