@@ -1,6 +1,8 @@
 package com.memeboo2.haemi.elder.attendance.application;
 
+import com.memeboo2.haemi.common.attendance.DaysTogetherCalculator;
 import com.memeboo2.haemi.common.time.HaemiClock;
+import com.memeboo2.haemi.elder.attendance.domain.DailyParticipation;
 import com.memeboo2.haemi.elder.attendance.infrastructure.DailyParticipationRepository;
 import com.memeboo2.haemi.guardian.api.AttendanceBadge;
 import com.memeboo2.haemi.guardian.api.AttendanceQuery;
@@ -11,19 +13,21 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.time.ZoneId;
-import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /** AttendanceQueryStub을 대체하는 실구현. bean name이 "attendanceQueryImpl"이어야 한다. */
 @Service("attendanceQueryImpl")
 @RequiredArgsConstructor
 public class AttendanceQueryImpl implements AttendanceQuery {
 
-    private static final ZoneId KST = ZoneId.of("Asia/Seoul");
     private static final int STREAK_DATE_PAGE_SIZE = 31;
+    private static final int WEEKLY_WINDOW_DAYS = 7;
 
     private final DailyParticipationRepository repository;
     private final ElderQuery elderQuery;
@@ -71,12 +75,31 @@ public class AttendanceQueryImpl implements AttendanceQuery {
 
     @Override
     @Transactional(readOnly = true)
+    public List<DayActivity> weeklyActivities(UUID elderId) {
+        LocalDate today = clock.today();
+        LocalDate windowStart = today.minusDays(WEEKLY_WINDOW_DAYS - 1L);
+        Map<LocalDate, DailyParticipation> byDate = repository
+                .findByElderIdAndParticipationDateGreaterThanEqual(elderId, windowStart).stream()
+                .collect(Collectors.toMap(DailyParticipation::getParticipationDate, Function.identity(), (a, b) -> a));
+
+        return IntStream.range(0, WEEKLY_WINDOW_DAYS)
+                .mapToObj(i -> today.minusDays(WEEKLY_WINDOW_DAYS - 1L - i))
+                .map(d -> {
+                    DailyParticipation p = byDate.get(d);
+                    if (p == null) {
+                        return new DayActivity(d, d.getDayOfWeek(), false, false, false, false);
+                    }
+                    return new DayActivity(d, d.getDayOfWeek(),
+                            p.isTrainingDone(), p.isGreetingReadDone(), p.isMemoryViewedDone(), p.isRepliedDone());
+                })
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public long daysTogether(UUID elderId) {
         return elderQuery.findById(elderId)
-                .map(info -> {
-                    LocalDate registeredDate = info.registeredAt().atZone(KST).toLocalDate();
-                    return ChronoUnit.DAYS.between(registeredDate, clock.today());
-                })
+                .map(info -> DaysTogetherCalculator.daysTogether(info.registeredAt(), clock.today()))
                 .orElse(0L);
     }
 

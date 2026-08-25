@@ -1,5 +1,6 @@
 package com.memeboo2.haemi.platform.media.infrastructure;
 
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import java.util.Optional;
@@ -7,6 +8,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /** 개발 환경에서 presigned URL 흐름을 재현하는 메모리 기반 객체 저장소. */
 @Component
+@Profile("!prod")
 public class LocalObjectStorage {
 
     private final ConcurrentHashMap<String, StoredObject> objects = new ConcurrentHashMap<>();

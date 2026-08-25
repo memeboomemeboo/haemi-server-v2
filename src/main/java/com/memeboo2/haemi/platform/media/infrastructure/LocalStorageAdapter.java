@@ -1,7 +1,7 @@
 package com.memeboo2.haemi.platform.media.infrastructure;
 
 import com.memeboo2.haemi.platform.media.domain.MediaType;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import java.net.URI;
@@ -14,7 +14,7 @@ import java.util.UUID;
  * presigned URL 대신 로컬 업로드 엔드포인트 URL을 반환한다.
  */
 @Component
-@ConditionalOnMissingBean(name = "s3StorageAdapter")
+@Profile("!prod")
 class LocalStorageAdapter implements StoragePort {
 
     private final LocalObjectStorage objectStorage;

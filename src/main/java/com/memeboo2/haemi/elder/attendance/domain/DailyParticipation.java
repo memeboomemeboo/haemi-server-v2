@@ -8,6 +8,7 @@ import jakarta.persistence.UniqueConstraint;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.ColumnDefault;
 
 import java.time.LocalDate;
 import java.util.UUID;
@@ -30,6 +31,23 @@ public class DailyParticipation extends BaseEntity {
 
     @Column(name = "participation_date", nullable = false)
     private LocalDate participationDate;
+
+    // 활동 종류별 완료 플래그 — 같은 종류를 여러 번 해도 true 하나로 집계 (횟수 아님).
+    @Column(name = "training_done", nullable = false)
+    @ColumnDefault("false")
+    private boolean trainingDone;
+
+    @Column(name = "greeting_read_done", nullable = false)
+    @ColumnDefault("false")
+    private boolean greetingReadDone;
+
+    @Column(name = "memory_viewed_done", nullable = false)
+    @ColumnDefault("false")
+    private boolean memoryViewedDone;
+
+    @Column(name = "replied_done", nullable = false)
+    @ColumnDefault("false")
+    private boolean repliedDone;
 
     public static DailyParticipation of(UUID elderId, LocalDate participationDate) {
         DailyParticipation p = new DailyParticipation();

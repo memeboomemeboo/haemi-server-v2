@@ -44,6 +44,7 @@ class RegisterMemoryUseCaseTest {
     @Test
     void 정상_등록_이벤트_발행() {
         UUID refId = UUID.randomUUID();
+        given(mediaUploadCommand.memoryImageMaxCount()).willReturn(4);
         given(mediaUploadCommand.confirmUpload(guardianId, refId, MediaPurpose.MEMORY_IMAGE))
                 .willReturn(URI.create("http://localhost/serve?key=memory_image/key.jpg"));
         given(memoryRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
@@ -71,6 +72,7 @@ class RegisterMemoryUseCaseTest {
     void 이미지_5장_초과는_400() {
         List<UUID> fiveRefs = List.of(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
                 UUID.randomUUID(), UUID.randomUUID());
+        given(mediaUploadCommand.memoryImageMaxCount()).willReturn(4);
         fiveRefs.forEach(refId ->
                 lenient().when(mediaUploadCommand.confirmUpload(guardianId, refId, MediaPurpose.MEMORY_IMAGE))
                         .thenReturn(URI.create("http://localhost/serve?key=" + refId)));

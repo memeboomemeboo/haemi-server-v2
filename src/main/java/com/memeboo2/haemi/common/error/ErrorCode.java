@@ -24,6 +24,7 @@ public enum ErrorCode {
     AUTH_VERIFICATION_RESEND_LIMITED(HttpStatus.TOO_MANY_REQUESTS, "인증번호 요청이 너무 잦습니다. 잠시 후 다시 시도해 주세요."),
     EMAIL_DELIVERY_FAILED(HttpStatus.SERVICE_UNAVAILABLE, "인증번호 발송에 실패했습니다. 잠시 후 다시 시도해 주세요."),
     AUTH_ACCOUNT_LOCKED(HttpStatus.LOCKED, "로그인 시도 횟수를 초과해 계정이 일시적으로 잠겼습니다."),
+    AUTH_REFRESH_TOKEN_INVALID(HttpStatus.UNAUTHORIZED, "유효하지 않은 리프레시 토큰입니다. 다시 로그인해 주세요."),
 
     // 하루 한마디
     DAILY_CARE_ALREADY_SENT(HttpStatus.CONFLICT, "오늘은 이미 하루 한마디를 전했습니다."),

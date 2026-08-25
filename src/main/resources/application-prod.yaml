@@ -34,5 +34,3 @@ haemi:
     include-local-server: false
   jwt:
     secret: ${JWT_SECRET}
-  security:
-    elder-health-encryption-key: ${ELDER_HEALTH_ENCRYPTION_KEY}

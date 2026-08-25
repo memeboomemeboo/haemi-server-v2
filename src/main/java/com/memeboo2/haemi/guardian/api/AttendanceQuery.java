@@ -1,5 +1,7 @@
 package com.memeboo2.haemi.guardian.api;
 
+import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -18,9 +20,15 @@ public interface AttendanceQuery {
     /** 첫 등록일부터 D+ 정수. */
     long daysTogether(UUID elderId);
 
+    /** 보호자 홈 요일별 스택 막대용 — 최근 7일 각 날짜의 활동 종류별 완료 여부. */
+    List<DayActivity> weeklyActivities(UUID elderId);
+
     /** 누적 훈련 완료일에 따라 해금된 배지. */
     List<AttendanceBadge> unlockedBadges(UUID elderId);
 
     /** 방금 완료한 세션까지 반영한 결과 화면용 배지. */
     List<AttendanceBadge> unlockedBadgesAfterCompletion(UUID elderId);
+
+    record DayActivity(LocalDate date, DayOfWeek dayOfWeek,
+                       boolean training, boolean greetingRead, boolean memoryViewed, boolean replied) {}
 }

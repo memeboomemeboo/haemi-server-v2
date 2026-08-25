@@ -21,6 +21,7 @@ public class DeleteMemoryUseCase {
     @Transactional
     public void execute(UUID guardianId, UUID memoryId) {
         Memory memory = memoryRepository.findById(memoryId)
+                .filter(m -> !m.isDeleted())
                 .orElseThrow(() -> new DomainException(ErrorCode.RESOURCE_NOT_FOUND));
 
         // R5: 생성자 본인만 삭제 가능

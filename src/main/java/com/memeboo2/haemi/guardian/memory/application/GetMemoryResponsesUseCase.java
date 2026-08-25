@@ -23,6 +23,7 @@ public class GetMemoryResponsesUseCase {
     @Transactional(readOnly = true)
     public List<ResponseQuery.ResponseItem> execute(UUID guardianId, UUID memoryId) {
         var memory = memoryRepository.findById(memoryId)
+                .filter(m -> !m.isDeleted())
                 .orElseThrow(() -> new DomainException(ErrorCode.RESOURCE_NOT_FOUND));
         careAccessQuery.requireGuardianOf(guardianId, memory.getElderId());
         return responseQuery.findByMemoryId(memoryId);

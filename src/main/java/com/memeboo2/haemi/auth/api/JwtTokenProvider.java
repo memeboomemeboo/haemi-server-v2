@@ -39,6 +39,8 @@ public class JwtTokenProvider {
         Date exp = new Date(now.getTime() + props.refreshTokenValidity().toMillis());
         return Jwts.builder()
                 .subject(userId.toString())
+                // jti(랜덤 식별자): 같은 계정이 같은 초에 여러 기기에서 로그인해도 토큰 문자열이 겹치지 않게 한다.
+                .id(UUID.randomUUID().toString())
                 .issuedAt(now)
                 .expiration(exp)
                 .signWith(key)

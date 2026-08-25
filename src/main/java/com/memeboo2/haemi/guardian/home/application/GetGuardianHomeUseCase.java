@@ -50,7 +50,7 @@ public class GetGuardianHomeUseCase {
             return new ElderCard(
                     elderId, elder.getName(), age, role,
                     attendanceQuery.daysTogether(elderId), attendanceQuery.completedToday(elderId),
-                    greetingSentToday, lastLoginAt);
+                    greetingSentToday, lastLoginAt, attendanceQuery.weeklyActivities(elderId));
         }).filter(c -> c != null).toList();
 
         boolean memoryRegisteredToday = memoryRepository
@@ -71,7 +71,8 @@ public class GetGuardianHomeUseCase {
             long daysTogether,
             boolean attendedToday,
             boolean greetingSentToday,
-            Instant lastLoginAt
+            Instant lastLoginAt,
+            List<AttendanceQuery.DayActivity> weeklyActivities
     ) {}
 
     public record Challenge(boolean greetingCompleted, boolean memoryCompleted) {}

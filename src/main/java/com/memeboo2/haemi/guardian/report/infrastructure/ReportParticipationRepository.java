@@ -18,19 +18,29 @@ public interface ReportParticipationRepository extends JpaRepository<ReportParti
 
     List<ReportParticipation> findByElderIdAndParticipationDateGreaterThanEqual(UUID elderId, LocalDate from);
 
-    /** 존재하면 아무것도 하지 않는 원자적 삽입 — exists-then-insert의 REQUIRES_NEW 커밋 실패를 피한다. */
-    @Modifying
+    /**
+     * 활동 종류 플래그를 한 문장으로 원자적으로 켠다 (H2·PostgreSQL 공통 문법).
+     * attendance 스냅샷을 미러링하며, 서로 다른 활동의 동시 갱신에도 각자 플래그만 OR로 켠다.
+     * 반환값 1 = 지정한 종류가 false→true로 새로 켜짐, 0 = 행 없음 또는 이미 켜짐.
+     */
+    @Modifying(clearAutomatically = true)
     @Query(value = """
-            MERGE INTO guardian_report_participations AS target
-            USING (VALUES (:id, :elderId, :participationDate)) AS source(id, elder_id, participation_date)
-            ON target.elder_id = source.elder_id AND target.participation_date = source.participation_date
-            WHEN NOT MATCHED THEN
-                INSERT (id, elder_id, participation_date, created_at, updated_at)
-                VALUES (source.id, source.elder_id, source.participation_date, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            UPDATE guardian_report_participations SET
+                training_done      = training_done      OR :training,
+                greeting_read_done = greeting_read_done OR :greetingRead,
+                memory_viewed_done = memory_viewed_done OR :memoryViewed,
+                replied_done       = replied_done       OR :replied,
+                updated_at = now()
+            WHERE elder_id = :elderId AND participation_date = :participationDate
+              AND ( (:training      AND NOT training_done)
+                 OR (:greetingRead  AND NOT greeting_read_done)
+                 OR (:memoryViewed  AND NOT memory_viewed_done)
+                 OR (:replied       AND NOT replied_done) )
             """, nativeQuery = true)
-    int insertIfAbsent(
-            @Param("id") UUID id,
-            @Param("elderId") UUID elderId,
-            @Param("participationDate") LocalDate participationDate
-    );
+    int markActivity(@Param("elderId") UUID elderId,
+                     @Param("participationDate") LocalDate participationDate,
+                     @Param("training") boolean training,
+                     @Param("greetingRead") boolean greetingRead,
+                     @Param("memoryViewed") boolean memoryViewed,
+                     @Param("replied") boolean replied);
 }

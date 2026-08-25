@@ -32,6 +32,11 @@ public class ConfirmUploadUseCase implements MediaUploadCommand {
     }
 
     @Override
+    public int memoryImageMaxCount() {
+        return policy.image().memoryMaxCount();
+    }
+
+    @Override
     @Transactional(noRollbackFor = DomainException.class)
     public URI confirmUpload(UUID actorId, UUID mediaRefId, MediaPurpose expectedPurpose) {
         return confirmUpload(actorId, mediaRefId, expectedPurpose, null);

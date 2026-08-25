@@ -2,6 +2,7 @@ package com.memeboo2.haemi.elder.response.application;
 
 import com.memeboo2.haemi.common.event.ElderResponded;
 import com.memeboo2.haemi.common.security.ElderAccessChecked;
+import com.memeboo2.haemi.common.time.HaemiClock;
 import com.memeboo2.haemi.elder.response.domain.Emotion;
 import com.memeboo2.haemi.elder.response.domain.Response;
 import com.memeboo2.haemi.common.error.DomainException;
@@ -29,6 +30,7 @@ public class CreateResponseUseCase {
     private final ApplicationEventPublisher eventPublisher;
     private final CareAccessQuery careAccessQuery;
     private final ElderMemoryQuery elderMemoryQuery;
+    private final HaemiClock clock;
 
     /** 마음 전하기 */
     @Transactional
@@ -37,7 +39,7 @@ public class CreateResponseUseCase {
         UUID elderId = requireTargetMemory(elderUserId, memoryId);
         Response r = Response.emotion(memoryId, elderId, emotions);
         r = responseRepository.save(r);
-        eventPublisher.publishEvent(new ElderResponded(memoryId, elderId));
+        eventPublisher.publishEvent(new ElderResponded(memoryId, elderId, clock.today()));
         return r.getId();
     }
 
@@ -48,7 +50,7 @@ public class CreateResponseUseCase {
         UUID elderId = requireTargetMemory(elderUserId, memoryId);
         Response r = Response.text(memoryId, elderId, text);
         r = responseRepository.save(r);
-        eventPublisher.publishEvent(new ElderResponded(memoryId, elderId));
+        eventPublisher.publishEvent(new ElderResponded(memoryId, elderId, clock.today()));
         return r.getId();
     }
 
@@ -60,7 +62,7 @@ public class CreateResponseUseCase {
         String mediaKey = mediaUploadCommand.confirmUpload(elderUserId, mediaRefId, MediaPurpose.RESPONSE_IMAGE).toString();
         Response r = Response.image(memoryId, elderId, mediaKey);
         r = responseRepository.save(r);
-        eventPublisher.publishEvent(new ElderResponded(memoryId, elderId));
+        eventPublisher.publishEvent(new ElderResponded(memoryId, elderId, clock.today()));
         return r.getId();
     }
 
@@ -72,7 +74,7 @@ public class CreateResponseUseCase {
         String mediaKey = mediaUploadCommand.confirmUpload(elderUserId, mediaRefId, MediaPurpose.RESPONSE_VOICE).toString();
         Response r = Response.voice(memoryId, elderId, mediaKey);
         r = responseRepository.save(r);
-        eventPublisher.publishEvent(new ElderResponded(memoryId, elderId));
+        eventPublisher.publishEvent(new ElderResponded(memoryId, elderId, clock.today()));
         return r.getId();
     }
 
