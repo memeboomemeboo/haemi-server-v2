@@ -16,7 +16,6 @@ import java.time.LocalDate;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -33,11 +32,10 @@ class TrainingSessionCompletedListenerTest {
 
     @Test
     void 정상_경로_참여기록_저장후_출석이벤트_발행() {
-        given(repository.existsByElderIdAndParticipationDate(elderId, sessionDate)).willReturn(false);
+        given(repository.insertIfAbsent(elderId, sessionDate)).willReturn(1);
 
         listener.on(new TrainingSessionCompleted(elderId, sessionDate));
 
-        verify(repository).saveAndFlush(any());
         ArgumentCaptor<AttendanceRecorded> captor = ArgumentCaptor.forClass(AttendanceRecorded.class);
         verify(publisher).publishEvent(captor.capture());
         assertThat(captor.getValue().elderId()).isEqualTo(elderId);
@@ -46,11 +44,10 @@ class TrainingSessionCompletedListenerTest {
 
     @Test
     void 이미_기록된_날짜면_중복_저장하지_않는다_멱등() {
-        given(repository.existsByElderIdAndParticipationDate(elderId, sessionDate)).willReturn(true);
+        given(repository.insertIfAbsent(elderId, sessionDate)).willReturn(0);
 
         listener.on(new TrainingSessionCompleted(elderId, sessionDate));
 
-        verify(repository, never()).saveAndFlush(any());
-        verify(publisher, never()).publishEvent(any());
+        verify(publisher, never()).publishEvent(org.mockito.ArgumentMatchers.any());
     }
 }

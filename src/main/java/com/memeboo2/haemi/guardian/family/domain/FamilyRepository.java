@@ -20,6 +20,4 @@ public interface FamilyRepository extends JpaRepository<Family, UUID> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT f FROM Family f LEFT JOIN FETCH f.members WHERE f.inviteCode = :inviteCode")
     Optional<Family> findByInviteCodeForUpdate(String inviteCode);
-
-    boolean existsByInviteCode(String inviteCode);
 }

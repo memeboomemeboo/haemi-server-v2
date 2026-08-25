@@ -3,6 +3,7 @@ package com.memeboo2.haemi.guardian.family;
 import com.memeboo2.haemi.common.error.DomainException;
 import com.memeboo2.haemi.common.error.ErrorCode;
 import com.memeboo2.haemi.guardian.family.application.CreateFamilyUseCase;
+import com.memeboo2.haemi.guardian.family.application.FamilyInviteCodeSaver;
 import com.memeboo2.haemi.guardian.family.application.FamilyProperties;
 import com.memeboo2.haemi.guardian.family.application.InviteCodeGenerator;
 import com.memeboo2.haemi.guardian.family.domain.Family;
@@ -29,6 +30,7 @@ class CreateFamilyUseCaseTest {
     @Mock FamilyProperties props;
     @Mock MediaUploadCommand mediaUploadCommand;
     @Mock InviteCodeGenerator inviteCodeGenerator;
+    @Mock FamilyInviteCodeSaver familyInviteCodeSaver;
     @InjectMocks CreateFamilyUseCase useCase;
 
     UUID guardianId = UUID.randomUUID();
@@ -37,8 +39,7 @@ class CreateFamilyUseCaseTest {
     void 정상_생성시_초대코드를_함께_반환한다() {
         given(familyRepository.findByMembers_UserId(guardianId)).willReturn(Optional.empty());
         given(inviteCodeGenerator.nextCode()).willReturn("ABCD2345");
-        given(familyRepository.existsByInviteCode("ABCD2345")).willReturn(false);
-        given(familyRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
+        given(familyInviteCodeSaver.trySave(any())).willReturn(true);
 
         CreateFamilyUseCase.Result result = useCase.execute(guardianId, "우리가족", null, null);
 
@@ -49,9 +50,7 @@ class CreateFamilyUseCaseTest {
     void 초대코드가_중복되면_재생성한다() {
         given(familyRepository.findByMembers_UserId(guardianId)).willReturn(Optional.empty());
         given(inviteCodeGenerator.nextCode()).willReturn("DUPCODE1", "FRESHCOD");
-        given(familyRepository.existsByInviteCode("DUPCODE1")).willReturn(true);
-        given(familyRepository.existsByInviteCode("FRESHCOD")).willReturn(false);
-        given(familyRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
+        given(familyInviteCodeSaver.trySave(any())).willReturn(false, true);
 
         CreateFamilyUseCase.Result result = useCase.execute(guardianId, "우리가족", null, null);
 

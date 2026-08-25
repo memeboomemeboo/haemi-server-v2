@@ -16,12 +16,14 @@ public record MemorySummaryResponse(
         String creatorName,
         @Schema(description = "추억 생성자의 어르신 기준 관계 라벨. 생성자가 해당 어르신과의 링크를 해제한 경우 null (A13)")
         GuardianRole creatorRole,
+        String creatorRoleLabel,
         boolean isMine
 ) {
     public static MemorySummaryResponse from(MemoryWithCreator mc) {
         Memory m = mc.memory();
         String thumbnail = m.getImages().isEmpty() ? null : m.getImages().get(0).getStorageKey();
+        GuardianRole role = mc.creatorRole();
         return new MemorySummaryResponse(m.getId(), m.getTitle(), thumbnail, m.isResponded(),
-                mc.creatorName(), mc.creatorRole(), mc.isMine());
+                mc.creatorName(), role, role == null ? null : role.getLabel(), mc.isMine());
     }
 }

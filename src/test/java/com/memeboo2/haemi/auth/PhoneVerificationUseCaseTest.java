@@ -5,6 +5,7 @@ import com.memeboo2.haemi.auth.verification.application.PhoneVerificationPropert
 import com.memeboo2.haemi.auth.verification.application.PhoneVerificationUseCase;
 import com.memeboo2.haemi.auth.verification.application.SmsSender;
 import com.memeboo2.haemi.auth.verification.application.VerificationCodeGenerator;
+import com.memeboo2.haemi.auth.verification.application.VerificationFailureRecorder;
 import com.memeboo2.haemi.auth.verification.domain.PhoneVerification;
 import com.memeboo2.haemi.auth.verification.infrastructure.PhoneVerificationRepository;
 import com.memeboo2.haemi.common.error.DomainException;
@@ -16,6 +17,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionStatus;
 
 import java.time.Instant;
 import java.util.Optional;
@@ -23,8 +26,10 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -39,6 +44,8 @@ class PhoneVerificationUseCaseTest {
     @Mock SmsSender smsSender;
     @Mock HaemiClock clock;
     @Mock PhoneVerificationProperties properties;
+    @Mock VerificationFailureRecorder verificationFailureRecorder;
+    @Mock PlatformTransactionManager transactionManager;
     @InjectMocks PhoneVerificationUseCase useCase;
 
     @BeforeEach
@@ -47,6 +54,7 @@ class PhoneVerificationUseCaseTest {
         lenient().when(properties.maxConfirmAttempts()).thenReturn(5);
         lenient().when(properties.maxResendPerWindow()).thenReturn(5);
         lenient().when(properties.resendWindowSeconds()).thenReturn(3600L);
+        lenient().when(transactionManager.getTransaction(any())).thenReturn(mock(TransactionStatus.class));
     }
 
     @Test
@@ -83,6 +91,10 @@ class PhoneVerificationUseCaseTest {
         PhoneVerification verification = PhoneVerification.pending(PHONE, "hashed-code", NOW.plusSeconds(300));
         given(repository.findById(verificationId)).willReturn(Optional.of(verification));
         given(passwordService.matches("000000", "hashed-code")).willReturn(false);
+        lenient().doAnswer(invocation -> {
+            verification.recordFailedAttempt();
+            return null;
+        }).when(verificationFailureRecorder).recordFailure(verificationId);
 
         for (int i = 0; i < 5; i++) {
             assertThatThrownBy(() -> useCase.confirm(verificationId, "000000"))

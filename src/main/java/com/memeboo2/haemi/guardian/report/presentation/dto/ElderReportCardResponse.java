@@ -10,11 +10,13 @@ public record ElderReportCardResponse(
         UUID elderId,
         String name,
         GuardianRole role,
+        String roleLabel,
         Integer age,
         boolean attendedToday,
         ReportStatus status
 ) {
     public static ElderReportCardResponse from(Card c) {
-        return new ElderReportCardResponse(c.elderId(), c.name(), c.role(), c.age(), c.attendedToday(), c.status());
+        return new ElderReportCardResponse(
+                c.elderId(), c.name(), c.role(), c.role().getLabel(), c.age(), c.attendedToday(), c.status());
     }
 }

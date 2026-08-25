@@ -6,6 +6,7 @@ import com.memeboo2.haemi.auth.account.infrastructure.AccountRepository;
 import com.memeboo2.haemi.auth.api.JwtTokenProvider;
 import com.memeboo2.haemi.auth.credential.PasswordService;
 import com.memeboo2.haemi.auth.session.application.JwtProperties;
+import com.memeboo2.haemi.auth.session.application.LoginFailureRecorder;
 import com.memeboo2.haemi.auth.session.application.LoginProperties;
 import com.memeboo2.haemi.auth.session.application.LoginUseCase;
 import com.memeboo2.haemi.auth.session.infrastructure.RefreshTokenRepository;
@@ -26,6 +27,10 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.lenient;
 
@@ -41,6 +46,7 @@ class LoginUseCaseTest {
     @Mock JwtProperties jwtProperties;
     @Mock LoginProperties loginProperties;
     @Mock HaemiClock clock;
+    @Mock LoginFailureRecorder loginFailureRecorder;
     @InjectMocks LoginUseCase useCase;
 
     @BeforeEach
@@ -85,6 +91,10 @@ class LoginUseCaseTest {
         Account account = guardian();
         given(accountRepository.findByLoginId("guardian01")).willReturn(Optional.of(account));
         given(passwordService.matches("wrong", "password-hash")).willReturn(false);
+        lenient().doAnswer(invocation -> {
+            account.recordLoginFailure(invocation.getArgument(1), invocation.getArgument(2), invocation.getArgument(3));
+            return null;
+        }).when(loginFailureRecorder).recordFailure(eq("guardian01"), any(), anyInt(), anyLong());
 
         for (int i = 0; i < 5; i++) {
             assertThatThrownBy(() -> useCase.execute("guardian01", "wrong", null, "device-a"))

@@ -13,11 +13,14 @@ public final class StreakCalculator {
     private StreakCalculator() {}
 
     /**
-     * 오늘까지의 연속 참여일. 오늘 참여가 없으면 어제부터 센다 —
-     * 자정이 지나도록 참여가 없어야 그 날이 끊긴 것으로 계산되어 스트릭이 리셋된다.
+     * 오늘까지의 연속 참여일. 오늘 참여가 없으면 0 —
+     * 자정 미완료 시 리셋 (정량 명세 §4.5, v2-architecture.md §스트릭).
      */
     public static int currentStreak(Set<LocalDate> participationDates, LocalDate today) {
-        LocalDate cursor = participationDates.contains(today) ? today : today.minusDays(1);
+        if (!participationDates.contains(today)) {
+            return 0;
+        }
+        LocalDate cursor = today;
         int streak = 0;
         while (participationDates.contains(cursor)) {
             streak++;

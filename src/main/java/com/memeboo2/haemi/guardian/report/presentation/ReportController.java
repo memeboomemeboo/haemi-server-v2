@@ -42,8 +42,9 @@ public class ReportController {
     @Operation(summary = "어르신 요약 카드 (RPT-LST-002)")
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "인가 실패 — CARE_ACCESS_DENIED"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "존재하지 않는 어르신")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403",
+                    description = "인가 실패 — CARE_ACCESS_DENIED. requireGuardianOf가 존재 여부보다 먼저 검사돼 "
+                            + "존재하지 않는 elderId도 링크가 없으므로 403으로 응답한다 (404는 도달하지 않음)")
     })
     @GetMapping("/api/v1/guardian/elders/{elderId}/report/summary")
     public ResponseEntity<ApiResponse<ElderReportSummaryResponse>> summary(

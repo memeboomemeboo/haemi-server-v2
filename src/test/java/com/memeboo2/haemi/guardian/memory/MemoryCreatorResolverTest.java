@@ -13,6 +13,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -69,6 +70,24 @@ class MemoryCreatorResolverTest {
         MemoryWithCreator result = resolver.resolve(memory, UUID.randomUUID());
 
         assertThat(result.isMine()).isFalse();
+    }
+
+    @Test
+    void 목록_조회는_생성자_계정과_역할을_일괄_조회한다() {
+        UUID createdBy = UUID.randomUUID();
+        Memory memory = createMemoryWithCreator(elderId, createdBy);
+        given(accountQuery.findAllById(List.of(createdBy)))
+                .willReturn(List.of(new AccountQuery.AccountInfo(createdBy, "황정빈", "id", "010", null, null, null)));
+        GuardianElderLink link = GuardianElderLink.create(createdBy, elderId);
+        link.changeRole(GuardianRole.SON);
+        given(linkRepository.findAllByGuardianIdInAndElderId(List.of(createdBy), elderId)).willReturn(List.of(link));
+
+        List<MemoryWithCreator> result = resolver.resolveAll(List.of(memory), elderId, createdBy);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).creatorName()).isEqualTo("황정빈");
+        assertThat(result.get(0).creatorRole()).isEqualTo(GuardianRole.SON);
+        assertThat(result.get(0).isMine()).isTrue();
     }
 
     /** createdBy는 JPA Auditing(@CreatedBy)이 채우므로 리플렉션으로 세팅한다. */

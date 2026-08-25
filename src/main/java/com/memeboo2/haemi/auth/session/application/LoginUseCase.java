@@ -26,6 +26,7 @@ public class LoginUseCase {
     private final JwtProperties jwtProperties;
     private final LoginProperties loginProperties;
     private final HaemiClock clock;
+    private final LoginFailureRecorder loginFailureRecorder;
 
     public record TokenPair(String accessToken, String refreshToken) {}
 
@@ -46,7 +47,8 @@ public class LoginUseCase {
                 && account.getPinHash() != null
                 && passwordService.matches(pin, account.getPinHash());
         if (!passwordMatches && !pinMatches) {
-            account.recordLoginFailure(now, loginProperties.maxFailedAttempts(), loginProperties.lockDurationSeconds());
+            loginFailureRecorder.recordFailure(loginId, now,
+                    loginProperties.maxFailedAttempts(), loginProperties.lockDurationSeconds());
             throw new DomainException(ErrorCode.INVALID_CREDENTIALS);
         }
         account.recordLoginSuccess(now);

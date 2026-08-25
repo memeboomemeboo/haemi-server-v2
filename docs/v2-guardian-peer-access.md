@@ -4,6 +4,12 @@
 > 근거: [v2-authorization.md](./v2-authorization.md) · [v2-funcctional-spec.md](./v2-funcctional-spec.md)
 > 목적: 같은 가족 내 **어르신이 아닌 보호자들 사이**의 제한이 실제 코드에 어떻게 구현되어 있는지 확인하고,
 > 확정된 정책과 프론트 개발 전에 해결해야 할 항목을 한곳에 모은다.
+>
+> ⚠️ **이 문서는 2026-08-24 시점 스냅샷이다.** 아래 §1 매트릭스·§4의 A1(초대 코드)·A2(가족 조회)·
+> A4(출석·리포트)·A7(하루 한마디 이력)은 2026-08-25 [`docs/handoff-issue-triage.md`](./handoff-issue-triage.md)의
+> 13개 이슈 통합 작업으로 **모두 구현 완료됐다.** "미구현"이라는 서술은 정책 근거가 아니라 과거 상태 기록으로만
+> 읽어야 한다 — 현재 구현 상태는 handoff 문서와 실제 컨트롤러(`FamilyController`, `DailyCareController`,
+> `ReportController`)를 기준으로 판단할 것.
 
 ---
 
@@ -26,26 +32,28 @@ MVP 이후 *가족 대표자* 설정으로 권한을 강화할 예정이다.
 | 추억 조회 (목록·상세) | ✅ 전부 보임 (링크만 있으면 통과) | 403 `CARE_ACCESS_DENIED` | `GetMemoriesUseCase.java:26`, `GetMemoryDetailUseCase.java:25` |
 | 추억 **수정·삭제** | ❌ **생성자 본인만** (`created_by` 비교) | 403 `NOT_RESOURCE_OWNER` | `UpdateMemoryUseCase.java:32`, `DeleteMemoryUseCase.java:29` |
 | 어르신 답변 조회 | ✅ 링크된 모든 보호자 | — | `GetMemoryResponsesUseCase.java` |
-| **하루 한마디 조회** | ❌ **보이지 않음** — 보호자용 조회 API 자체가 없음 | (엔드포인트 부재) | `DailyCareController.java` — POST text/voice 만 존재 |
+| **하루 한마디 조회** | ✅ **발신 이력 조회 가능** (본인이 보낸 것만, R6) | (해당 없음) | `DailyCareController.java` — `GET /sent` ([#28](https://github.com/memeboomemeboo/haemi-server-v2/issues/28)) |
 | 하루 한마디 전송 | ✅ 각 보호자가 어르신별로 하루 1회 | 409 `DAILY_CARE_ALREADY_SENT` | `SendDailyCareUseCase.java:66` + DB unique 제약 |
 | 링크 해제 | ❌ **본인 링크만**, 마지막 1명은 해제 불가 | 403 `NOT_RESOURCE_OWNER` / 409 `LAST_GUARDIAN_CANNOT_LEAVE` | `UnlinkGuardianUseCase.java:25` |
 | 관계 라벨(딸/아들/손녀) 변경 | ❌ **본인 링크만** | 403 `NOT_RESOURCE_OWNER` | `ChangeGuardianRoleUseCase.java:25` |
 | 어르신 프로필 수정 | ✅ 링크된 모든 보호자 동등 | — | `guardian/eldermanagement` |
 | 어르신 등록 | ✅ 가족 구성원이면 누구나 (상한 4명) | 409 `FAMILY_CAPACITY_EXCEEDED` | `RegisterElderUseCase.java:38` |
-| 리포트 조회 | ✅ 링크된 모든 보호자 (어르신 본인은 ❌) | — | `guardian/report` — **미구현** |
+| 리포트 조회 | ✅ 링크된 모든 보호자 (어르신 본인은 ❌) | — | `guardian/report` ([#24](https://github.com/memeboomemeboo/haemi-server-v2/issues/24)) |
 | 다른 보호자 프로필 조회 | ❌ API 없음 — 본인 프로필만 | (엔드포인트 부재) | `ProfileController.java:73` |
-| 가족 합류 | ⚠️ 현재 `familyId`만 알면 합류 (상한 8명, 초대·승인 없음) | 409 `FAMILY_CAPACITY_EXCEEDED` | `JoinFamilyUseCase.java:33` |
+| 가족 합류 | ✅ **초대 코드로 합류** (상한 8명) | 404(코드 무효) / 409 `FAMILY_CAPACITY_EXCEEDED` | `JoinFamilyUseCase.java` ([#21](https://github.com/memeboomemeboo/haemi-server-v2/issues/21)) |
 
-### 가족 조회 API 현황 — 목록·세부 **둘 다 없다**
+### 가족 조회 API 현황 — ✅ 세부 조회 구현됨 ([#22](https://github.com/memeboomemeboo/haemi-server-v2/issues/22))
 
-`FamilyController`에 매핑된 엔드포인트는 2개뿐이고 **GET이 하나도 없다**.
+`FamilyController`는 이제 `GET /api/v1/guardian/families/my`로 가족 세부(구성원 포함)를 내려준다.
+아래 §D10 절의 "신설할 것은 단일 조회 엔드포인트 하나다" 제안이 그대로 구현된 상태다.
 
 | 메서드 | 경로 | 용도 |
 | --- | --- | --- |
 | `POST` | `/api/v1/guardian/families` | 가족 생성 |
-| `POST` | `/api/v1/guardian/families/{familyId}/members` | 가족 합류 |
+| `POST` | `/api/v1/guardian/families/join` | 초대 코드로 가족 합류 |
+| `GET` | `/api/v1/guardian/families/my` | 가족 세부 조회 (구성원·어르신 목록 포함) |
 
-가족 정보는 **보호자 프로필 응답에 끼워서** 내려간다 (`ProfileController.java:44`).
+가족 정보는 여전히 **보호자 프로필 응답에도** 요약이 끼워져 내려간다 (`ProfileController.java:44`).
 
 ```
 GET /api/v1/guardian/profile
@@ -96,13 +104,13 @@ GET /api/v1/guardian/families/my
 | D1 | 추억 조회 범위 | 어르신은 **본인에게 온 추억만**. 보호자는 본인 작성 외 **모든 추억 조회 가능** | ✅ 일치 |
 | D2 | 하루 한마디 | **전송자 + 수신 어르신만** 조회 | ✅ 일치 |
 | D3 | 어르신 프로필 수정 | **보호자 전체 수정 가능**. MVP 이후 가족 대표자 설정으로 강화 | ✅ 일치 |
-| D4 | 가족 합류 | 가족 생성 시 **초대 코드 발급**. 어르신은 초대 대상 아님. **보호자만** 참여 대상 | ❌ **미구현** → A1 |
-| D5 | 어르신 리포트 | **보호자만** 조회. 어르신 본인도 불가 | ✅ 규칙 확정(R9) / 모듈 미구현 |
+| D4 | 가족 합류 | 가족 생성 시 **초대 코드 발급**. 어르신은 초대 대상 아님. **보호자만** 참여 대상 | ✅ 구현 완료 ([#21](https://github.com/memeboomemeboo/haemi-server-v2/issues/21)) → A1 종결 |
+| D5 | 어르신 리포트 | **보호자만** 조회. 어르신 본인도 불가 | ✅ 구현 완료 ([#24](https://github.com/memeboomemeboo/haemi-server-v2/issues/24)) |
 | D6 | 보호자 프로필 | **본인만** 조회 | ✅ 일치 → 가족 보호자 목록 노출은 **미채택** (단 A2 참조) |
 | D7 | 참여 빈도 표시 | ~~주별·월별만~~ → **D12로 개정** | — |
 | D8 | 하이라이트·컨디션 문구 | **AI 생성** (`platform/ai`) | ❌ 미구현 → §3-Q6 |
 | D9 | 가족 탈퇴·해체 | **MVP 이후로 연기.** MVP에서는 가족을 나가는 경로를 제공하지 않는다 | ➖ 의도된 미구현 → A5 |
-| D10 | 가족 조회 API 구성 | **API는 나누지 않는다.** 보호자당 가족은 **항상 1개**이므로(R2) "목록"이라는 개념 자체가 성립하지 않는다. `GET /api/v1/guardian/families/my` **단일 엔드포인트**로 전부 내려주고, **화면 분할은 프론트가 담당**한다 | ❌ 미구현 → A2 |
+| D10 | 가족 조회 API 구성 | **API는 나누지 않는다.** 보호자당 가족은 **항상 1개**이므로(R2) "목록"이라는 개념 자체가 성립하지 않는다. `GET /api/v1/guardian/families/my` **단일 엔드포인트**로 전부 내려주고, **화면 분할은 프론트가 담당**한다 | ✅ 구현 완료 ([#22](https://github.com/memeboomemeboo/haemi-server-v2/issues/22)) → A2 종결 |
 | D11 | 컨디션 수치 점수 | **노출하지 않는다.** 3색 라벨 + "이번 주 N/7일" 참여 게이지로 표시한다 | 명세 RPT-ATT-004 유지 |
 | D12 | 참여 빈도 표시 (D7 개정) | **일·주·월 3단위 모두** 제공. 홈 화면에는 **요일별** 표시 | 막대는 참여/미참여 **2단계**만 (D11에 따라 높이 차등 불가) |
 | D13 | "인지 활동 N회" | **사용하지 않는다** | 훈련 세션 집계 불필요 |
@@ -302,21 +310,21 @@ D6(보호자 프로필은 본인만 조회)으로 인해, 지금은 **다른 보
 
 | # | 항목 | 증상 | 심각도 |
 | --- | --- | --- | --- |
-| A1 | **초대 코드 미구현** | 현재는 `familyId`(UUID)만 알면 POST 한 번으로 합류되고, 그 즉시 가족의 **모든 어르신 데이터에 접근**된다(R3 자동 링크). D4 확정으로 즉시 구현 대상 | 🔴 |
-| A2 | **가족에 누가 있는지 아무도 모른다** | 가족 조회 API가 **목록·세부 둘 다 없고**(§1), 프로필에 끼워 내려가는 가족 정보에도 구성원 목록이 없다. D6로 보호자 프로필은 본인만 조회로 확정됐으므로 초대 코드로 **누가 합류했는지 확인할 방법이 전혀 없다.** D15로 가족 세부 화면은 **생성 시 입력값(가족명·메모·이미지)만** 노출로 정해졌고 **구성원 목록은 포함되지 않았다.** 따라서 초대 코드로 **누가 합류했는지 확인할 방법이 여전히 없다** | 🔴 |
+| A1 | **초대 코드 미구현** | 현재는 `familyId`(UUID)만 알면 POST 한 번으로 합류되고, 그 즉시 가족의 **모든 어르신 데이터에 접근**된다(R3 자동 링크). D4 확정으로 즉시 구현 대상 | ✅ 종결 ([#21](https://github.com/memeboomemeboo/haemi-server-v2/issues/21)) — `POST /families/join`에 초대 코드 필요 |
+| A2 | **가족에 누가 있는지 아무도 모른다** | 가족 조회 API가 **목록·세부 둘 다 없고**(§1), 프로필에 끼워 내려가는 가족 정보에도 구성원 목록이 없다. D6로 보호자 프로필은 본인만 조회로 확정됐으므로 초대 코드로 **누가 합류했는지 확인할 방법이 전혀 없다.** D15로 가족 세부 화면은 **생성 시 입력값(가족명·메모·이미지)만** 노출로 정해졌고 **구성원 목록은 포함되지 않았다.** 따라서 초대 코드로 **누가 합류했는지 확인할 방법이 여전히 없다** | ✅ 종결 ([#22](https://github.com/memeboomemeboo/haemi-server-v2/issues/22)) — `GET /families/my`가 구성원 목록 포함 |
 | A3 | **추억 응답에 생성자 정보 없음** | `MemoryDetailResponse`·`MemorySummaryResponse` 어디에도 `createdBy`가 없어 **수정·삭제 버튼 노출 분기가 불가능**하다. 어르신 쪽 DTO에는 `creatorName`·`creatorRole`이 이미 있다 | ✅ 종결 ([#23](https://github.com/memeboomemeboo/haemi-server-v2/issues/23)) |
-| A4 | **출석·리포트 전부 스텁** | 홈의 "함께한 일 수 0일", "오늘 출석 ✗"이 실제와 무관하게 고정 노출 → 사용자가 버그로 인식 | 🔴 |
+| A4 | **출석·리포트 전부 스텁** | 홈의 "함께한 일 수 0일", "오늘 출석 ✗"이 실제와 무관하게 고정 노출 → 사용자가 버그로 인식 | ✅ 종결 ([#24](https://github.com/memeboomemeboo/haemi-server-v2/issues/24)) — `elder/attendance` 실구현 + `guardian/report` 신설 |
 | A18 | **인증 시도 횟수 제한이 전혀 없다** | `PhoneVerificationUseCase.confirm()`이 코드 불일치 시 예외만 던지고 **실패 횟수를 세지 않는다.** 6자리 코드를 5분 안에 무제한 대입할 수 있다. `request()`도 재발송 제한이 없어 **SMS 폭탄·요금 폭증**이 가능하다. 로그인(`LoginUseCase`)에도 계정 잠금이 없다 | ✅ 종결 ([#26](https://github.com/memeboomemeboo/haemi-server-v2/issues/26)) — IP 기준 제한은 인프라 부재로 후속 과제 |
 | A16 | **수치 점수 노출 여부 미확정** | 컨디션 카드 시안의 82점 링이 명세 RPT-ATT-004("내부 점수 미노출")·R7("어르신 간 비교 금지")과 정면 충돌한다(C1). 명세를 개정할지, 3색 라벨로 갈지 결정 필요 — **D11: 수치 미노출 확정** | ✅ 종결 |
 | A17 | **마지막 접속 시각 필드 없음** | D13으로 "인지 활동 N회"는 제외됐으나, **마지막 접속 시각(D14)은 사용 확정**이다. `lastLoginAt` 류 필드가 없어 신설이 필요하다 | ✅ 종결 ([#25](https://github.com/memeboomemeboo/haemi-server-v2/issues/25)) — 보호자 홈의 어르신 카드에 노출 |
 | A5 | **가족 탈퇴 경로 없음 — MVP 이후(D9)** | 의도된 미구현. 다만 R2("보호자는 한 가족만") 때문에 **한 번 합류하면 MVP 기간 내내 다른 가족에 합류할 수 없다.** 잘못된 코드로 들어간 경우 운영 수동 처리가 필요하다 | 🟡 |
-| A6 | **`Family.guardianCount()`가 전체 멤버 수를 센다** | `members.size()` 반환. 현재는 `FamilyMember.of()`가 항상 `GUARDIAN`이라 우연히 맞지만, 어르신을 멤버로 넣는 순간 상한 8명 검증이 조용히 틀어진다. `elderCount()`는 **항상 0인 죽은 코드** | 🟡 |
-| A7 | **보낸 하루 한마디 이력 API 없음** | "내가 어제 뭘 보냈지"를 확인할 수 없다. 홈은 불리언만 제공. 추가 시에도 R6에 따라 **발신자 본인 것만** 반환해야 한다 | 🟡 |
+| A6 | **`Family.guardianCount()`가 전체 멤버 수를 센다** | `members.size()` 반환. 현재는 `FamilyMember.of()`가 항상 `GUARDIAN`이라 우연히 맞지만, 어르신을 멤버로 넣는 순간 상한 8명 검증이 조용히 틀어진다. `elderCount()`는 **항상 0인 죽은 코드** | ✅ 종결 ([#27](https://github.com/memeboomemeboo/haemi-server-v2/issues/27)) |
+| A7 | **보낸 하루 한마디 이력 API 없음** | "내가 어제 뭘 보냈지"를 확인할 수 없다. 홈은 불리언만 제공. 추가 시에도 R6에 따라 **발신자 본인 것만** 반환해야 한다 | ✅ 종결 ([#28](https://github.com/memeboomemeboo/haemi-server-v2/issues/28)) — `GET /daily-care/sent`, 발신자 본인 것만 반환 |
 | A8 | **어르신 계정 삭제 시 데이터 처리 미정** | 인가 문서 §6 미확정. **다른 보호자가 올린 추억도 함께 사라지는 문제** | 🟡 |
 | A9 | **어르신 전화번호 중복** | 재혼 가정 등 한 어르신을 두 가족이 각각 등록하는 경우 — **D23: 중복 허용, 병합 없음 확정** | ✅ 종결 |
 | A10 | **호칭 enum 커버리지 + 표시 규칙** (Q8, Q8-1) | 배우자·사위·며느리가 `기타`로 뭉개짐. 한글 enum 상수라 표시명 변경 시 DB 마이그레이션 필요. **어르신→보호자 / 보호자→보호자 방향의 표시 규칙이 미정** — D17로 `기타` 표시는 해결(→"보호자"). **호칭 목록 확장(배우자·사위·며느리) 여부만 잔존** | 🟡 |
 | A11 | **추억 조회 1년 창 하드코딩** | 보호자(`GetMemoriesUseCase`)·어르신(`ElderMemoryQueryImpl`) **양쪽 모두** 최근 1년만 반환한다(`365L * 24 * 3600` 하드코딩). R4는 "합류 전 과거분 전부 조회"인데 1년 컷이 걸려 **명세와 충돌**한다. 페이징도 없다 — **D21: 1년 유지 확정** | ✅ 종결 |
-| A12 | **관계 라벨 쓰기 경로가 2개** | `PATCH /elders/{id}/link/role`(단건)과 `PATCH /profile`의 `elderRoles` 맵(일괄)이 공존한다. 같은 "본인 링크 아님" 상황에 전자는 `NOT_RESOURCE_OWNER`, 후자는 `CARE_ACCESS_DENIED`를 던져 **에러 코드가 불일치**한다 | 🟡 |
+| A12 | **관계 라벨 쓰기 경로가 2개** | `PATCH /elders/{id}/link/role`(단건)과 `PATCH /profile`의 `elderRoles` 맵(일괄)이 공존한다. 같은 "본인 링크 아님" 상황에 전자는 `NOT_RESOURCE_OWNER`, 후자는 `CARE_ACCESS_DENIED`를 던져 **에러 코드가 불일치**한다 | ✅ 종결 ([#31](https://github.com/memeboomemeboo/haemi-server-v2/issues/31)) |
 | A13 | **`creatorRole`이 null이 될 수 있다** | `ElderMemoryQueryImpl.toItem()`이 링크를 조회해 관계를 붙이는데, **링크가 해제된 보호자**가 만든 추억은 `creatorRole=null`이 된다. `createdBy`가 null인 경우 `creatorName`도 null. 프론트는 두 값 모두 null 분기가 필요하다 | ✅ 종결 ([#32](https://github.com/memeboomemeboo/haemi-server-v2/issues/32)) — API 문서에 null 조건 명시, fallback 없음 |
 | A14 | **참여 빈도 표시 단위가 명세와 충돌** | D7은 "주별·월별만, 일별 없음"으로 확정됐으나, 명세 RPT-ATT-003은 **"요일별 완료 점(●○)"** 즉 일별 표시를 규정한다. 컨디션 카드 시안도 일별이다(C2). 어느 쪽을 따를지 정해야 리포트 착수가 가능하다 — **D12: 일·주·월 모두 제공** | ✅ 종결 |
 | A19 | **어르신 답변에 개수 제한도, 취소 경로도 없다** | `ResponseController`는 POST 4종(감정·텍스트·이미지·음성)만 있고 **DELETE·PATCH가 없다.** 같은 추억에 몇 번이든 답변이 쌓이고, 잘못 보낸 답변을 **어르신 본인도 보호자도 지울 수 없다.** 고령 사용자의 더블탭·오터치를 감안하면 중복 답변이 일상적으로 발생한다 — **D18: 취소·제한 모두 두지 않음** | ✅ 종결 |
@@ -366,13 +374,17 @@ D6(보호자 프로필은 본인만 조회)으로 인해, 지금은 **다른 보
 4. ✅ **A18** — 인증 시도·재발송 제한, 로그인 잠금 ([#26](https://github.com/memeboomemeboo/haemi-server-v2/issues/26))
 5. ✅ **A17** — 마지막 접속 시각 필드 신설, 보호자 홈의 어르신 카드에 노출 ([#25](https://github.com/memeboomemeboo/haemi-server-v2/issues/25))
 6. ✅ **A9 → D23** — 어르신 전화번호 중복 허용, 병합 없음으로 확정 ([#29](https://github.com/memeboomemeboo/haemi-server-v2/issues/29))
+7. ✅ **A1** — 초대 코드 발급·합류(D4) ([#21](https://github.com/memeboomemeboo/haemi-server-v2/issues/21))
+8. ✅ **A2** — 가족 조회 API(D10, D15) — `GET /families/my` ([#22](https://github.com/memeboomemeboo/haemi-server-v2/issues/22))
+9. ✅ **A4** — `elder/attendance` 실구현 + `guardian/report` 신설(D11·D12 기준) ([#24](https://github.com/memeboomemeboo/haemi-server-v2/issues/24))
+10. ✅ **A7** — 보낸 하루 한마디 이력 API ([#28](https://github.com/memeboomemeboo/haemi-server-v2/issues/28))
+11. ✅ **A6** — `Family.guardianCount()` 상한 계산 정리 ([#27](https://github.com/memeboomemeboo/haemi-server-v2/issues/27))
+12. ✅ **A12** — 관계 라벨 쓰기 경로 에러 코드 일원화 ([#31](https://github.com/memeboomemeboo/haemi-server-v2/issues/31))
 
 **구현 대기 (결정 완료)**
 
-1. **A1** — 초대 코드 발급·합류(D4) + 가족 조회 API(D10, D15)
-2. **A4** — `elder/attendance` 실구현(D11·D12 기준)
-3. **A12** — 관계 라벨 쓰기 경로 통합 및 에러 코드 일원화
-4. **A6** — `Family.guardianCount()` 상한 계산 정리
+- 이번 통합 세션(13개 이슈)으로 §4 표의 항목은 A5(가족 탈퇴, MVP 이후)·A8(어르신 계정 삭제)·A10(호칭 확장)·
+  A15(보관 정책 보류)를 제외하고 모두 종결됐다. 남은 작업은 §6 서두의 "남은 질문 2건" 참조.
 
 > **MVP 제외 / 보류**: 가족 탈퇴·해체(D9), 가족 대표자 권한 강화, 어르신 계정 삭제 데이터 처리(A8), 하루 한마디 보관 정책(D22).
 

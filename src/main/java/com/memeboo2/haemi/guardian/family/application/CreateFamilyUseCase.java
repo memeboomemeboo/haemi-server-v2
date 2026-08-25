@@ -22,6 +22,7 @@ public class CreateFamilyUseCase {
     private final FamilyProperties props;
     private final MediaUploadCommand mediaUploadCommand;
     private final InviteCodeGenerator inviteCodeGenerator;
+    private final FamilyInviteCodeSaver familyInviteCodeSaver;
 
     public record Result(UUID familyId, String inviteCode) {}
 
@@ -35,18 +36,13 @@ public class CreateFamilyUseCase {
 
         String profileImageUrl = profileImageMediaRefId == null ? null
                 : mediaUploadCommand.confirmUpload(guardianId, profileImageMediaRefId, MediaPurpose.PROFILE_IMAGE).toString();
-        String inviteCode = generateUniqueInviteCode();
-        Family family = Family.create(familyName, memo, profileImageUrl, inviteCode);
-        family.addMember(guardianId);
-        familyRepository.save(family);
-        return new Result(family.getId(), inviteCode);
-    }
 
-    private String generateUniqueInviteCode() {
         for (int attempt = 0; attempt < MAX_CODE_ATTEMPTS; attempt++) {
-            String code = inviteCodeGenerator.nextCode();
-            if (!familyRepository.existsByInviteCode(code)) {
-                return code;
+            String inviteCode = inviteCodeGenerator.nextCode();
+            Family family = Family.create(familyName, memo, profileImageUrl, inviteCode);
+            family.addMember(guardianId);
+            if (familyInviteCodeSaver.trySave(family)) {
+                return new Result(family.getId(), inviteCode);
             }
         }
         throw new IllegalStateException("초대 코드 생성에 반복적으로 실패했습니다.");

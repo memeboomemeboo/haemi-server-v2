@@ -44,7 +44,7 @@ class GetMemoriesUseCaseTest {
         given(memoryRepository.findByElderIdSince(elderId, now.minusSeconds(365L * 24 * 3600)))
                 .willReturn(List.of(memory));
         MemoryWithCreator withCreator = new MemoryWithCreator(memory, "황정빈", null, true);
-        given(creatorResolver.resolve(memory, guardianId)).willReturn(withCreator);
+        given(creatorResolver.resolveAll(List.of(memory), elderId, guardianId)).willReturn(List.of(withCreator));
 
         List<MemoryWithCreator> result = useCase.execute(guardianId, elderId);
 

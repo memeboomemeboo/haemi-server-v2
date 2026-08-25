@@ -2,6 +2,7 @@ package com.memeboo2.haemi.guardian.memory.application;
 
 import com.memeboo2.haemi.common.time.HaemiClock;
 import com.memeboo2.haemi.guardian.api.CareAccessQuery;
+import com.memeboo2.haemi.guardian.memory.domain.Memory;
 import com.memeboo2.haemi.guardian.memory.infrastructure.MemoryRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -25,8 +26,7 @@ public class GetMemoriesUseCase {
         careAccessQuery.requireGuardianOf(guardianId, elderId);
 
         Instant oneYearAgo = clock.now().minusSeconds(365L * 24 * 3600);
-        return memoryRepository.findByElderIdSince(elderId, oneYearAgo).stream()
-                .map(m -> creatorResolver.resolve(m, guardianId))
-                .toList();
+        List<Memory> memories = memoryRepository.findByElderIdSince(elderId, oneYearAgo);
+        return creatorResolver.resolveAll(memories, elderId, guardianId);
     }
 }

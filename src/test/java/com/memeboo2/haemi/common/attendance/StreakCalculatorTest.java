@@ -19,10 +19,10 @@ class StreakCalculatorTest {
     }
 
     @Test
-    void 오늘_참여가_없어도_어제까지_이어졌으면_스트릭이_유지된다() {
+    void 오늘_참여가_없으면_전날까지_이어졌어도_스트릭이_0이다_자정_리셋() {
         Set<LocalDate> dates = Set.of(TODAY.minusDays(1), TODAY.minusDays(2));
 
-        assertThat(StreakCalculator.currentStreak(dates, TODAY)).isEqualTo(2);
+        assertThat(StreakCalculator.currentStreak(dates, TODAY)).isEqualTo(0);
     }
 
     @Test
@@ -46,6 +46,6 @@ class StreakCalculatorTest {
         );
 
         assertThat(StreakCalculator.bestStreak(dates)).isEqualTo(5);
-        assertThat(StreakCalculator.currentStreak(dates, TODAY)).isEqualTo(1);
+        assertThat(StreakCalculator.currentStreak(dates, TODAY)).isEqualTo(0);
     }
 }

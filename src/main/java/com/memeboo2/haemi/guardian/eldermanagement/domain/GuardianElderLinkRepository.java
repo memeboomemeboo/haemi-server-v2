@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 
 import jakarta.persistence.LockModeType;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -17,6 +18,9 @@ public interface GuardianElderLinkRepository extends JpaRepository<GuardianElder
     List<GuardianElderLink> findAllByGuardianId(UUID guardianId);
 
     List<GuardianElderLink> findAllByElderId(UUID elderId);
+
+    /** 목록 조회용 일괄 조회 — N+1 방지. */
+    List<GuardianElderLink> findAllByGuardianIdInAndElderId(Collection<UUID> guardianIds, UUID elderId);
 
     long countByElderId(UUID elderId);
 

@@ -12,9 +12,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.LocalDate;
 import java.util.UUID;
 
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -28,19 +26,17 @@ class AttendanceRecordedListenerTest {
 
     @Test
     void 정상_경로_스냅샷을_적재한다() {
-        given(repository.existsByElderIdAndParticipationDate(elderId, date)).willReturn(false);
-
         listener.on(new AttendanceRecorded(elderId, date));
 
-        verify(repository).saveAndFlush(any());
+        verify(repository).insertIfAbsent(elderId, date);
     }
 
     @Test
-    void 이미_적재됐으면_중복_저장하지_않는다_멱등() {
-        given(repository.existsByElderIdAndParticipationDate(elderId, date)).willReturn(true);
+    void 이미_적재됐으면_원자적_삽입이_아무것도_하지_않는다_멱등() {
+        given(repository.insertIfAbsent(elderId, date)).willReturn(0);
 
         listener.on(new AttendanceRecorded(elderId, date));
 
-        verify(repository, never()).saveAndFlush(any());
+        verify(repository).insertIfAbsent(elderId, date);
     }
 }
