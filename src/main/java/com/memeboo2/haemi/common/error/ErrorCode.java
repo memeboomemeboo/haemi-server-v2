@@ -27,7 +27,11 @@ public enum ErrorCode {
     AUTH_REFRESH_TOKEN_INVALID(HttpStatus.UNAUTHORIZED, "유효하지 않은 리프레시 토큰입니다. 다시 로그인해 주세요."),
 
     // 하루 한마디
-    DAILY_CARE_ALREADY_SENT(HttpStatus.CONFLICT, "오늘은 이미 하루 한마디를 전했습니다.");
+    DAILY_CARE_ALREADY_SENT(HttpStatus.CONFLICT, "오늘은 이미 하루 한마디를 전했습니다."),
+
+    // 인지 훈련
+    TRAINING_SESSION_ALREADY_STARTED(HttpStatus.CONFLICT, "이미 해당 날짜의 인지 훈련 세션이 있습니다."),
+    TRAINING_MATERIAL_UNAVAILABLE(HttpStatus.CONFLICT, "인지 훈련에 필요한 사진 자료를 준비하고 있습니다.");
 
     private final HttpStatus status;
     private final String defaultMessage;

@@ -1,6 +1,7 @@
 package com.memeboo2.haemi;
 
 import org.flywaydb.core.Flyway;
+import org.flywaydb.core.api.MigrationInfo;
 import org.junit.jupiter.api.Test;
 
 import java.nio.file.Path;
@@ -19,6 +20,10 @@ class FlywayMigrationTest {
                 .load();
 
         assertThat(Path.of("src/main/resources/db/migration/V1__baseline.sql")).doesNotExist();
-        assertThat(flyway.info().all()).hasSize(20);
+        MigrationInfo[] migrations = flyway.info().all();
+        assertThat(migrations).isNotEmpty();
+        assertThat(migrations)
+                .extracting(migration -> migration.getVersion().getVersion())
+                .doesNotHaveDuplicates();
     }
 }

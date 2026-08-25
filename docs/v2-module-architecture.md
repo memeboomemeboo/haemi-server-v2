@@ -1,6 +1,6 @@
 # 해미 v2 — 모듈 구조 (확정)
 
-> 기준 문서: [v2-funcctional-spec.md](./v2-funcctional-spec.md) (기능 30개)
+> 기준 문서: [v2-functional-spec.md](./v2-functional-spec.md) (기능 30개)
 > 아키텍처 결정: [v2-architecture.md](./v2-architecture.md)
 > 확정일: 2026-08-22
 
@@ -113,17 +113,15 @@ com.haemi
 │   │   └── application
 │   ├── training                # 인지 훈련 (CIST-TRN-001~006)
 │   │   ├── domain
-│   │   │   ├── session         # TrainingSession, SessionState, Progress
-│   │   │   ├── question        # Orientation, Recall, Language 문항 생성
-│   │   │   ├── difficulty      # Lv.1~3, 영역별 독립, 상향 80% / 하향 40%
-│   │   │   └── delayedrecall   # 지연 회상, 질문 프레임 전환
+│   │   │   ├── TrainingSession, TrainingQuestion, TrainingAnswer
+│   │   │   └── TrainingDifficulty # Lv.1~3, 영역별 독립, 상향 80% / 하향 40%
 │   │   ├── application         # 세션 시작·이어하기·응답·완료·결과 조회
-│   │   ├── event               # TrainingSessionCompleted → elder.attendance (출석 원천), guardian.report (인지 결과)
+│   │   ├── event               # TrainingSessionCompleted → elder.attendance (구현)
 │   │   └── infrastructure
 │   ├── attendance              # 출석·일일 활동
 │   │   ├── domain              # DailyParticipation, Streak, Badge
 │   │   ├── application         # 스트릭 계산, 7·30·100일 마일스톤, AttendanceRecorded 발행
-│   │   ├── event               # AttendanceRecorded → guardian.report (출석·참여 결과)
+│   │   ├── event               # AttendanceRecorded → guardian.report (구현)
 │   │   └── infrastructure
 │   ├── companion               # 말동무 (FRI, 대기)
 │   └── presentation
@@ -131,7 +129,7 @@ com.haemi
 │       ├── MemoryController            # 받은 추억 조회·상세
 │       ├── ResponseController          # 마음 전하기·댓글·음성
 │       ├── InboxController             # 하루 한마디 수신
-│       ├── TrainingController          # CIST 세션·응답·결과
+│       ├── TrainingSessionController   # CIST 세션·응답·결과
 │       └── dto                         # ※ 점수·정답률 필드 금지
 │
 └── platform
@@ -140,7 +138,7 @@ com.haemi
     │   ├── application         # presigned URL 발급, 키 확정
     │   └── infrastructure      # 스토리지 어댑터
     ├── content                 # 큐레이션 콘텐츠 풀 (CIST 재료)
-    │   ├── domain              # ContentItem, ContentTag, ExposureHistory
+    │   ├── domain              # ContentItem, ContentExposure
     │   ├── application         # 쿨다운 7일, 재투입 14~30일, 고갈 임계 20개
     │   └── infrastructure
     ├── notification            # FCM 발송, 발송 실패·재시도
@@ -169,7 +167,7 @@ elder ──────────▶ guardian ──────▶ auth ─�
 | # | 규칙 |
 | --- | --- |
 | 1 | 그룹 간 호출은 **`api` 패키지를 통해서만**. `domain`·`infrastructure` 직접 import 금지 |
-| 2 | 역방향(`elder` → `guardian`)은 **도메인 이벤트로만**. `TrainingSessionCompleted`는 인지 결과를, `AttendanceRecorded`는 출석·참여 결과를 `guardian/report`에 전달 |
+| 2 | 역방향(`elder` → `guardian`)은 **도메인 이벤트로만**. 현재 `TrainingSessionCompleted`는 출석 모듈에 일자별 완료 사실을, `AttendanceRecorded`는 출석·참여 결과를 `guardian/report`에 전달 |
 | 3 | 엔티티를 그룹 밖으로 넘기지 않음. **ID와 DTO만** |
 | 4 | `common`에 **엔티티 금지** |
 | 5 | 트랜잭션 경계는 `application`. `domain`·`presentation`에 `@Transactional` 금지 |
@@ -189,8 +187,8 @@ elder ──────────▶ guardian ──────▶ auth ─�
 
 | 발행 | 이벤트 | 구독 |
 | --- | --- | --- |
-| `elder/training` | `TrainingSessionCompleted` | `elder/attendance` (출석 기록), `guardian/report` (인지 결과 스냅샷) |
-| `elder/attendance` | `AttendanceRecorded` | `guardian/report` (출석·참여 스냅샷) |
+| `elder/training` | `TrainingSessionCompleted` | `elder/attendance` (출석 기록, 구현) |
+| `elder/attendance` | `AttendanceRecorded` | `guardian/report` (출석·참여 스냅샷, 구현) |
 | `elder/response` | `ElderResponded` | `platform/notification` |
 | `guardian/dailycare` | `GreetingSent` | `elder/inbox`, `platform/notification` |
 | `guardian/memory` | `MemoryRegistered` | `platform/notification` |
@@ -226,7 +224,7 @@ elder ──────────▶ guardian ──────▶ auth ─�
 
 ## 5. 명세 30기능 → 모듈 매핑
 
-기능별 상세 표기는 [기능명세서](./v2-funcctional-spec.md)의 각 항목 `**모듈**` 줄, 역방향 조회는 [부록 A](./v2-funcctional-spec.md#부록-a-모듈별-담당-기능) 참조.
+기능별 상세 표기는 [기능명세서](./v2-functional-spec.md)의 각 항목 `**모듈**` 줄, 역방향 조회는 [부록 A](./v2-functional-spec.md#부록-a-모듈별-담당-기능) 참조.
 
 **표기 규칙**
 
@@ -241,7 +239,7 @@ elder ──────────▶ guardian ──────▶ auth ─�
 - **ACC-REG-002 어르신 회원가입** — `guardian/eldermanagement`가 `auth/api/AccountCommand`에 User 생성을 요청하고, 반환받은 ID로 `GuardianElderLink`를 맺습니다. 가입 플로우 문서의 *"보호자 계정 아래에 종속시키지 않는다"* 를 지키는 순서입니다. 반대로 하면 종속 구조가 됩니다.
 - **CIST-TRN-003/004** — 소스 우선순위(추억앨범 → 큐레이션)의 판단 주체는 `elder/training`입니다. `guardian/api/MemoryQuery`와 `platform/content`를 순서대로 조회합니다.
 - **RPT-ATT-003** — `guardian/report`는 `elder/attendance`가 발행한 `AttendanceRecorded`만 받아 참여일 읽기 모델을 쌓습니다. 따라서 최근 7일의 ●/○, 최근 4주 막대, 스트릭·최고 기록은 출석 데이터에서만 만듭니다.
-- **RPT-ATT-004** — `guardian/report`는 `elder/training`의 테이블을 직접 조회하지 않습니다. `TrainingSessionCompleted`로 받은 영역별 결과만 인지 읽기 모델에 쌓습니다.
+- **RPT-ATT-004** — `guardian/report`는 `elder/training`의 테이블을 직접 조회하지 않습니다. 현재 `TrainingSessionCompleted`는 어르신 ID와 완료 일자만 담으므로, 영역별 리포트가 시작될 때는 전용 인지 스냅샷 계약을 추가합니다.
 
 ---
 
@@ -281,4 +279,4 @@ DB도 같은 원칙 — **테이블 접두사를 그룹·모듈명으로** 통�
 | PIN 재설정 플로우 | `auth/credential` | 어르신 사용자층 특성상 실사용 1순위 이슈 |
 | 탈퇴·연결 해제 시 데이터 처리 | `guardian/memory` · `elder/training` · `guardian/report` | 나중에 정하면 마이그레이션 필요 |
 
-상세는 [기능명세서 부록 B](./v2-funcctional-spec.md#부록-b-명세-결손-목록) 참조.
+상세는 [기능명세서 부록 B](./v2-functional-spec.md#부록-b-명세-결손-목록) 참조.

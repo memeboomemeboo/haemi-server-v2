@@ -1,6 +1,6 @@
 # 해미 v2 — 아키텍처 설계
 
-> 기준: [v2-funcctional-spec.md](./v2-funcctional-spec.md) · [v2-module-architecture.md](./v2-module-architecture.md)
+> 기준: [v2-functional-spec.md](./v2-functional-spec.md) · [v2-module-architecture.md](./v2-module-architecture.md)
 > 확정일: 2026-08-22
 
 패키지 구조와 의존 규칙은 [모듈 구조 문서](./v2-module-architecture.md)에 있습니다. 이 문서는 **그 위에서 내린 기술 결정과 근거**를 다룹니다. 각 항목은 "무엇을 정했는가 / 왜 / 안 그러면 무엇이 깨지는가" 순입니다.
@@ -121,9 +121,10 @@ public MemoryId register(UserId actor, RegisterMemoryCommand cmd) {
 
 ```java
 public interface HaemiClock {
+    ZoneId KST = ZoneId.of("Asia/Seoul");
     Instant now();
     LocalDate today();                      // Asia/Seoul 기준
-    LocalDate todayFor(ElderId elderId);    // 향후 타임존 확장 여지
+    static LocalDate dateInKst(Instant instant);
 }
 ```
 
@@ -152,11 +153,12 @@ auth_users                    guardian_families            elder_responses
 auth_credentials              guardian_elders              elder_inbox_greetings
 auth_verifications            guardian_elder_links         elder_training_sessions
 auth_sessions                 guardian_memories            elder_training_answers
-                              guardian_memory_images       elder_training_difficulty
-platform_media_refs           guardian_greetings           elder_attendance
+                              guardian_memory_images       elder_training_questions
+platform_media_refs           guardian_greetings           elder_training_difficulties
 platform_content_items        guardian_challenges
-platform_content_exposures    guardian_report_snapshots
-platform_notifications        guardian_report_participation
+platform_content_exposures    elder_training_question_options
+                              elder_attendance_daily_participations
+platform_notifications        guardian_report_participations
 ```
 
 **모듈 간 FK는 걸지 않습니다.** `guardian_memories.elder_id`는 `guardian_elders.id`를 논리적으로 참조하지만, `elder_responses.memory_id`처럼 **그룹을 넘는 참조에는 FK를 두지 않습니다.** 참조 무결성은 `CareAccessQuery`를 지나는 시점에 검증됩니다. FK를 걸면 모듈 분리·삭제 정책 변경이 전부 스키마 변경이 됩니다.
@@ -166,12 +168,12 @@ platform_notifications        guardian_report_participation
 | 항목 | 결정 | 근거 |
 | --- | --- | --- |
 | PK | `UUID v7` (`common/persistence/UuidGenerator`) | 시간순 정렬 가능해 인덱스 분산 완화 |
-| 동시성 | `@Version` 낙관적 락 | 어르신 세션·추억 답변에 경합 낮음 |
+| 동시성 | 인지 훈련 응답은 `PESSIMISTIC_WRITE` | 같은 문항의 재전송이 다음 문항을 건너뛰지 않게 세션 행을 잠금 |
 | 삭제 | **소프트 삭제 기본** (`deleted_at`) | 추억·훈련 기록은 복구 요구 가능성 높음 |
 | 마이그레이션 | Flyway, `V100`부터 순차 적용 | v1의 34개를 승계하지 않음. 중복 생성 위험이 있는 `V1__baseline.sql`은 미사용 |
 | 감사 | `created_at` · `updated_at` · `created_by` (`common/persistence/BaseEntity`) | 보호자 여러 명이 같은 가족을 수정 |
 
-**인덱스는 규칙에서 역산합니다.** 콘텐츠 쿨다운이 "최근 7일 제외 + 가장 오래된 것 우선"이므로 `platform_content_exposures(elder_id, exposed_at DESC)`가 필요하고, 이건 나중이 아니라 해당 모듈의 첫 마이그레이션에 넣습니다.
+**인덱스는 규칙에서 역산합니다.** 콘텐츠 쿨다운이 "최근 7일 제외 + 가장 오래된 것 우선"이므로 `platform_content_exposures(elder_id, exposed_at)`가 필요하고, 이건 해당 모듈의 첫 마이그레이션에 넣습니다.
 
 ---
 
@@ -231,6 +233,16 @@ sequenceDiagram
 
 에러 코드는 `common/error/ErrorCode` enum으로 관리하고 HTTP 상태와 1:1 매핑합니다. 어르신 앱에 내려가는 메시지는 **명세의 정서 톤**을 따릅니다 — "실패했습니다" 대신 "다시 한 번 해볼까요?".
 
+### CIST 세션 API (구현 상태)
+
+| 요청 | 경로 | 핵심 계약 |
+| --- | --- | --- |
+| POST | `/api/v1/elder/training/session/enter` | 새 세션을 시작하거나 진행 중 세션을 같은 문항으로 이어 간다. 당일 완료 세션은 결과만 포함해 반환한다. |
+| POST | `/api/v1/elder/training/session/current-question/complete` | `sessionId`·`questionId`·`questionNumber`을 모두 현재 상태와 대조한 뒤 답변을 한 번만 반영한다. 선택형은 `selectedOption`, 참여형은 `textAnswer` 또는 `voiceMediaRefId`를 보낸다. |
+| GET | `/api/v1/elder/training/session/result` | 당일 완료한 세션의 참여 시간·지연 회상 성공 수·해금 배지를 반환한다. |
+
+`questionType`은 클라이언트 입력으로 받지 않는다. 문항 ID와 번호가 현재 세션 진행 상태에 함께 일치해야 하므로, 유실된 응답을 재전송해도 다른 문항을 완료할 수 없다. `inactivityReminderSeconds`는 앱이 90초 무입력 음성 안내를 예약할 수 있게 하는 설정값이며, 어르신 응답에는 정답·점수·정답률을 포함하지 않는다.
+
 ---
 
 ## 7. 이벤트와 트랜잭션 (`common/event`)
@@ -241,7 +253,6 @@ sequenceDiagram
 flowchart LR
     T[elder/training] -->|TrainingSessionCompleted| OB[(event_publication)]
     OB -->|출석 기록| AT[elder/attendance]
-    OB -->|인지 결과 스냅샷| R[guardian/report]
     AT -->|AttendanceRecorded| OB
     OB -->|출석·참여 스냅샷| R
     RS[elder/response] -->|ElderResponded| OB
@@ -254,7 +265,7 @@ flowchart LR
 
 `spring-modulith-events-jpa`가 레지스트리를 기본 제공하므로 별도 구현이 필요 없습니다.
 
-**출석은 `elder/attendance`가 유일한 원천입니다.** `TrainingSessionCompleted`의 "그날 훈련을 완료했다"는 사실을 출석 모듈이 소비해 `DailyParticipation`을 멱등 기록하고 `AttendanceRecorded`를 발행합니다. `guardian/report`는 그 이벤트로 RPT-ATT-003의 참여일 읽기 모델을 만들고, 같은 훈련 완료 이벤트의 **영역별 결과**만 RPT-ATT-004용 인지 읽기 모델에 직접 적재합니다. 리포트가 훈련 완료를 출석으로 해석하지 않습니다.
+**출석은 `elder/attendance`가 유일한 원천입니다.** `TrainingSessionCompleted`의 완료 사실을 출석 모듈이 소비해 `DailyParticipation`을 `(elder_id, participation_date)`로 원자적 멱등 기록하고 `AttendanceRecorded`를 발행합니다. `AttendanceQuery`는 오늘 완료 여부·현재 스트릭·D+·7/30/100일 배지를 이 원천에서 계산합니다. `guardian/report`는 `AttendanceRecorded`만 소비해 출석 스냅샷을 적재합니다.
 
 **트랜잭션 경계는 `application`**. `domain`과 `presentation`에는 `@Transactional`을 쓰지 않습니다.
 
@@ -291,18 +302,16 @@ elder/training ──TrainingSessionCompleted──▶ elder/attendance
                                                     │
                                             AttendanceRecorded
                                                     ▼
-                              guardian_report_participation (출석 원천 스냅샷)
+                              guardian_report_participations (출석 원천 스냅샷)
 
-elder/training ──TrainingSessionCompleted──▶ guardian_report_cognition (인지 원천 스냅샷)
-                                                    │
-                                             조회 시 판정·조합
-                                                    ▼
-        RPT-ATT-003 출석 · 004 영역별 · 005 하이라이트 · 006 서포트
+        RPT-ATT-003 출석·참여 현황
+
+RPT-ATT-004 영역별 인지 상태와 RPT-ATT-005·006은 별도 인지 스냅샷 계약이 필요해 아직 구현하지 않는다.
 ```
 
-- `guardian_report_participation`은 `(elder_id, participation_date)`를 유일 키로 하여 `AttendanceRecorded`를 멱등 적재합니다. 최근 7일의 ●/○와 최근 4주 막대는 이 날짜 행으로 만들고, 오늘 행이 없으면 ○입니다.
+- `guardian_report_participations`는 `(elder_id, participation_date)`를 유일 키로 하여 `AttendanceRecorded`를 멱등 적재합니다. 최근 7일의 ●/○와 최근 4주 막대는 이 날짜 행으로 만들고, 오늘 행이 없으면 ○입니다.
 - 스트릭과 최고 기록은 이벤트에 담긴 가변 숫자를 복사하지 않고, 출석 날짜 스냅샷과 `HaemiClock`으로 **조회 시** 계산합니다. 따라서 자정을 넘겨 미완료가 되면 별도 배치 없이 현재 스트릭이 0으로 보입니다.
-- `guardian/report`는 두 모듈의 테이블을 직접 조회하지 않습니다. `TrainingSessionCompleted`는 인지 결과에만, `AttendanceRecorded`는 출석·참여에만 사용합니다.
+- `guardian/report`는 두 모듈의 테이블을 직접 조회하지 않습니다. 현재는 `AttendanceRecorded`만 출석·참여 스냅샷에 사용하며, `TrainingSessionCompleted`는 출석 모듈만 소비합니다.
 
 `guardian/report`는 **`elder/training`의 테이블을 직접 조회하지 않습니다.**
 
@@ -385,4 +394,4 @@ elder/training ──TrainingSessionCompleted──▶ guardian_report_cognition
 | **어르신 홈 화면** 정의 | `elder/home` |
 | **하루 한마디 수신 화면** (읽음 처리·보관) | `elder/inbox` |
 
-상세는 [기능명세서 부록 B](./v2-funcctional-spec.md#부록-b-명세-결손-목록) 참조.
+상세는 [기능명세서 부록 B](./v2-functional-spec.md#부록-b-명세-결손-목록) 참조.
