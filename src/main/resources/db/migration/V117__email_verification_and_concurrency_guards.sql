@@ -39,19 +39,37 @@ CREATE TABLE auth_verification_rate_limits (
 );
 
 -- 4) 보호자 1인 1가족(R2)을 DB 제약으로 강제한다. 애플리케이션 선검사만으로는 동시 요청을 막지 못한다.
---    기존 데이터에 같은 user_id가 두 가족에 남아 있으면 인덱스 생성이 실패해 앱 기동 자체가 막힌다.
---    이미 깨진 데이터 때문에 배포가 멈추지는 않도록, 중복이 없을 때만 만들고 있으면 경고만 남긴다.
---    경고가 보이면 아래 쿼리로 중복을 정리한 뒤 인덱스를 수동 생성한다.
---    SELECT user_id FROM guardian_family_members WHERE deleted_at IS NULL
---     GROUP BY user_id HAVING count(*) > 1;
-DO $$
-BEGIN
-    IF EXISTS (
-        SELECT 1 FROM guardian_family_members WHERE deleted_at IS NULL
-         GROUP BY user_id HAVING count(*) > 1
-    ) THEN
-        RAISE WARNING '보호자 1인 1가족 제약(uk_family_member_user)을 건너뜁니다 — 중복 소속 데이터가 있습니다.';
-    ELSE
-        CREATE UNIQUE INDEX uk_family_member_user ON guardian_family_members(user_id) WHERE deleted_at IS NULL;
-    END IF;
-END $$;
+--    기존에 한 사람이 두 가족에 속한 데이터가 있으면 인덱스 생성이 실패하므로 먼저 결정적으로 정리한다:
+--    가장 먼저 합류한 소속만 남기고, 나중 소속과 그 소속으로 생긴 어르신 링크를 함께 정리한다.
+--    (링크를 남겨 두면 제약을 걸어도 다른 가족 어르신 데이터에 계속 접근할 수 있다.)
+--    이 테이블들은 조회 시 deleted_at을 걸러내지 않으므로 soft delete로는 접근이 끊기지 않는다.
+DELETE FROM guardian_elder_links l
+  USING (
+        SELECT id, user_id, family_id
+          FROM (
+                SELECT id, user_id, family_id,
+                       row_number() OVER (PARTITION BY user_id ORDER BY created_at, id) AS rn
+                  FROM guardian_family_members
+                 WHERE deleted_at IS NULL
+               ) ranked
+         WHERE rn > 1
+       ) surplus,
+       guardian_elders e
+ WHERE l.guardian_id = surplus.user_id
+   AND l.elder_id = e.id
+   AND e.family_id = surplus.family_id
+   AND l.deleted_at IS NULL;
+
+DELETE FROM guardian_family_members
+ WHERE id IN (
+        SELECT id
+          FROM (
+                SELECT id,
+                       row_number() OVER (PARTITION BY user_id ORDER BY created_at, id) AS rn
+                  FROM guardian_family_members
+                 WHERE deleted_at IS NULL
+               ) ranked
+         WHERE rn > 1
+       );
+
+CREATE UNIQUE INDEX uk_family_member_user ON guardian_family_members(user_id) WHERE deleted_at IS NULL;

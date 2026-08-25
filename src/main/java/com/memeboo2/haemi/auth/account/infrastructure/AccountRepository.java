@@ -34,4 +34,24 @@ public interface AccountRepository extends JpaRepository<Account, UUID> {
     int incrementLoginFailure(@Param("loginId") String loginId,
                               @Param("maxAttempts") int maxAttempts,
                               @Param("lockedUntil") Instant lockedUntil);
+
+    /**
+     * 로그인 성공 상태를 원자적으로 기록한다. 잠긴 계정에는 적용되지 않는다(0 반환).
+     * 엔티티를 수정해 flush하면, 조회 시점 이후 다른 요청이 올린 실패 카운터와 잠금을
+     * stale 값으로 덮어써 잠금이 풀린다.
+     */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            UPDATE Account a
+               SET a.failedLoginAttempts = 0,
+                   a.lockedUntil = NULL,
+                   a.lastLoginAt = :now
+             WHERE a.id = :id
+               AND (a.lockedUntil IS NULL OR a.lockedUntil <= :now)
+            """)
+    int recordLoginSuccess(@Param("id") UUID id, @Param("now") Instant now);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE Account a SET a.pinLoginEnabled = true WHERE a.id = :id")
+    int enablePinLogin(@Param("id") UUID id);
 }

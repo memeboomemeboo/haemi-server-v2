@@ -55,6 +55,8 @@ class LoginUseCaseTest {
         given(clock.now()).willReturn(NOW);
         lenient().when(loginProperties.maxFailedAttempts()).thenReturn(5);
         lenient().when(loginProperties.lockDurationSeconds()).thenReturn(900L);
+        // 성공 기록은 원자적 UPDATE 한 건이다. 잠기지 않은 계정이면 1행이 갱신된다.
+        lenient().when(accountRepository.recordLoginSuccess(any(), any())).thenReturn(1);
     }
 
     @Test
@@ -79,6 +81,10 @@ class LoginUseCaseTest {
         given(jwtTokenProvider.createAccessToken(accountId, AccountRole.GUARDIAN)).willReturn("access");
         given(jwtTokenProvider.createRefreshToken(accountId)).willReturn("refresh");
         given(jwtProperties.refreshTokenValidity()).willReturn(Duration.ofDays(14));
+        given(accountRepository.enablePinLogin(accountId)).willAnswer(invocation -> {
+            account.enablePinLogin();
+            return 1;
+        });
 
         useCase.execute("guardian01", "password1", null, "device-a");
         LoginUseCase.TokenPair pinLogin = useCase.execute("guardian01", null, "123456", "device-a");
@@ -101,6 +107,21 @@ class LoginUseCaseTest {
         // 실제 증가·잠금은 별도 트랜잭션의 원자적 UPDATE가 담당한다.
         // 여기서는 잠금 임계값과 잠금 시간이 설정값 그대로 전달되는지만 확인한다.
         verify(loginFailureRecorder).recordFailure("guardian01", NOW, 5, 900L);
+    }
+
+    @Test
+    void 검증_도중_다른_요청이_계정을_잠그면_성공_기록이_거부된다() {
+        Account account = guardian();
+        setId(account, UUID.randomUUID());
+        given(accountRepository.findByLoginId("guardian01")).willReturn(Optional.of(account));
+        given(passwordService.matches("password1", "password-hash")).willReturn(true);
+        // 잠긴 계정에는 성공 UPDATE가 적용되지 않는다 (0행).
+        given(accountRepository.recordLoginSuccess(any(), any())).willReturn(0);
+
+        assertThatThrownBy(() -> useCase.execute("guardian01", "password1", null, "device-a"))
+                .isInstanceOf(DomainException.class)
+                .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
+                        .isEqualTo(ErrorCode.AUTH_ACCOUNT_LOCKED));
     }
 
     @Test

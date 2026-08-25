@@ -21,6 +21,7 @@ public enum ErrorCode {
     EMAIL_ALREADY_TAKEN(HttpStatus.CONFLICT, "이미 사용 중인 이메일입니다."),
     AUTH_VERIFICATION_LOCKED(HttpStatus.TOO_MANY_REQUESTS, "인증 시도 횟수를 초과했습니다. 인증을 다시 요청해 주세요."),
     AUTH_VERIFICATION_RESEND_LIMITED(HttpStatus.TOO_MANY_REQUESTS, "인증번호 요청이 너무 잦습니다. 잠시 후 다시 시도해 주세요."),
+    EMAIL_DELIVERY_FAILED(HttpStatus.SERVICE_UNAVAILABLE, "인증번호 발송에 실패했습니다. 잠시 후 다시 시도해 주세요."),
     AUTH_ACCOUNT_LOCKED(HttpStatus.LOCKED, "로그인 시도 횟수를 초과해 계정이 일시적으로 잠겼습니다."),
 
     // 하루 한마디

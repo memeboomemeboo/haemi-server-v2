@@ -28,4 +28,12 @@ public class VerificationRateLimit extends BaseEntity {
 
     @Column(name = "attempt_count", nullable = false)
     private int attemptCount;
+
+    public static VerificationRateLimit firstAttempt(String rateKey, Instant windowStart) {
+        VerificationRateLimit rateLimit = new VerificationRateLimit();
+        rateLimit.rateKey = rateKey;
+        rateLimit.windowStart = windowStart;
+        rateLimit.attemptCount = 1;
+        return rateLimit;
+    }
 }

@@ -3,7 +3,6 @@ package com.memeboo2.haemi.auth.verification.application;
 import com.memeboo2.haemi.auth.credential.PasswordService;
 import com.memeboo2.haemi.auth.verification.domain.EmailVerification;
 import com.memeboo2.haemi.auth.verification.infrastructure.EmailVerificationRepository;
-import com.memeboo2.haemi.auth.verification.infrastructure.VerificationRateLimitRepository;
 import com.memeboo2.haemi.common.error.DomainException;
 import com.memeboo2.haemi.common.error.ErrorCode;
 import com.memeboo2.haemi.common.time.HaemiClock;
@@ -26,7 +25,7 @@ public class EmailVerificationUseCase {
     private static final long EXPIRY_SECONDS = 5 * 60;
 
     private final EmailVerificationRepository repository;
-    private final VerificationRateLimitRepository rateLimitRepository;
+    private final VerificationRateLimitCounter rateLimitCounter;
     private final PasswordService passwordService;
     private final VerificationCodeGenerator codeGenerator;
     private final EmailSender emailSender;
@@ -44,9 +43,8 @@ public class EmailVerificationUseCase {
         Instant now = clock.now();
         Instant windowStart = windowStart(now);
         String rateKey = rateKey(email);
-        rateLimitRepository.increment(rateKey, windowStart);
-        Integer attempts = rateLimitRepository.findAttemptCount(rateKey, windowStart);
-        if (attempts != null && attempts > properties.maxResendPerWindow()) {
+        int attempts = rateLimitCounter.incrementAndGet(rateKey, windowStart);
+        if (attempts > properties.maxResendPerWindow()) {
             throw new DomainException(ErrorCode.AUTH_VERIFICATION_RESEND_LIMITED);
         }
 

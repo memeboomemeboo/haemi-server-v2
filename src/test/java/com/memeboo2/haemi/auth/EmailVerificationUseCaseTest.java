@@ -8,7 +8,7 @@ import com.memeboo2.haemi.auth.verification.application.VerificationCodeGenerato
 import com.memeboo2.haemi.auth.verification.application.VerificationFailureRecorder;
 import com.memeboo2.haemi.auth.verification.domain.EmailVerification;
 import com.memeboo2.haemi.auth.verification.infrastructure.EmailVerificationRepository;
-import com.memeboo2.haemi.auth.verification.infrastructure.VerificationRateLimitRepository;
+import com.memeboo2.haemi.auth.verification.application.VerificationRateLimitCounter;
 import com.memeboo2.haemi.common.error.DomainException;
 import com.memeboo2.haemi.common.error.ErrorCode;
 import com.memeboo2.haemi.common.time.HaemiClock;
@@ -40,7 +40,7 @@ class EmailVerificationUseCaseTest {
     private static final String EMAIL = "guardian@example.com";
 
     @Mock EmailVerificationRepository repository;
-    @Mock VerificationRateLimitRepository rateLimitRepository;
+    @Mock VerificationRateLimitCounter rateLimitCounter;
     @Mock PasswordService passwordService;
     @Mock VerificationCodeGenerator codeGenerator;
     @Mock EmailSender emailSender;
@@ -122,7 +122,7 @@ class EmailVerificationUseCaseTest {
 
     @Test
     void 재발송_제한을_초과하면_거부된다() {
-        given(rateLimitRepository.findAttemptCount(anyString(), any())).willReturn(6);
+        given(rateLimitCounter.incrementAndGet(anyString(), any())).willReturn(6);
 
         assertThatThrownBy(() -> useCase.request(EMAIL))
                 .isInstanceOf(DomainException.class)
@@ -132,7 +132,7 @@ class EmailVerificationUseCaseTest {
 
     @Test
     void 발송_제한은_고정_윈도우_카운터를_원자적으로_증가시켜_판정한다() {
-        given(rateLimitRepository.findAttemptCount(anyString(), any())).willReturn(1);
+        given(rateLimitCounter.incrementAndGet(anyString(), any())).willReturn(1);
         given(codeGenerator.nextCode()).willReturn("123456");
         given(passwordService.encode("123456")).willReturn("hashed-code");
         UUID verificationId = UUID.randomUUID();
@@ -149,7 +149,7 @@ class EmailVerificationUseCaseTest {
         // 윈도우 시작 시각은 resendWindowSeconds 단위로 내림한 값이어야 하고,
         // 키는 rate_key 컬럼(255자)을 넘지 않도록 해시된 고정 길이여야 한다.
         ArgumentCaptor<String> keyCaptor = ArgumentCaptor.forClass(String.class);
-        verify(rateLimitRepository).increment(keyCaptor.capture(), eq(Instant.parse("2026-08-23T00:00:00Z")));
+        verify(rateLimitCounter).incrementAndGet(keyCaptor.capture(), eq(Instant.parse("2026-08-23T00:00:00Z")));
         assertThat(keyCaptor.getValue()).startsWith("email-verification:").hasSizeLessThan(255);
     }
 }

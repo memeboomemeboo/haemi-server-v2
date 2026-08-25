@@ -114,10 +114,4 @@ public class Account extends BaseEntity {
         }
     }
 
-    public void recordLoginSuccess(Instant now) {
-        failedLoginAttempts = 0;
-        lockedUntil = null;
-        lastLoginAt = now;
-    }
-
 }

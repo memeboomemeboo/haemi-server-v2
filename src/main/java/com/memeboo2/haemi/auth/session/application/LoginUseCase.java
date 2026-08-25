@@ -51,9 +51,14 @@ public class LoginUseCase {
                     loginProperties.maxFailedAttempts(), loginProperties.lockDurationSeconds());
             throw new DomainException(ErrorCode.INVALID_CREDENTIALS);
         }
-        account.recordLoginSuccess(now);
+        // 성공 기록도 원자적 UPDATE로 한다. 엔티티를 수정해 flush하면 조회 이후 다른 요청이
+        // 올린 실패 카운터·잠금을 stale 값으로 덮어써, 동시 요청에서 계정 잠금이 풀린다.
+        if (accountRepository.recordLoginSuccess(account.getId(), now) == 0) {
+            // 검증 도중 다른 실패 요청이 계정을 잠갔다.
+            throw new DomainException(ErrorCode.AUTH_ACCOUNT_LOCKED);
+        }
         if (passwordMatches && !account.isPinLoginEnabled()) {
-            account.enablePinLogin();
+            accountRepository.enablePinLogin(account.getId());
         }
 
         String accessToken = jwtTokenProvider.createAccessToken(account.getId(), account.getRole());
