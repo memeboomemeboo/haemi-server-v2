@@ -1,7 +1,7 @@
 package com.memeboo2.haemi.platform.media.presentation;
 
 import com.memeboo2.haemi.platform.media.infrastructure.LocalObjectStorage;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.context.annotation.Profile;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 /** LocalStorageAdapter가 발급하는 개발용 업로드·서빙 URL의 실제 처리기. */
 @RestController
 @RequestMapping("/internal/storage")
-@ConditionalOnMissingBean(name = "s3StorageAdapter")
+@Profile("!prod")
 public class LocalStorageController {
 
     private final LocalObjectStorage objectStorage;
