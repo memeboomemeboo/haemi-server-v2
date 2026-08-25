@@ -55,15 +55,14 @@ class GetFamilyDetailUseCaseTest {
 
         given(familyRepository.findByMembers_UserId(guardianId)).willReturn(Optional.of(family));
         given(elderRepository.findAllByFamilyId(family.getId())).willReturn(List.of(elder));
-        given(accountQuery.findById(guardianId))
-                .willReturn(Optional.of(new AccountQuery.AccountInfo(guardianId, "나", "id1", "010", null, null, null)));
-        given(accountQuery.findById(otherGuardianId))
-                .willReturn(Optional.of(new AccountQuery.AccountInfo(otherGuardianId, "동생", "id2", "010", null, null, null)));
+        given(accountQuery.findAllById(List.of(guardianId, otherGuardianId))).willReturn(List.of(
+                new AccountQuery.AccountInfo(guardianId, "나", "id1", "010", null, null, null),
+                new AccountQuery.AccountInfo(otherGuardianId, "동생", "id2", "010", null, null, null)));
         GuardianElderLink otherLink = GuardianElderLink.create(otherGuardianId, elder.getId());
         otherLink.changeRole(GuardianRole.SON);
-        given(linkRepository.findByGuardianIdAndElderId(otherGuardianId, elder.getId()))
-                .willReturn(Optional.of(otherLink));
-        given(linkRepository.findByGuardianIdAndElderId(guardianId, elder.getId())).willReturn(Optional.empty());
+        given(linkRepository.findAllByGuardianIdInAndElderId(List.of(guardianId, otherGuardianId), elder.getId()))
+                .willReturn(List.of(otherLink));
+        given(linkRepository.findAllByGuardianId(guardianId)).willReturn(List.of());
 
         FamilyDetail detail = useCase.execute(guardianId, null).orElseThrow();
 
@@ -84,12 +83,10 @@ class GetFamilyDetailUseCaseTest {
 
         given(familyRepository.findByMembers_UserId(guardianId)).willReturn(Optional.of(family));
         given(elderRepository.findAllByFamilyId(family.getId())).willReturn(List.of(elder1, elder2));
-        given(accountQuery.findById(guardianId))
-                .willReturn(Optional.of(new AccountQuery.AccountInfo(guardianId, "나", "id1", "010", null, null, null)));
-        given(accountQuery.findById(otherGuardianId))
-                .willReturn(Optional.of(new AccountQuery.AccountInfo(otherGuardianId, "동생", "id2", "010", null, null, null)));
-        given(linkRepository.findByGuardianIdAndElderId(guardianId, elder1.getId())).willReturn(Optional.empty());
-        given(linkRepository.findByGuardianIdAndElderId(guardianId, elder2.getId())).willReturn(Optional.empty());
+        given(accountQuery.findAllById(List.of(guardianId, otherGuardianId))).willReturn(List.of(
+                new AccountQuery.AccountInfo(guardianId, "나", "id1", "010", null, null, null),
+                new AccountQuery.AccountInfo(otherGuardianId, "동생", "id2", "010", null, null, null)));
+        given(linkRepository.findAllByGuardianId(guardianId)).willReturn(List.of());
 
         FamilyDetail detail = useCase.execute(guardianId, null).orElseThrow();
 

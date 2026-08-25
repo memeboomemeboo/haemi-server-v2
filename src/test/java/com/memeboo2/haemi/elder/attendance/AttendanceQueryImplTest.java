@@ -2,7 +2,6 @@ package com.memeboo2.haemi.elder.attendance;
 
 import com.memeboo2.haemi.common.time.HaemiClock;
 import com.memeboo2.haemi.elder.attendance.application.AttendanceQueryImpl;
-import com.memeboo2.haemi.elder.attendance.domain.DailyParticipation;
 import com.memeboo2.haemi.elder.attendance.infrastructure.DailyParticipationRepository;
 import com.memeboo2.haemi.guardian.api.ElderQuery;
 import org.junit.jupiter.api.Test;
@@ -42,9 +41,10 @@ class AttendanceQueryImplTest {
     @Test
     void 참여_이력으로_현재_스트릭을_계산한다() {
         given(clock.today()).willReturn(today);
-        given(repository.findByElderId(elderId)).willReturn(List.of(
-                DailyParticipation.of(elderId, today),
-                DailyParticipation.of(elderId, today.minusDays(1))
+        given(repository.existsByElderIdAndParticipationDate(elderId, today)).willReturn(true);
+        given(repository.findParticipationDatesDesc(elderId)).willReturn(List.of(
+                today,
+                today.minusDays(1)
         ));
 
         assertThat(query.currentStreak(elderId)).isEqualTo(2);

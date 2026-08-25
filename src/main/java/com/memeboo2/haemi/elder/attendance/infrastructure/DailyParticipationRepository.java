@@ -17,6 +17,14 @@ public interface DailyParticipationRepository extends JpaRepository<DailyPartici
     List<DailyParticipation> findByElderId(UUID elderId);
 
     /**
+     * 스트릭 계산용 — 최신 참여일부터 내림차순 날짜만 투영해 읽는다.
+     * 엔티티 전량 대신 날짜만 읽고, 호출부가 첫 공백에서 조기 종료하도록 정렬해 둔다.
+     */
+    @Query("select p.participationDate from DailyParticipation p"
+            + " where p.elderId = :elderId order by p.participationDate desc")
+    List<LocalDate> findParticipationDatesDesc(@Param("elderId") UUID elderId);
+
+    /**
      * 존재하면 아무것도 하지 않는 원자적 삽입. exists-then-insert는 두 이벤트가 동시에
      * exists 검사를 통과하면 unique 위반으로 REQUIRES_NEW 트랜잭션 자체가 실패한다 (커밋 불가).
      * 반환값이 1이면 새로 적재된 것 — 그때만 하위 이벤트를 발행해야 중복 발행을 막는다.

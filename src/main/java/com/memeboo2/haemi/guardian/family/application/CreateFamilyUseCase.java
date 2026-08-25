@@ -48,6 +48,7 @@ public class CreateFamilyUseCase {
                 // 다음 코드로 재시도
             }
         }
-        throw new IllegalStateException("초대 코드 생성에 반복적으로 실패했습니다.");
+        throw new DomainException(ErrorCode.FAMILY_INVITE_CODE_GENERATION_FAILED,
+                "초대 코드 생성에 반복적으로 실패했습니다.");
     }
 }

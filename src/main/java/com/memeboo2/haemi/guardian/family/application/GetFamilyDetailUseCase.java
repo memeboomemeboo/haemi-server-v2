@@ -4,8 +4,10 @@ import com.memeboo2.haemi.auth.api.AccountQuery;
 import com.memeboo2.haemi.guardian.api.GuardianRole;
 import com.memeboo2.haemi.guardian.eldermanagement.domain.Elder;
 import com.memeboo2.haemi.guardian.eldermanagement.domain.ElderRepository;
+import com.memeboo2.haemi.guardian.eldermanagement.domain.GuardianElderLink;
 import com.memeboo2.haemi.guardian.eldermanagement.domain.GuardianElderLinkRepository;
 import com.memeboo2.haemi.guardian.family.domain.Family;
+import com.memeboo2.haemi.guardian.family.domain.FamilyMember;
 import com.memeboo2.haemi.guardian.family.domain.FamilyRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -13,8 +15,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * GET /families/my 단일 조회 (D10). 화면 분할은 프론트가 담당한다.
@@ -58,23 +62,34 @@ public class GetFamilyDetailUseCase {
         UUID resolvedContextElderId = contextElderId != null ? contextElderId
                 : elderEntities.size() == 1 ? elderEntities.get(0).getId() : null;
 
-        List<GuardianMember> guardians = family.getMembers().stream()
+        List<UUID> memberIds = family.getMembers().stream()
                 .filter(m -> !m.isElder())
-                .map(m -> {
-                    String name = accountQuery.findById(m.getUserId())
-                            .map(AccountQuery.AccountInfo::name).orElse(null);
-                    GuardianRole role = resolvedContextElderId == null ? null
-                            : linkRepository.findByGuardianIdAndElderId(m.getUserId(), resolvedContextElderId)
-                                    .map(link -> link.getRole()).orElse(null);
-                    return new GuardianMember(m.getUserId(), name, role, m.getUserId().equals(guardianId));
-                })
+                .map(FamilyMember::getUserId)
                 .toList();
+
+        // 계정 이름 일괄 조회 (N+1 방지)
+        Map<UUID, String> nameByUserId = accountQuery.findAllById(memberIds).stream()
+                .collect(Collectors.toMap(AccountQuery.AccountInfo::userId, AccountQuery.AccountInfo::name));
+
+        // 컨텍스트 어르신 기준 보호자별 관계 라벨 일괄 조회 (N+1 방지)
+        Map<UUID, GuardianRole> roleByGuardianId = resolvedContextElderId == null ? Map.of()
+                : linkRepository.findAllByGuardianIdInAndElderId(memberIds, resolvedContextElderId).stream()
+                        .collect(Collectors.toMap(GuardianElderLink::getGuardianId, GuardianElderLink::getRole));
+
+        List<GuardianMember> guardians = memberIds.stream()
+                .map(userId -> new GuardianMember(
+                        userId, nameByUserId.get(userId),
+                        roleByGuardianId.get(userId), userId.equals(guardianId)))
+                .toList();
+
+        // 요청 보호자의 어르신별 관계 라벨 일괄 조회 (N+1 방지)
+        Map<UUID, GuardianRole> myRoleByElderId = linkRepository.findAllByGuardianId(guardianId).stream()
+                .collect(Collectors.toMap(GuardianElderLink::getElderId, GuardianElderLink::getRole));
 
         List<ElderCard> elders = elderEntities.stream()
                 .map(elder -> new ElderCard(
                         elder.getId(), elder.getName(), elder.getBirthDate(),
-                        linkRepository.findByGuardianIdAndElderId(guardianId, elder.getId())
-                                .map(link -> link.getRole()).orElse(null)))
+                        myRoleByElderId.get(elder.getId())))
                 .toList();
 
         return Optional.of(new FamilyDetail(

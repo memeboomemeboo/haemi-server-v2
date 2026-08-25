@@ -60,14 +60,17 @@ class GetElderReportListUseCaseTest {
         given(careAccessQuery.roleOf(guardianId, goodElderId)).willReturn(GuardianRole.DAUGHTER);
         given(careAccessQuery.roleOf(guardianId, watchElderId)).willReturn(GuardianRole.SON);
 
-        given(participationRepository.findByElderId(goodElderId)).willReturn(List.of(
-                ReportParticipation.of(goodElderId, today),
-                ReportParticipation.of(goodElderId, today.minusDays(1)),
-                ReportParticipation.of(goodElderId, today.minusDays(2)),
-                ReportParticipation.of(goodElderId, today.minusDays(3)),
-                ReportParticipation.of(goodElderId, today.minusDays(4))
-        ));
-        given(participationRepository.findByElderId(watchElderId)).willReturn(List.of());
+        LocalDate weekStart = today.minusDays(6);
+        given(participationRepository.findByElderIdAndParticipationDateGreaterThanEqual(goodElderId, weekStart))
+                .willReturn(List.of(
+                        ReportParticipation.of(goodElderId, today),
+                        ReportParticipation.of(goodElderId, today.minusDays(1)),
+                        ReportParticipation.of(goodElderId, today.minusDays(2)),
+                        ReportParticipation.of(goodElderId, today.minusDays(3)),
+                        ReportParticipation.of(goodElderId, today.minusDays(4))
+                ));
+        given(participationRepository.findByElderIdAndParticipationDateGreaterThanEqual(watchElderId, weekStart))
+                .willReturn(List.of());
 
         var result = useCase.execute(guardianId);
 

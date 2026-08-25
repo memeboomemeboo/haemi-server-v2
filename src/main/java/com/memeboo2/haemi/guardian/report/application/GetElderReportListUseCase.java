@@ -69,7 +69,8 @@ public class GetElderReportListUseCase {
         GuardianRole role = careAccessQuery.roleOf(guardianId, elderId);
         Integer age = elder.getBirthDate() == null ? null : Period.between(elder.getBirthDate(), today).getYears();
 
-        Set<LocalDate> dates = participationRepository.findByElderId(elderId).stream()
+        Set<LocalDate> dates = participationRepository
+                .findByElderIdAndParticipationDateGreaterThanEqual(elderId, weekStart).stream()
                 .map(ReportParticipation::getParticipationDate)
                 .collect(Collectors.toSet());
         boolean attendedToday = dates.contains(today);
