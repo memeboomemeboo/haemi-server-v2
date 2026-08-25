@@ -43,6 +43,7 @@ class CreateResponseUseCaseTest {
     @Mock ApplicationEventPublisher eventPublisher;
     @Mock CareAccessQuery careAccessQuery;
     @Mock ElderMemoryQuery elderMemoryQuery;
+    @Mock com.memeboo2.haemi.common.time.HaemiClock clock;
     @InjectMocks CreateResponseUseCase useCase;
 
     UUID elderUserId = UUID.randomUUID();
