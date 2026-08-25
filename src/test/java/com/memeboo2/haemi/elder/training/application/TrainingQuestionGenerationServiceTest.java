@@ -29,6 +29,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.never;
 
 /** CIST-TRN-002~005의 문항 순서와 앨범 우선 선택을 고정한다. */
 @ExtendWith(MockitoExtension.class)
@@ -79,6 +80,8 @@ class TrainingQuestionGenerationServiceTest {
                 .allMatch(questions.subList(3, 6).stream().map(TrainingQuestion::getMaterialId).toList()::contains);
         assertThat(questions.subList(0, 3)).allSatisfy(question -> assertThat(question.getOptions()).hasSize(4));
         then(contentQuery).shouldHaveNoInteractions();
+        then(difficultyRepository).should(never())
+                .findByElderIdAndQuestionType(ELDER_ID, QuestionType.LANGUAGE);
     }
 
     @Test

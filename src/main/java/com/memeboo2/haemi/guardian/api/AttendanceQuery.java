@@ -22,5 +22,5 @@ public interface AttendanceQuery {
     List<AttendanceBadge> unlockedBadges(UUID elderId);
 
     /** 방금 완료한 세션까지 반영한 결과 화면용 배지. */
-    List<AttendanceBadge> unlockedBadgesAfterCompletion(UUID elderId, UUID trainingSessionId);
+    List<AttendanceBadge> unlockedBadgesAfterCompletion(UUID elderId);
 }

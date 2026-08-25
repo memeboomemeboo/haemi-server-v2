@@ -26,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.Period;
+import java.util.Optional;
 import java.util.UUID;
 
 /** CIST-TRN-001~006의 세션 진입, 실제 답변, 결과 조회를 조합한다. */
@@ -53,7 +54,7 @@ public class TrainingSessionService implements TrainingSessionUseCase {
         UUID elderId = requireElderId(elderUserId);
         Instant now = clock.now();
         return trainingSessionRepository
-                .findFirstByElderIdAndStatusOrderByStartedAtAsc(elderId, SessionStatus.IN_PROGRESS)
+                .findFirstByElderIdAndStatusForUpdate(elderId, SessionStatus.IN_PROGRESS)
                 .map(session -> currentView(session, elderId, now))
                 .orElseGet(() -> completedTodayOrStart(elderId, now));
     }
@@ -126,7 +127,7 @@ public class TrainingSessionService implements TrainingSessionUseCase {
                 .orElseGet(() -> start(elderId, now, today));
     }
 
-    private java.util.Optional<TrainingSession> completedOn(UUID elderId, LocalDate date) {
+    private Optional<TrainingSession> completedOn(UUID elderId, LocalDate date) {
         Instant startOfDay = date.atStartOfDay(HaemiClock.KST).toInstant();
         Instant startOfNextDay = date.plusDays(1).atStartOfDay(HaemiClock.KST).toInstant();
         return trainingSessionRepository

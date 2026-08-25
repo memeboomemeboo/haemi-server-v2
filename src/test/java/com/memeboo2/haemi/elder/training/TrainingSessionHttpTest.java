@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.memeboo2.haemi.auth.account.domain.AccountRole;
 import com.memeboo2.haemi.auth.api.JwtTokenProvider;
 import com.memeboo2.haemi.elder.attendance.infrastructure.DailyParticipationRepository;
+import com.memeboo2.haemi.elder.attendance.infrastructure.DailyParticipationWriter;
 import com.memeboo2.haemi.elder.training.domain.MaterialSource;
 import com.memeboo2.haemi.elder.training.domain.QuestionType;
 import com.memeboo2.haemi.elder.training.domain.TrainingQuestion;
@@ -49,6 +50,7 @@ class TrainingSessionHttpTest {
     @Autowired TrainingAnswerRepository answerRepository;
     @Autowired TrainingSessionRepository trainingSessionRepository;
     @Autowired DailyParticipationRepository participationRepository;
+    @Autowired DailyParticipationWriter participationWriter;
     @Autowired ReportParticipationRepository reportParticipationRepository;
     @Autowired JwtTokenProvider jwtTokenProvider;
     private UUID elderId;
@@ -187,6 +189,15 @@ class TrainingSessionHttpTest {
         assertThat(questionRepository.findBySessionIdOrderByQuestionNumberAsc(sessionId).get(3).getAnswerKey())
                 .hasSizeGreaterThan(200)
                 .hasSizeLessThanOrEqualTo(700);
+    }
+
+    @Test
+    void 동일한_어르신과_날짜의_출석은_한번만_적재한다() {
+        LocalDate participationDate = LocalDate.of(2026, 8, 25);
+
+        assertThat(participationWriter.insertIfAbsent(UUID.randomUUID(), elderId, participationDate)).isTrue();
+        assertThat(participationWriter.insertIfAbsent(UUID.randomUUID(), elderId, participationDate)).isFalse();
+        assertThat(participationRepository.countByElderId(elderId)).isEqualTo(1);
     }
 
     private ContentItem content(String title, int year) {

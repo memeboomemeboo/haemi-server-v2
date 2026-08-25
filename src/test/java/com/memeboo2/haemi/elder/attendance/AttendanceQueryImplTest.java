@@ -6,6 +6,7 @@ import com.memeboo2.haemi.elder.attendance.infrastructure.DailyParticipationRepo
 import com.memeboo2.haemi.guardian.api.ElderQuery;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.data.domain.Pageable;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -17,6 +18,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 
 @ExtendWith(MockitoExtension.class)
@@ -42,7 +45,7 @@ class AttendanceQueryImplTest {
     void 참여_이력으로_현재_스트릭을_계산한다() {
         given(clock.today()).willReturn(today);
         given(repository.existsByElderIdAndParticipationDate(elderId, today)).willReturn(true);
-        given(repository.findParticipationDatesDesc(elderId)).willReturn(List.of(
+        given(repository.findParticipationDatesDesc(eq(elderId), any(Pageable.class))).willReturn(List.of(
                 today,
                 today.minusDays(1)
         ));

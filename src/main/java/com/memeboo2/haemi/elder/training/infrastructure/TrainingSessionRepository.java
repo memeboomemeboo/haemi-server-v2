@@ -14,8 +14,6 @@ import java.util.UUID;
 
 public interface TrainingSessionRepository extends JpaRepository<TrainingSession, UUID> {
 
-    Optional<TrainingSession> findFirstByElderIdAndStatusOrderByStartedAtAsc(UUID elderId, SessionStatus status);
-
     /** 같은 세션의 중복 응답이 문항을 두 번 넘기지 않도록 진행 상태를 잠근다. */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""

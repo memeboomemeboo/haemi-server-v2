@@ -33,8 +33,7 @@ public class AttendanceQueryStub implements AttendanceQuery {
     }
 
     @Override
-    public List<com.memeboo2.haemi.guardian.api.AttendanceBadge> unlockedBadgesAfterCompletion(
-            UUID elderId, UUID trainingSessionId) {
+    public List<com.memeboo2.haemi.guardian.api.AttendanceBadge> unlockedBadgesAfterCompletion(UUID elderId) {
         return List.of();
     }
 }

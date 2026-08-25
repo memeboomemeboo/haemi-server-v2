@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /** CIST-TRN-002~005의 10개 문항을 세션 시작 시 고정해 이탈 후에도 같은 지점에서 이어가게 한다. */
 @Service
@@ -46,7 +47,8 @@ public class TrainingQuestionGenerationService {
         }
 
         DifficultyLevel recallDifficulty = difficultyOf(elderId, QuestionType.RECALL);
-        DifficultyLevel languageDifficulty = difficultyOf(elderId, QuestionType.LANGUAGE);
+        // LANGUAGE는 자유 서술/음성 참여형이라 자동 채점·난이도 조정을 하지 않는다.
+        DifficultyLevel languageDifficulty = DifficultyLevel.LEVEL_1;
         List<TrainingMaterial> materials = trainingMaterials(elderId, elderAge);
 
         List<TrainingQuestion> questions = new ArrayList<>();
@@ -71,7 +73,7 @@ public class TrainingQuestionGenerationService {
                 .toList());
 
         if (materials.size() < policy.recallQuestionCount()) {
-            Set<UUID> excluded = materials.stream().map(TrainingMaterial::id).collect(java.util.stream.Collectors.toSet());
+            Set<UUID> excluded = materials.stream().map(TrainingMaterial::id).collect(Collectors.toSet());
             List<ContentMaterial> contents = contentQuery.selectForTraining(
                     elderId, elderAge, policy.recallQuestionCount() - materials.size(), excluded);
             materials.addAll(contents.stream()
@@ -213,7 +215,7 @@ public class TrainingQuestionGenerationService {
         return keywords.stream()
                 .filter(value -> !value.isBlank())
                 .distinct()
-                .collect(java.util.stream.Collectors.joining("\u001F"));
+                .collect(Collectors.joining("\u001F"));
     }
 
     private String hint(DifficultyLevel difficulty) {

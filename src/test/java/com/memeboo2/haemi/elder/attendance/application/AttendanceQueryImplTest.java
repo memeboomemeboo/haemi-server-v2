@@ -6,14 +6,18 @@ import com.memeboo2.haemi.guardian.api.AttendanceBadge;
 import com.memeboo2.haemi.guardian.api.ElderQuery;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.data.domain.Pageable;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 
 /** 출석은 완료 이벤트의 읽기 모델이며 스트릭·배지는 조회 시 계산한다. */
@@ -43,7 +47,7 @@ class AttendanceQueryImplTest {
         LocalDate today = LocalDate.of(2026, 8, 25);
         given(clock.today()).willReturn(today);
         given(participationRepository.existsByElderIdAndParticipationDate(elderId, today)).willReturn(true);
-        given(participationRepository.findParticipationDatesDesc(elderId))
+        given(participationRepository.findParticipationDatesDesc(eq(elderId), any(Pageable.class)))
                 .willReturn(List.of(today, today.minusDays(1), today.minusDays(2), today.minusDays(4)));
         AttendanceQueryImpl query = new AttendanceQueryImpl(participationRepository, elderQuery, clock);
 
@@ -53,13 +57,28 @@ class AttendanceQueryImplTest {
     @Test
     void 완료_응답은_이벤트_소비_전에도_방금_해금된_배지를_보여준다() {
         UUID elderId = UUID.randomUUID();
-        UUID sessionId = UUID.randomUUID();
         LocalDate today = LocalDate.of(2026, 8, 25);
         given(clock.today()).willReturn(today);
         given(participationRepository.countByElderId(elderId)).willReturn(6L);
         given(participationRepository.existsByElderIdAndParticipationDate(elderId, today)).willReturn(false);
         AttendanceQueryImpl query = new AttendanceQueryImpl(participationRepository, elderQuery, clock);
 
-        assertThat(query.unlockedBadgesAfterCompletion(elderId, sessionId)).containsExactly(AttendanceBadge.DAYS_7);
+        assertThat(query.unlockedBadgesAfterCompletion(elderId)).containsExactly(AttendanceBadge.DAYS_7);
+    }
+
+    @Test
+    void 긴_스트릭은_다음_페이지를_읽고_첫_공백에서_멈춘다() {
+        UUID elderId = UUID.randomUUID();
+        LocalDate today = LocalDate.of(2026, 8, 25);
+        List<LocalDate> firstPage = IntStream.range(0, 31)
+                .mapToObj(today::minusDays)
+                .toList();
+        given(clock.today()).willReturn(today);
+        given(participationRepository.existsByElderIdAndParticipationDate(elderId, today)).willReturn(true);
+        given(participationRepository.findParticipationDatesDesc(eq(elderId), any(Pageable.class)))
+                .willReturn(firstPage, List.of(today.minusDays(31), today.minusDays(33)));
+        AttendanceQueryImpl query = new AttendanceQueryImpl(participationRepository, elderQuery, clock);
+
+        assertThat(query.currentStreak(elderId)).isEqualTo(32);
     }
 }

@@ -6,12 +6,14 @@ import com.memeboo2.haemi.guardian.api.AttendanceBadge;
 import com.memeboo2.haemi.guardian.api.AttendanceQuery;
 import com.memeboo2.haemi.guardian.api.ElderQuery;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
@@ -21,6 +23,7 @@ import java.util.UUID;
 public class AttendanceQueryImpl implements AttendanceQuery {
 
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
+    private static final int STREAK_DATE_PAGE_SIZE = 31;
 
     private final DailyParticipationRepository repository;
     private final ElderQuery elderQuery;
@@ -40,20 +43,30 @@ public class AttendanceQueryImpl implements AttendanceQuery {
         if (!repository.existsByElderIdAndParticipationDate(elderId, today)) {
             return 0;
         }
-        // 최신 날짜부터 훑으며 연속이 끊기는 첫 지점에서 종료한다 (스트릭 길이만큼만 소비).
+        // 최신 날짜부터 31일 단위로 훑으며 연속이 끊기는 첫 지점에서 종료한다.
         LocalDate cursor = today;
         int streak = 0;
-        for (LocalDate date : repository.findParticipationDatesDesc(elderId)) {
-            if (date.isAfter(cursor)) {
-                continue;
+        int page = 0;
+        while (true) {
+            List<LocalDate> dates = repository.findParticipationDatesDesc(
+                    elderId, PageRequest.of(page++, STREAK_DATE_PAGE_SIZE));
+            if (dates.isEmpty()) {
+                return streak;
             }
-            if (!date.equals(cursor)) {
-                break;
+            for (LocalDate date : dates) {
+                if (date.isAfter(cursor)) {
+                    continue;
+                }
+                if (!date.equals(cursor)) {
+                    return streak;
+                }
+                streak++;
+                cursor = cursor.minusDays(1);
             }
-            streak++;
-            cursor = cursor.minusDays(1);
+            if (dates.size() < STREAK_DATE_PAGE_SIZE) {
+                return streak;
+            }
         }
-        return streak;
     }
 
     @Override
@@ -75,7 +88,7 @@ public class AttendanceQueryImpl implements AttendanceQuery {
 
     @Override
     @Transactional(readOnly = true)
-    public List<AttendanceBadge> unlockedBadgesAfterCompletion(UUID elderId, UUID trainingSessionId) {
+    public List<AttendanceBadge> unlockedBadgesAfterCompletion(UUID elderId) {
         long participationDays = repository.countByElderId(elderId);
         if (!repository.existsByElderIdAndParticipationDate(elderId, clock.today())) {
             participationDays++;
@@ -84,7 +97,7 @@ public class AttendanceQueryImpl implements AttendanceQuery {
     }
 
     private List<AttendanceBadge> badgesFor(long participationDays) {
-        return java.util.Arrays.stream(AttendanceBadge.values())
+        return Arrays.stream(AttendanceBadge.values())
                 .filter(badge -> badge.isUnlockedBy(participationDays))
                 .toList();
     }

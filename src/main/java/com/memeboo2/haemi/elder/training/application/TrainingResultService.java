@@ -33,7 +33,7 @@ public class TrainingResultService {
                         .count(),
                 session.getCompletedAt(),
                 session.getStatus() == SessionStatus.COMPLETED
-                        ? attendanceQuery.unlockedBadgesAfterCompletion(session.getElderId(), session.getId())
+                        ? attendanceQuery.unlockedBadgesAfterCompletion(session.getElderId())
                         : attendanceQuery.unlockedBadges(session.getElderId()));
     }
 
