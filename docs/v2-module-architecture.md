@@ -43,10 +43,10 @@ com.haemi
 │   │   ├── domain              # Password, Pin, PinPolicy
 │   │   ├── application         # PIN 설정·검증·재설정
 │   │   └── infrastructure
-│   ├── verification            # SMS 본인 인증
+│   ├── verification            # 이메일 본인 인증
 │   │   ├── domain              # VerificationCode, Purpose
 │   │   ├── application
-│   │   └── infrastructure      # SMS 발송 어댑터
+│   │   └── infrastructure      # 이메일 발송 어댑터
 │   ├── session                 # 로그인·토큰·로그아웃
 │   │   ├── domain              # Session, RefreshToken, DeviceInfo
 │   │   ├── application         # 로그인, 갱신, 로그아웃, 얼굴 인증

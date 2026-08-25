@@ -362,7 +362,7 @@ elder/training ──TrainingSessionCompleted──▶ guardian_report_cognition
 | # | 단계 | 산출물 |
 | --- | --- | --- |
 | 1 | 뼈대 | 패키지 트리 + Modulith verify + CI 통과 |
-| 2 | `common` + `auth` | Clock, 예외, JWT, PIN 로그인, SMS 인증 |
+| 2 | `common` + `auth` | Clock, 예외, JWT, PIN 로그인, 이메일 인증 |
 | 3 | `guardian/family` + `guardian/eldermanagement` + **`access`** | 다대다 관계, 인가 정책, ArchUnit 규칙 |
 | 4 | `platform/media` + `guardian/memory` + `elder/memory` + `elder/response` | 추억 등록·조회·답변 |
 | 5 | `platform/content` + `elder/training` + `elder/attendance` | CIST 세션·난이도·쿨다운 (+ 시간 시나리오 테스트) |

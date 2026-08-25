@@ -1,13 +1,14 @@
 package com.memeboo2.haemi.auth;
 
 import com.memeboo2.haemi.auth.credential.PasswordService;
-import com.memeboo2.haemi.auth.verification.application.PhoneVerificationProperties;
-import com.memeboo2.haemi.auth.verification.application.PhoneVerificationUseCase;
-import com.memeboo2.haemi.auth.verification.application.SmsSender;
+import com.memeboo2.haemi.auth.verification.application.EmailSender;
+import com.memeboo2.haemi.auth.verification.application.EmailVerificationProperties;
+import com.memeboo2.haemi.auth.verification.application.EmailVerificationUseCase;
 import com.memeboo2.haemi.auth.verification.application.VerificationCodeGenerator;
 import com.memeboo2.haemi.auth.verification.application.VerificationFailureRecorder;
-import com.memeboo2.haemi.auth.verification.domain.PhoneVerification;
-import com.memeboo2.haemi.auth.verification.infrastructure.PhoneVerificationRepository;
+import com.memeboo2.haemi.auth.verification.domain.EmailVerification;
+import com.memeboo2.haemi.auth.verification.infrastructure.EmailVerificationRepository;
+import com.memeboo2.haemi.auth.verification.infrastructure.VerificationRateLimitRepository;
 import com.memeboo2.haemi.common.error.DomainException;
 import com.memeboo2.haemi.common.error.ErrorCode;
 import com.memeboo2.haemi.common.time.HaemiClock;
@@ -17,8 +18,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.transaction.PlatformTransactionManager;
-import org.springframework.transaction.TransactionStatus;
 
 import java.time.Instant;
 import java.util.Optional;
@@ -27,26 +26,26 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.lenient;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
-class PhoneVerificationUseCaseTest {
+class EmailVerificationUseCaseTest {
 
     private static final Instant NOW = Instant.parse("2026-08-23T00:00:00Z");
-    private static final String PHONE = "01012345678";
+    private static final String EMAIL = "guardian@example.com";
 
-    @Mock PhoneVerificationRepository repository;
+    @Mock EmailVerificationRepository repository;
+    @Mock VerificationRateLimitRepository rateLimitRepository;
     @Mock PasswordService passwordService;
     @Mock VerificationCodeGenerator codeGenerator;
-    @Mock SmsSender smsSender;
+    @Mock EmailSender emailSender;
     @Mock HaemiClock clock;
-    @Mock PhoneVerificationProperties properties;
+    @Mock EmailVerificationProperties properties;
     @Mock VerificationFailureRecorder verificationFailureRecorder;
-    @Mock PlatformTransactionManager transactionManager;
-    @InjectMocks PhoneVerificationUseCase useCase;
+    @InjectMocks EmailVerificationUseCase useCase;
 
     @BeforeEach
     void setUp() {
@@ -54,56 +53,66 @@ class PhoneVerificationUseCaseTest {
         lenient().when(properties.maxConfirmAttempts()).thenReturn(5);
         lenient().when(properties.maxResendPerWindow()).thenReturn(5);
         lenient().when(properties.resendWindowSeconds()).thenReturn(3600L);
-        lenient().when(transactionManager.getTransaction(any())).thenReturn(mock(TransactionStatus.class));
     }
 
     @Test
-    void 인증번호를_검증한_휴대폰_인증만_가입에서_소비할_수_있다() {
+    void 인증번호를_검증한_이메일_인증만_가입에서_소비할_수_있다() {
         UUID verificationId = UUID.randomUUID();
-        PhoneVerification verification = PhoneVerification.pending(PHONE, "hashed-code", NOW.plusSeconds(300));
+        EmailVerification verification = EmailVerification.pending(EMAIL, "hashed-code", NOW.plusSeconds(300));
         given(repository.findById(verificationId)).willReturn(Optional.of(verification));
         given(passwordService.matches("123456", "hashed-code")).willReturn(true);
 
         useCase.confirm(verificationId, "123456");
-        useCase.consumeVerified(verificationId, PHONE);
+        useCase.consumeVerified(verificationId, EMAIL);
 
         assertThat(verification.getVerifiedAt()).isEqualTo(NOW);
         assertThat(verification.getConsumedAt()).isEqualTo(NOW);
     }
 
     @Test
-    void 다른_전화번호로는_검증된_인증을_소비할_수_없다() {
+    void 대소문자만_다른_이메일도_같은_인증으로_소비된다() {
         UUID verificationId = UUID.randomUUID();
-        PhoneVerification verification = PhoneVerification.pending(PHONE, "hashed-code", NOW.plusSeconds(300));
+        EmailVerification verification = EmailVerification.pending(EMAIL, "hashed-code", NOW.plusSeconds(300));
         given(repository.findById(verificationId)).willReturn(Optional.of(verification));
         given(passwordService.matches("123456", "hashed-code")).willReturn(true);
         useCase.confirm(verificationId, "123456");
 
-        assertThatThrownBy(() -> useCase.consumeVerified(verificationId, "01099998888"))
+        useCase.consumeVerified(verificationId, "Guardian@Example.com");
+
+        assertThat(verification.getConsumedAt()).isEqualTo(NOW);
+    }
+
+    @Test
+    void 다른_이메일로는_검증된_인증을_소비할_수_없다() {
+        UUID verificationId = UUID.randomUUID();
+        EmailVerification verification = EmailVerification.pending(EMAIL, "hashed-code", NOW.plusSeconds(300));
+        given(repository.findById(verificationId)).willReturn(Optional.of(verification));
+        given(passwordService.matches("123456", "hashed-code")).willReturn(true);
+        useCase.confirm(verificationId, "123456");
+
+        assertThatThrownBy(() -> useCase.consumeVerified(verificationId, "other@example.com"))
                 .isInstanceOf(DomainException.class)
                 .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
-                        .isEqualTo(ErrorCode.PHONE_VERIFICATION_REQUIRED));
+                        .isEqualTo(ErrorCode.EMAIL_VERIFICATION_REQUIRED));
     }
 
     @Test
     void 인증번호_확인을_상한만큼_틀리면_잠긴다() {
         UUID verificationId = UUID.randomUUID();
-        PhoneVerification verification = PhoneVerification.pending(PHONE, "hashed-code", NOW.plusSeconds(300));
+        EmailVerification verification = EmailVerification.pending(EMAIL, "hashed-code", NOW.plusSeconds(300));
         given(repository.findById(verificationId)).willReturn(Optional.of(verification));
         given(passwordService.matches("000000", "hashed-code")).willReturn(false);
-        lenient().doAnswer(invocation -> {
-            verification.recordFailedAttempt();
-            return null;
-        }).when(verificationFailureRecorder).recordFailure(verificationId);
+        // 실패 카운터는 별도 트랜잭션에서 원자적으로 증가하고 증가 후 값을 돌려준다.
+        given(verificationFailureRecorder.recordFailure(verificationId)).willReturn(1, 2, 3, 4, 5);
 
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < 4; i++) {
             assertThatThrownBy(() -> useCase.confirm(verificationId, "000000"))
                     .isInstanceOf(DomainException.class)
                     .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
                             .isEqualTo(ErrorCode.INVALID_INPUT));
         }
 
-        assertThatThrownBy(() -> useCase.confirm(verificationId, "123456"))
+        assertThatThrownBy(() -> useCase.confirm(verificationId, "000000"))
                 .isInstanceOf(DomainException.class)
                 .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
                         .isEqualTo(ErrorCode.AUTH_VERIFICATION_LOCKED));
@@ -111,28 +120,32 @@ class PhoneVerificationUseCaseTest {
 
     @Test
     void 재발송_제한을_초과하면_거부된다() {
-        given(repository.countByPhoneAndCreatedAtAfter(PHONE, NOW.minusSeconds(3600))).willReturn(5L);
+        given(rateLimitRepository.incrementAndGet(anyString(), any())).willReturn(6);
 
-        assertThatThrownBy(() -> useCase.request(PHONE))
+        assertThatThrownBy(() -> useCase.request(EMAIL))
                 .isInstanceOf(DomainException.class)
                 .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
                         .isEqualTo(ErrorCode.AUTH_VERIFICATION_RESEND_LIMITED));
     }
 
     @Test
-    void 인증요청은_무작위_코드를_SMS로_전송한다() {
-        UUID verificationId = UUID.randomUUID();
+    void 발송_제한은_고정_윈도우_카운터를_원자적으로_증가시켜_판정한다() {
+        given(rateLimitRepository.incrementAndGet(anyString(), any())).willReturn(1);
         given(codeGenerator.nextCode()).willReturn("123456");
         given(passwordService.encode("123456")).willReturn("hashed-code");
-        given(repository.save(org.mockito.ArgumentMatchers.any())).willAnswer(invocation -> {
-            PhoneVerification verification = invocation.getArgument(0);
+        UUID verificationId = UUID.randomUUID();
+        given(repository.save(any())).willAnswer(invocation -> {
+            EmailVerification verification = invocation.getArgument(0);
             var idField = verification.getClass().getSuperclass().getDeclaredField("id");
             idField.setAccessible(true);
             idField.set(verification, verificationId);
             return verification;
         });
 
-        assertThat(useCase.request(PHONE)).isEqualTo(verificationId);
-        verify(smsSender).sendVerificationCode(PHONE, "123456");
+        assertThat(useCase.request(EMAIL)).isEqualTo(verificationId);
+        verify(emailSender).sendVerificationCode(EMAIL, "123456");
+        // 윈도우 시작 시각은 resendWindowSeconds 단위로 내림한 값이어야 한다.
+        verify(rateLimitRepository).incrementAndGet("email-verification:" + EMAIL,
+                Instant.parse("2026-08-23T00:00:00Z"));
     }
 }

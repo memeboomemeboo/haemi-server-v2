@@ -8,6 +8,7 @@ import com.memeboo2.haemi.guardian.eldermanagement.domain.ElderRepository;
 import com.memeboo2.haemi.guardian.family.domain.Family;
 import com.memeboo2.haemi.guardian.family.domain.FamilyRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,6 +44,12 @@ public class JoinFamilyUseCase {
         }
 
         family.addMember(guardianId);
+        // 선검사만으로는 동시 합류/생성을 막지 못한다. DB 제약(uk_family_member_user)을 여기서 확인한다.
+        try {
+            familyRepository.flush();
+        } catch (DataIntegrityViolationException alreadyInAnotherFamily) {
+            throw new DomainException(ErrorCode.FAMILY_CAPACITY_EXCEEDED, "이미 가족에 속해 있습니다.");
+        }
 
         // 가족의 모든 어르신에 대해 링크 자동 생성 (R3)
         elderRepository.findAllByFamilyId(family.getId()).forEach(elder ->

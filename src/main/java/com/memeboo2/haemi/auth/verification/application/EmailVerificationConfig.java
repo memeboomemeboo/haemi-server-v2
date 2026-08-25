@@ -4,5 +4,5 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-@EnableConfigurationProperties(PhoneVerificationProperties.class)
-public class PhoneVerificationConfig {}
+@EnableConfigurationProperties(EmailVerificationProperties.class)
+public class EmailVerificationConfig {}

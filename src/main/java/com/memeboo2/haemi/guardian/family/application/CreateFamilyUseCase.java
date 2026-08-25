@@ -41,8 +41,11 @@ public class CreateFamilyUseCase {
             String inviteCode = inviteCodeGenerator.nextCode();
             Family family = Family.create(familyName, memo, profileImageUrl, inviteCode);
             family.addMember(guardianId);
-            if (familyInviteCodeSaver.trySave(family)) {
+            try {
+                familyInviteCodeSaver.save(family);
                 return new Result(family.getId(), inviteCode);
+            } catch (InviteCodeConflictException retryWithNewCode) {
+                // 다음 코드로 재시도
             }
         }
         throw new IllegalStateException("초대 코드 생성에 반복적으로 실패했습니다.");

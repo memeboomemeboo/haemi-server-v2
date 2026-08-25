@@ -111,7 +111,7 @@ class LoginUseCaseTest {
     }
 
     private static Account guardian() {
-        return Account.guardian("보호자", "guardian01", "password-hash", "1970-01-01", "01012345678", "pin-hash");
+        return Account.guardian("보호자", "guardian01", "password-hash", "1970-01-01", "01012345678", "guardian@example.com", "pin-hash");
     }
 
     private static void setId(Account account, UUID id) {

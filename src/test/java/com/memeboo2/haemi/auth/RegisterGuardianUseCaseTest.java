@@ -4,7 +4,7 @@ import com.memeboo2.haemi.auth.account.application.RegisterGuardianUseCase;
 import com.memeboo2.haemi.auth.account.domain.Account;
 import com.memeboo2.haemi.auth.account.infrastructure.AccountRepository;
 import com.memeboo2.haemi.auth.credential.PasswordService;
-import com.memeboo2.haemi.auth.verification.application.PhoneVerificationUseCase;
+import com.memeboo2.haemi.auth.verification.application.EmailVerificationUseCase;
 import com.memeboo2.haemi.common.error.DomainException;
 import com.memeboo2.haemi.common.error.ErrorCode;
 import org.junit.jupiter.api.Test;
@@ -25,7 +25,7 @@ class RegisterGuardianUseCaseTest {
 
     @Mock AccountRepository accountRepository;
     @Mock PasswordService passwordService;
-    @Mock PhoneVerificationUseCase phoneVerificationUseCase;
+    @Mock EmailVerificationUseCase emailVerificationUseCase;
     @InjectMocks RegisterGuardianUseCase sut;
 
     @Test
@@ -42,20 +42,34 @@ class RegisterGuardianUseCaseTest {
         });
 
         UUID verificationId = UUID.randomUUID();
-        UUID result = sut.execute("홍길동", "user01", "pass1234", "1970-01-01", "01011112222", "123456", verificationId);
+        UUID result = sut.execute("홍길동", "user01", "pass1234", "1970-01-01", "01011112222",
+                "Guardian@Example.com", "123456", verificationId);
 
         assertThat(result).isEqualTo(expectedId);
-        org.mockito.Mockito.verify(phoneVerificationUseCase).consumeVerified(verificationId, "01011112222");
+        org.mockito.Mockito.verify(emailVerificationUseCase).consumeVerified(verificationId, "guardian@example.com");
     }
 
     @Test
     void 중복_아이디_409() {
         given(accountRepository.existsByLoginId("user01")).willReturn(true);
 
-        assertThatThrownBy(() -> sut.execute("홍길동", "user01", "pass1234", "1970-01-01", "01011112222", "123456", UUID.randomUUID()))
+        assertThatThrownBy(() -> sut.execute("홍길동", "user01", "pass1234", "1970-01-01", "01011112222",
+                "guardian@example.com", "123456", UUID.randomUUID()))
                 .isInstanceOf(DomainException.class)
                 .extracting(e -> ((DomainException) e).getErrorCode())
                 .isEqualTo(ErrorCode.LOGIN_ID_ALREADY_TAKEN);
+    }
+
+    @Test
+    void 중복_이메일_409() {
+        given(accountRepository.existsByLoginId("user01")).willReturn(false);
+        given(accountRepository.existsByEmail("guardian@example.com")).willReturn(true);
+
+        assertThatThrownBy(() -> sut.execute("홍길동", "user01", "pass1234", "1970-01-01", "01011112222",
+                "guardian@example.com", "123456", UUID.randomUUID()))
+                .isInstanceOf(DomainException.class)
+                .extracting(e -> ((DomainException) e).getErrorCode())
+                .isEqualTo(ErrorCode.EMAIL_ALREADY_TAKEN);
     }
 
     @Test

@@ -40,6 +40,10 @@ public class Account extends BaseEntity {
     @Column(length = 20)
     private String phone;
 
+    /** 보호자 가입 시 인증된 이메일. 어르신 계정은 없다. */
+    @Column(length = 255)
+    private String email;
+
     @Column(length = 20)
     private String gender;
 
@@ -56,7 +60,7 @@ public class Account extends BaseEntity {
     private Instant lastLoginAt;
 
     public static Account guardian(String name, String loginId, String passwordHash,
-                                   String birthDate, String phone, String pinHash) {
+                                   String birthDate, String phone, String email, String pinHash) {
         Account a = new Account();
         a.role = AccountRole.GUARDIAN;
         a.name = name;
@@ -64,6 +68,7 @@ public class Account extends BaseEntity {
         a.passwordHash = passwordHash;
         a.birthDate = birthDate;
         a.phone = phone;
+        a.email = email;
         a.pinHash = pinHash;
         return a;
     }

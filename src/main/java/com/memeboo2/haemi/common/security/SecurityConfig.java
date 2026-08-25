@@ -18,7 +18,7 @@ public class SecurityConfig {
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/v1/auth/guardians/register", "/api/v1/auth/login", "/api/v1/auth/phone-verifications/**",
+                .requestMatchers("/api/v1/auth/guardians/register", "/api/v1/auth/login", "/api/v1/auth/email-verifications/**",
                         "/actuator/health", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
                 // LocalStorageAdapter가 만드는 presigned URL을 개발 환경에서 재현한다.
                 .requestMatchers("/internal/storage/**").permitAll()

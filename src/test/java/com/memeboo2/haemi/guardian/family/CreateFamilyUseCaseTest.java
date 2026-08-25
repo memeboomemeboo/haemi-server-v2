@@ -5,6 +5,7 @@ import com.memeboo2.haemi.common.error.ErrorCode;
 import com.memeboo2.haemi.guardian.family.application.CreateFamilyUseCase;
 import com.memeboo2.haemi.guardian.family.application.FamilyInviteCodeSaver;
 import com.memeboo2.haemi.guardian.family.application.FamilyProperties;
+import com.memeboo2.haemi.guardian.family.application.InviteCodeConflictException;
 import com.memeboo2.haemi.guardian.family.application.InviteCodeGenerator;
 import com.memeboo2.haemi.guardian.family.domain.Family;
 import com.memeboo2.haemi.guardian.family.domain.FamilyRepository;
@@ -39,7 +40,7 @@ class CreateFamilyUseCaseTest {
     void 정상_생성시_초대코드를_함께_반환한다() {
         given(familyRepository.findByMembers_UserId(guardianId)).willReturn(Optional.empty());
         given(inviteCodeGenerator.nextCode()).willReturn("ABCD2345");
-        given(familyInviteCodeSaver.trySave(any())).willReturn(true);
+        // 정상 저장: 예외 없이 반환
 
         CreateFamilyUseCase.Result result = useCase.execute(guardianId, "우리가족", null, null);
 
@@ -50,7 +51,9 @@ class CreateFamilyUseCaseTest {
     void 초대코드가_중복되면_재생성한다() {
         given(familyRepository.findByMembers_UserId(guardianId)).willReturn(Optional.empty());
         given(inviteCodeGenerator.nextCode()).willReturn("DUPCODE1", "FRESHCOD");
-        given(familyInviteCodeSaver.trySave(any())).willReturn(false, true);
+        // 첫 코드는 unique 충돌 → 예외로 알리고, 두 번째 코드로 재시도한다.
+        org.mockito.BDDMockito.willThrow(new InviteCodeConflictException(new RuntimeException("duplicate")))
+                .willDoNothing().given(familyInviteCodeSaver).save(any());
 
         CreateFamilyUseCase.Result result = useCase.execute(guardianId, "우리가족", null, null);
 
