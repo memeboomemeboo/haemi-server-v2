@@ -39,6 +39,7 @@ class RefreshTokenUseCaseTest {
 
     @Mock AccountRepository accountRepository;
     @Mock RefreshTokenRepository refreshTokenRepository;
+    @Mock com.memeboo2.haemi.auth.session.application.RefreshTokenMaintenance refreshTokenMaintenance;
     @Mock JwtTokenProvider jwtTokenProvider;
     @Mock JwtProperties jwtProperties;
     @Mock HaemiClock clock;
@@ -142,6 +143,7 @@ class RefreshTokenUseCaseTest {
                 .isInstanceOf(DomainException.class)
                 .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
                         .isEqualTo(ErrorCode.AUTH_REFRESH_TOKEN_INVALID));
-        verify(refreshTokenRepository).delete(expired);
+        // 만료 정리는 별도 트랜잭션(REQUIRES_NEW)으로 커밋된다.
+        verify(refreshTokenMaintenance).purge(refreshToken, deviceId);
     }
 }
