@@ -107,11 +107,4 @@ public class Account extends BaseEntity {
         return lockedUntil != null && lockedUntil.isAfter(now);
     }
 
-    public void recordLoginFailure(Instant now, int maxAttempts, long lockDurationSeconds) {
-        failedLoginAttempts++;
-        if (failedLoginAttempts >= maxAttempts) {
-            lockedUntil = now.plusSeconds(lockDurationSeconds);
-        }
-    }
-
 }

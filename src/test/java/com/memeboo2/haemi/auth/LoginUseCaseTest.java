@@ -127,7 +127,7 @@ class LoginUseCaseTest {
     @Test
     void 잠긴_계정은_비밀번호가_맞아도_거부된다() {
         Account account = guardian();
-        account.recordLoginFailure(NOW, 1, 900L);
+        lockUntil(account, NOW.plusSeconds(900L));
         given(accountRepository.findByLoginId("guardian01")).willReturn(Optional.of(account));
 
         assertThatThrownBy(() -> useCase.execute("guardian01", "password1", null, "device-a"))
@@ -138,6 +138,18 @@ class LoginUseCaseTest {
 
     private static Account guardian() {
         return Account.guardian("보호자", "guardian01", "password-hash", "1970-01-01", "01012345678", "guardian@example.com", "pin-hash");
+    }
+
+    /** 프로덕션 잠금은 원자적 UPDATE(AccountRepository)로만 일어나므로, 엔티티에는 잠금 세터가 없다.
+     *  테스트에서 잠긴 상태를 재현하기 위해 필드를 직접 설정한다. */
+    private static void lockUntil(Account account, Instant lockedUntil) {
+        try {
+            var field = Account.class.getDeclaredField("lockedUntil");
+            field.setAccessible(true);
+            field.set(account, lockedUntil);
+        } catch (ReflectiveOperationException exception) {
+            throw new AssertionError(exception);
+        }
     }
 
     private static void setId(Account account, UUID id) {
