@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -22,4 +23,9 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, UUID
     @Modifying
     @Query("DELETE FROM RefreshToken rt WHERE rt.token = :token AND rt.deviceId = :deviceId")
     int deleteByTokenAndDeviceId(String token, String deviceId);
+
+    /** 만료 시각이 지난 refresh 토큰 행을 일괄 삭제한다. 반환값 = 삭제된 행 수. */
+    @Modifying
+    @Query("DELETE FROM RefreshToken rt WHERE rt.expiresAt < :now")
+    int deleteExpired(Instant now);
 }

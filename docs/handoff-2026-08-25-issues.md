@@ -59,15 +59,15 @@
 | 7 | #57 | `POST /api/v1/auth/refresh` + 토큰 회전, role 없는 토큰 401(500 방지), `AUTH_REFRESH_TOKEN_INVALID` |
 | 8 | #54 | `ElderResponded`에 `respondedDate` 추가, legacy는 원본 생성일 유도, `HaemiClock.toLocalDate` |
 | 9 | #53 | `GreetingRead` 이벤트(최초 1회 발행) + **#64-2**(무음 실패→404/403) |
-| 10 | #55 | 추억 열람 기록(B안: `POST .../{memoryId}/viewed`) + `MemoryViewed` + V118 |
-| 11·12 | #52 | `ActivityType` 4종 + 종류별 플래그(V119) + `AttendanceRecorder` + 리스너 4종 + 홈 주간 배열/리포트 종류 플래그 |
+| 10 | #55 | 추억 열람 기록(B안: `POST .../{memoryId}/viewed`) + `MemoryViewed` + V121 |
+| 11·12 | #52 | `ActivityType` 4종 + 종류별 플래그(V122) + `AttendanceRecorder` + 리스너 4종 + 홈 주간 배열/리포트 종류 플래그 |
 | 13 | #64 | 소규모 정리 항목 1·3·4·5 (2번은 #53에 포함) |
 
 ### 결정/가정 기록
 - **#55**: 이슈가 권장·기본으로 명시한 **B안(명시적 열람 엔드포인트)** 채택.
 - **#52**: 선행 #53·#55를 같은 스택에서 완료했으므로 **4종 리스너 전부 연결**(원래 이슈는 TRAINING·REPLIED만 요구).
   같은 종류 여러 번 = 1회 집계(플래그), 점수/정답률 미노출(RPT-ATT-004·AU-2 준수).
-- **Flyway**: V118(#55 열람 테이블), V119(#52 종류 플래그 + 기존행 TRAINING 백필). 둘 다 황정빈 대역(100~199).
+- **Flyway**: V121(#55 열람 테이블), V122(#52 종류 플래그 + 기존행 TRAINING 백필). 둘 다 황정빈 대역(100~199).
 
 ---
 

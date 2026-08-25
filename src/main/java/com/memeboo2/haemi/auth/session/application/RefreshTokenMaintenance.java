@@ -1,7 +1,9 @@
 package com.memeboo2.haemi.auth.session.application;
 
 import com.memeboo2.haemi.auth.session.infrastructure.RefreshTokenRepository;
+import com.memeboo2.haemi.common.time.HaemiClock;
 import lombok.RequiredArgsConstructor;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,9 +18,23 @@ import org.springframework.transaction.annotation.Transactional;
 public class RefreshTokenMaintenance {
 
     private final RefreshTokenRepository refreshTokenRepository;
+    private final HaemiClock clock;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void purge(String token, String deviceId) {
         refreshTokenRepository.deleteByTokenAndDeviceId(token, deviceId);
+    }
+
+    /**
+     * 만료 시각이 지난 refresh 토큰 행을 주기적으로 정리한다.
+     *
+     * <p>일반 만료 경로에서는 JWT가 만료되면 재발급 유스케이스의 첫 서명 검증에서 즉시 거부돼
+     * 저장소 만료 분기에 도달하지 못한다. 그 결과 만료 행이 계속 누적되므로,
+     * 만료 시각 기준으로 매시 정각에 일괄 삭제해 잔존 행을 정리한다.
+     */
+    @Scheduled(cron = "0 0 * * * *")
+    @Transactional
+    public void purgeExpired() {
+        refreshTokenRepository.deleteExpired(clock.now());
     }
 }
