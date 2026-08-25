@@ -7,8 +7,8 @@ import java.util.UUID;
 
 /**
  * elder/training이 그날 인지 훈련 세션을 완료했을 때 발행한다.
- * elder/training은 아직 세션 도메인이 없어 현재 발행처가 없다 —
- * elder/attendance는 이 계약을 소비할 준비만 갖춘 상태다.
+ * 발행처는 CompleteTrainingSessionUseCase, 소비처는 elder/attendance다.
+ * 세션 도메인(#37)이 들어오면 발행 지점만 그쪽으로 옮긴다.
  */
 @Externalized
 public record TrainingSessionCompleted(UUID elderId, LocalDate sessionDate) {}

@@ -74,7 +74,7 @@
 원래 김연호 라인(김연호-4, 김연호-5) 소관이던 모듈. 이번엔 본인이 진행, PR #50으로 완료.
 
 - **elder/attendance**: `DailyParticipation`(출석의 유일한 원천) 완성. `TrainingSessionCompleted` 이벤트를 멱등 소비해 기록 → `AttendanceRecorded` 발행하는 리스너, `AttendanceQueryStub`를 대체하는 `AttendanceQueryImpl` 모두 완료. 스트릭은 `StreakCalculator`(공용 순수함수, `common/attendance`)로 조회 시 계산 (자정 미완료 시 리셋).
-  - ⚠️ **`elder/training`이 아직 `TrainingSessionCompleted`를 발행하지 않는다** — 자바 파일이 `SessionStatus`·`QuestionType` enum 2개뿐이고 CIST 세션·문항·정답 기록 도메인이 전혀 없다. 소비 경로(리스너·저장·조회)는 완성됐지만 실제 데이터는 `elder/training`이 구현돼야 흐르기 시작한다.
+  - **`elder/training` 발행처**: `CompleteTrainingSessionUseCase`(`POST /api/v1/elder/training-sessions/today/complete`)가 `TrainingSessionCompleted`를 발행한다. 세션 테이블 없이 "그날 완료했다"는 사실만 남기는 얇은 경로 — 출석·리포트 전 구간이 실제로 흐른다. CIST 세션·문항·정답 기록 도메인은 여전히 없고 #37 범위이며, #37이 머지되면 발행 지점을 `TrainingSessionService`로 옮기고 이 유스케이스·컨트롤러는 제거한다 (소비자는 그대로).
 - **guardian/report**: 신규 구현 완료. `ReportParticipation` 스냅샷(원천 테이블 직접 조회 금지 원칙 준수), 3색 상태(D11/D12: 수치 미노출, 참여 게이지)를 조회 시 계산. 구현한 엔드포인트: `GET /report/elders`(RPT-LST-001), `GET /elders/{elderId}/report/summary`(RPT-LST-002), `GET /elders/{elderId}/report/attendance`(RPT-ATT-003).
   - ❌ **RPT-ATT-004(인지 영역별 상태)는 구현하지 않음** — 지남력/회상/언어/지연회상 영역별 정답률이 필요한데 `elder/training`에 CIST 데이터가 전혀 없어 구현 불가능. `elder/training` 구현이 선행돼야 하는 **별도 이슈**.
   - ❌ **RPT-ATT-005(하이라이트)·006(서포트 가이드)도 제외** — `platform/ai` 미구현 + RPT-ATT-004 의존.

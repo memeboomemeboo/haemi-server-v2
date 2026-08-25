@@ -70,4 +70,4 @@
 - ✅ **본인 인증 수단을 SMS → 이메일로 전환** — 완료 (SMS 발송 경로는 제거)
 - ✅ **초대 코드 발급·합류** — 완료
 - ✅ **가족 세부 조회 API** — 완료
-- **출석 집계** — 집계·리포트 적재 경로는 구현 완료. 다만 학습 세션 완료 이벤트(`TrainingSessionCompleted`)를 발행하는 `elder/training` 세션 도메인이 아직 없어, 실제 값이 채워지는 것은 해당 도메인 구현([#37](https://github.com/memeboomemeboo/haemi-server-v2/pull/37)) 이후입니다
+- ✅ **출석 집계** — 발행(`POST /api/v1/elder/training-sessions/today/complete`) → 집계 → 리포트 적재까지 전 경로 구현 완료. 다만 이 발행처는 "오늘 훈련을 마쳤다"는 사실만 남기는 얇은 경로이고, CIST 세션·문항·영역별 결과는 [#37](https://github.com/memeboomemeboo/haemi-server-v2/pull/37) 범위입니다. #37 머지 시 발행 지점을 `TrainingSessionService`로 옮기고 이 경로는 제거합니다
