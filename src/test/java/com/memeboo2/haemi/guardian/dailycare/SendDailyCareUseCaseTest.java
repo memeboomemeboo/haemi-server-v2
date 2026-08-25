@@ -6,6 +6,7 @@ import com.memeboo2.haemi.common.event.GreetingSent;
 import com.memeboo2.haemi.common.time.HaemiClock;
 import com.memeboo2.haemi.guardian.api.CareAccessQuery;
 import com.memeboo2.haemi.guardian.dailycare.application.DailyCareProperties;
+import com.memeboo2.haemi.guardian.dailycare.application.DailyCareSaver;
 import com.memeboo2.haemi.guardian.dailycare.application.SendDailyCareUseCase;
 import com.memeboo2.haemi.guardian.dailycare.domain.DailyCare;
 import com.memeboo2.haemi.guardian.dailycare.infrastructure.DailyCareRepository;
@@ -39,7 +40,10 @@ class SendDailyCareUseCaseTest {
     @Mock ApplicationEventPublisher publisher;
     @Mock MediaUploadCommand mediaUploadCommand;
 
-    @InjectMocks SendDailyCareUseCase useCase;
+    // 적재 본문은 REQUIRES_NEW 저장자에 있다. 유스케이스에는 실제 저장자를 넣어 경로 전체를 검증한다.
+    @InjectMocks DailyCareSaver dailyCareSaver;
+
+    SendDailyCareUseCase useCase;
 
     private static final UUID GUARDIAN = UUID.randomUUID();
     private static final UUID ELDER = UUID.randomUUID();
@@ -47,6 +51,7 @@ class SendDailyCareUseCaseTest {
 
     @BeforeEach
     void setUp() {
+        useCase = new SendDailyCareUseCase(careAccessQuery, props, clock, dailyCareSaver);
         lenient().when(clock.today()).thenReturn(TODAY);
         lenient().when(clock.now()).thenReturn(Instant.now());
         lenient().when(props.retentionDays()).thenReturn(30);
@@ -64,6 +69,7 @@ class SendDailyCareUseCaseTest {
         ArgumentCaptor<GreetingSent> cap = ArgumentCaptor.forClass(GreetingSent.class);
         verify(publisher).publishEvent(cap.capture());
         assertThat(cap.getValue().elderId()).isEqualTo(ELDER);
+        assertThat(cap.getValue().careDate()).isEqualTo(TODAY);
     }
 
     @Test
@@ -103,13 +109,28 @@ class SendDailyCareUseCaseTest {
     }
 
     @Test
-    void 동시_전송_유니크_충돌은_409로_변환한다() {
+    void 동시_전송으로_uk_daily_care_위반이_나면_409로_변환된다() {
         when(repo.existsByGuardianIdAndElderIdAndCareDate(GUARDIAN, ELDER, TODAY)).thenReturn(false);
-        doThrow(new DataIntegrityViolationException("uk_daily_cares"))
+        // 선검사를 통과한 뒤 flush에서 유니크 제약이 잡는 경쟁 상황.
+        doThrow(new DataIntegrityViolationException(
+                "ERROR: duplicate key value violates unique constraint \"uk_daily_care_guardian_elder_date\""))
                 .when(repo).saveAndFlush(any(DailyCare.class));
 
         assertThatThrownBy(() -> useCase.sendText(GUARDIAN, ELDER, "안녕하세요"))
                 .isInstanceOf(DomainException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.DAILY_CARE_ALREADY_SENT);
+
+        // 위반 시 전송 이벤트를 발행하지 않는다.
+        verify(publisher, never()).publishEvent(any(GreetingSent.class));
+    }
+
+    @Test
+    void 다른_제약_위반은_409로_감추지_않고_그대로_전파한다() {
+        when(repo.existsByGuardianIdAndElderIdAndCareDate(GUARDIAN, ELDER, TODAY)).thenReturn(false);
+        doThrow(new DataIntegrityViolationException("null value in column \"elder_id\" violates not-null constraint"))
+                .when(repo).saveAndFlush(any(DailyCare.class));
+
+        assertThatThrownBy(() -> useCase.sendText(GUARDIAN, ELDER, "안녕하세요"))
+                .isInstanceOf(DataIntegrityViolationException.class);
     }
 }
