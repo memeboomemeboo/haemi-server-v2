@@ -66,6 +66,39 @@ class TrainingSessionEdgeCaseTest {
         assertThat(question.evaluate("1990", null, null)).isFalse();
     }
 
+    @Test
+    void 객관식은_정답_키와_정확히_일치할_때만_정답이다() {
+        TrainingQuestion question = TrainingQuestion.choice(
+                UUID.randomUUID(), 1, QuestionType.ORIENTATION, QuestionKind.ORIENTATION_DATE,
+                "오늘은 며칠인가요?", null, null, "1월 1일", 0, null,
+                List.of("1월 1일", "11월 1일"));
+
+        assertThat(question.evaluate("1월 1일", null, null)).isTrue();
+        assertThat(question.evaluate("11월 1일", null, null)).isFalse();
+    }
+
+    @Test
+    void 객관식_보기는_세션_내에서_고정되며_모든_문항의_첫_번째가_정답은_아니다() {
+        UUID sessionId = UUID.fromString("123e4567-e89b-12d3-a456-426614174000");
+        List<String> options = List.of("정답", "오답 1", "오답 2", "오답 3");
+
+        TrainingQuestion sameQuestionAgain = TrainingQuestion.choice(
+                sessionId, 1, QuestionType.ORIENTATION, QuestionKind.ORIENTATION_DATE,
+                "오늘은 며칠인가요?", null, null, "정답", 0, null, options);
+        TrainingQuestion firstQuestion = TrainingQuestion.choice(
+                sessionId, 1, QuestionType.ORIENTATION, QuestionKind.ORIENTATION_DATE,
+                "오늘은 며칠인가요?", null, null, "정답", 0, null, options);
+        List<TrainingQuestion> questions = java.util.stream.IntStream.rangeClosed(1, 10)
+                .mapToObj(number -> TrainingQuestion.choice(
+                        sessionId, number, QuestionType.ORIENTATION, QuestionKind.ORIENTATION_DATE,
+                        "오늘은 며칠인가요?", null, null, "정답", 0, null, options))
+                .toList();
+
+        assertThat(firstQuestion.getOptions()).isEqualTo(sameQuestionAgain.getOptions());
+        assertThat(questions).anySatisfy(question ->
+                assertThat(question.getOptions().getFirst()).isNotEqualTo("정답"));
+    }
+
     private QuestionType nextType(int currentNumber) {
         return switch (currentNumber) {
             case 1, 2 -> QuestionType.ORIENTATION;

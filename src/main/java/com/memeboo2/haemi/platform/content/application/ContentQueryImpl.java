@@ -14,7 +14,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Comparator;
-import java.util.function.BinaryOperator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -40,15 +39,19 @@ public class ContentQueryImpl implements ContentQuery {
         List<ContentItem> eligible = contentItemRepository.findEligible(KOREA, age, now);
         Set<UUID> recentlyExposed = new HashSet<>(contentExposureRepository.findContentIdsExposedSince(
                 elderId, now.minus(Duration.ofDays(policy.cooldownDays()))));
-        Map<UUID, Instant> lastExposedAt = contentExposureRepository.findByElderId(elderId).stream()
+        Map<UUID, Instant> lastExposedAt = contentExposureRepository.findLatestExposuresByElderId(elderId).stream()
                 .collect(java.util.stream.Collectors.toMap(
-                        ContentExposure::getContentId,
-                        ContentExposure::getExposedAt,
-                        BinaryOperator.maxBy(Comparator.naturalOrder())));
+                        ContentExposureRepository.LatestExposure::getContentId,
+                        ContentExposureRepository.LatestExposure::getExposedAt));
 
-        List<ContentItem> candidates = eligible.stream()
+        List<ContentItem> selectable = eligible.stream()
                 .filter(item -> !excludedContentIds.contains(item.getId()))
-                .filter(item -> eligible.size() < policy.depletionThreshold() || !recentlyExposed.contains(item.getId()))
+                .toList();
+        List<ContentItem> notRecentlyExposed = selectable.stream()
+                .filter(item -> !recentlyExposed.contains(item.getId()))
+                .toList();
+        List<ContentItem> candidates = (notRecentlyExposed.size() < policy.depletionThreshold()
+                ? selectable : notRecentlyExposed).stream()
                 .sorted(Comparator
                         .comparing((ContentItem item) -> lastExposedAt.get(item.getId()),
                                 Comparator.nullsFirst(Comparator.naturalOrder()))

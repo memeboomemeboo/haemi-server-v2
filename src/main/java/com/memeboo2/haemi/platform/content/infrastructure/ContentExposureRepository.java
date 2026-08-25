@@ -16,5 +16,17 @@ public interface ContentExposureRepository extends JpaRepository<ContentExposure
             """)
     List<UUID> findContentIdsExposedSince(UUID elderId, Instant since);
 
-    List<ContentExposure> findByElderId(UUID elderId);
+    @Query("""
+            SELECT e.contentId AS contentId, MAX(e.exposedAt) AS exposedAt
+            FROM ContentExposure e
+            WHERE e.elderId = :elderId
+            GROUP BY e.contentId
+            """)
+    List<LatestExposure> findLatestExposuresByElderId(UUID elderId);
+
+    interface LatestExposure {
+        UUID getContentId();
+
+        Instant getExposedAt();
+    }
 }

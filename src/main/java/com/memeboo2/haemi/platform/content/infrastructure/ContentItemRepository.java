@@ -18,5 +18,5 @@ public interface ContentItemRepository extends JpaRepository<ContentItem, UUID> 
               AND (:age IS NULL OR c.recommendedMaxAge IS NULL OR c.recommendedMaxAge >= :age)
             ORDER BY c.createdAt ASC
             """)
-    List<ContentItem> findEligible(String region, int age, Instant now);
+    List<ContentItem> findEligible(String region, Integer age, Instant now);
 }

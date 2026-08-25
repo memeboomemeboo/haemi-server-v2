@@ -17,7 +17,6 @@ import com.memeboo2.haemi.platform.content.api.ContentMaterial;
 import com.memeboo2.haemi.platform.content.api.ContentQuery;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.format.TextStyle;
@@ -40,7 +39,6 @@ public class TrainingQuestionGenerationService {
     private final ContentQuery contentQuery;
     private final TrainingPolicyProperties policy;
 
-    @Transactional
     List<TrainingQuestion> generateIfAbsent(TrainingSession session, UUID elderId, Integer elderAge, LocalDate today) {
         List<TrainingQuestion> existing = questionRepository.findBySessionIdOrderByQuestionNumberAsc(session.getId());
         if (!existing.isEmpty()) {
@@ -63,9 +61,10 @@ public class TrainingQuestionGenerationService {
         return questionRepository.saveAll(questions);
     }
 
-    private List<TrainingMaterial> trainingMaterials(UUID elderId, int elderAge) {
+    private List<TrainingMaterial> trainingMaterials(UUID elderId, Integer elderAge) {
         List<TrainingMaterial> materials = new ArrayList<>(memoryQuery.materialsFor(elderId, policy.recallQuestionCount())
                 .stream()
+                .filter(memory -> !memory.imageKeys().isEmpty())
                 .map(memory -> new TrainingMaterial(
                         memory.id(), MaterialSource.MEMORY, memory.title(), memory.imageKeys().getFirst(),
                         memory.memoryYear(), List.of(memory.title())))
@@ -85,8 +84,9 @@ public class TrainingQuestionGenerationService {
         if (materials.isEmpty()) {
             throw new DomainException(ErrorCode.TRAINING_MATERIAL_UNAVAILABLE);
         }
+        List<TrainingMaterial> sourceMaterials = List.copyOf(materials);
         while (materials.size() < policy.recallQuestionCount()) {
-            materials.add(materials.get((materials.size() - 1) % materials.size()));
+            materials.add(sourceMaterials.get(materials.size() % sourceMaterials.size()));
         }
         return materials;
     }
@@ -106,7 +106,7 @@ public class TrainingQuestionGenerationService {
         questions.add(TrainingQuestion.choice(
                 sessionId, number, QuestionType.ORIENTATION, QuestionKind.ORIENTATION_YEAR,
                 "올해는 몇 년도인가요?", null, null, String.valueOf(today.getYear()), 0, null,
-                yearOptions(today.getYear(), 4)));
+                yearOptions(today.getYear(), 4, 0)));
         return questions;
     }
 
@@ -121,7 +121,7 @@ public class TrainingQuestionGenerationService {
                         sessionId, start + index, QuestionType.RECALL, QuestionKind.RECALL_YEAR,
                         "이 사진은 몇 년도쯤의 추억일까요?", material.imageKey(), material,
                         String.valueOf(material.year()), difficulty.yearTolerance(), hint(difficulty),
-                        yearOptions(material.year(), difficulty.choiceCount())));
+                        yearOptions(material.year(), difficulty.choiceCount(), difficulty.yearTolerance())));
             } else {
                 questions.add(TrainingQuestion.choice(
                         sessionId, start + index, QuestionType.RECALL, QuestionKind.RECALL_TITLE,
@@ -185,10 +185,11 @@ public class TrainingQuestionGenerationService {
                 .toList();
     }
 
-    private List<String> yearOptions(int year, int count) {
+    private List<String> yearOptions(int year, int count, int tolerance) {
         List<String> options = new ArrayList<>();
         options.add(String.valueOf(year));
-        int[] offsets = {-10, 10, -20, 20};
+        int minimumOffset = tolerance + 1;
+        int[] offsets = {-minimumOffset, minimumOffset, -2 * minimumOffset, 2 * minimumOffset};
         for (int offset : offsets) {
             if (options.size() == count) break;
             options.add(String.valueOf(year + offset));

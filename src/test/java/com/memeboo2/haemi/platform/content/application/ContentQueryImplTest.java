@@ -33,20 +33,23 @@ class ContentQueryImplTest {
     @Test
     void 풀이_임계값_이상이면_최근_7일_노출_콘텐츠를_제외한다() {
         ContentItem recent = idOnlyItem(UUID.randomUUID());
-        ContentItem available = materialItem("새 콘텐츠", UUID.randomUUID());
+        ContentItem availableOne = materialItem("새 콘텐츠 1", UUID.randomUUID());
+        ContentItem availableTwo = materialItem("새 콘텐츠 2", UUID.randomUUID());
         UUID recentId = recent.getId();
-        UUID availableId = available.getId();
+        UUID availableOneId = availableOne.getId();
+        UUID availableTwoId = availableTwo.getId();
         given(clock.now()).willReturn(NOW);
-        given(itemRepository.findEligible("KR", 75, NOW)).willReturn(List.of(recent, available));
+        given(itemRepository.findEligible("KR", 75, NOW)).willReturn(List.of(recent, availableOne, availableTwo));
         given(exposureRepository.findContentIdsExposedSince(any(), any())).willReturn(List.of(recentId));
-        given(exposureRepository.findByElderId(any())).willReturn(List.of());
+        given(exposureRepository.findLatestExposuresByElderId(any())).willReturn(List.of());
         ContentQueryImpl query = new ContentQueryImpl(
                 itemRepository, exposureRepository, new ContentPolicyProperties(7, 2), clock);
 
         List<ContentMaterial> selected = query.selectForTraining(UUID.randomUUID(), 75, 2, Set.of());
 
-        assertThat(selected).extracting(ContentMaterial::id).containsExactly(availableId);
+        assertThat(selected).extracting(ContentMaterial::id).containsExactly(availableOneId, availableTwoId);
         then(exposureRepository).should().saveAll(any());
+        then(exposureRepository).should().findLatestExposuresByElderId(any());
     }
 
     @Test
@@ -56,13 +59,36 @@ class ContentQueryImplTest {
         given(clock.now()).willReturn(NOW);
         given(itemRepository.findEligible("KR", 75, NOW)).willReturn(List.of(only));
         given(exposureRepository.findContentIdsExposedSince(any(), any())).willReturn(List.of(onlyId));
-        given(exposureRepository.findByElderId(any())).willReturn(List.of());
+        given(exposureRepository.findLatestExposuresByElderId(any())).willReturn(List.of());
         ContentQueryImpl query = new ContentQueryImpl(
                 itemRepository, exposureRepository, new ContentPolicyProperties(7, 2), clock);
 
         List<ContentMaterial> selected = query.selectForTraining(UUID.randomUUID(), 75, 1, Set.of());
 
         assertThat(selected).extracting(ContentMaterial::id).containsExactly(onlyId);
+    }
+
+    @Test
+    void 쿨다운_제외_후_남은_풀이_임계값보다_작으면_최근_콘텐츠도_재투입한다() {
+        ContentItem recentOne = materialItem("최근 콘텐츠 1", UUID.randomUUID());
+        ContentItem recentTwo = materialItem("최근 콘텐츠 2", UUID.randomUUID());
+        ContentItem fresh = materialItem("새 콘텐츠", UUID.randomUUID());
+        UUID recentOneId = recentOne.getId();
+        UUID recentTwoId = recentTwo.getId();
+        UUID freshId = fresh.getId();
+        UUID elderId = UUID.randomUUID();
+        given(clock.now()).willReturn(NOW);
+        given(itemRepository.findEligible("KR", 75, NOW)).willReturn(List.of(recentOne, recentTwo, fresh));
+        given(exposureRepository.findContentIdsExposedSince(any(), any()))
+                .willReturn(List.of(recentOneId, recentTwoId));
+        given(exposureRepository.findLatestExposuresByElderId(any())).willReturn(List.of());
+        ContentQueryImpl query = new ContentQueryImpl(
+                itemRepository, exposureRepository, new ContentPolicyProperties(7, 2), clock);
+
+        List<ContentMaterial> selected = query.selectForTraining(elderId, 75, 3, Set.of());
+
+        assertThat(selected).extracting(ContentMaterial::id)
+                .containsExactlyInAnyOrder(recentOneId, recentTwoId, freshId);
     }
 
     private ContentItem idOnlyItem(UUID id) {
@@ -76,6 +102,7 @@ class ContentQueryImplTest {
         given(item.getTitle()).willReturn(title);
         given(item.getImageKey()).willReturn("content/" + title + ".jpg");
         given(item.getContentYear()).willReturn(1970);
+        org.mockito.Mockito.lenient().when(item.getCreatedAt()).thenReturn(NOW);
         given(item.keywordList()).willReturn(List.of(title));
         return item;
     }

@@ -100,16 +100,14 @@ public class TrainingSessionService implements TrainingSessionUseCase {
         session.completeCurrentQuestion(
                 sessionId, question.getQuestionType(), questionNumber, nextStep, lastQuestion, now);
         // 비관 잠금으로 조회한 managed 엔티티이므로 트랜잭션 커밋 시 변경 감지로 저장된다.
-        TrainingSession saved = session;
-
-        if (saved.getStatus() == SessionStatus.COMPLETED) {
-            difficultyService.evaluateCompletedSession(saved);
-            TrainingResultView result = resultService.resultFor(saved);
+        if (session.getStatus() == SessionStatus.COMPLETED) {
+            difficultyService.evaluateCompletedSession(session);
+            TrainingResultView result = resultService.resultFor(session);
             eventPublisher.publishEvent(new TrainingSessionCompleted(
-                    saved.getId(), saved.getElderId(), HaemiClock.dateInKst(saved.getCompletedAt()),
-                    saved.getCompletedAt(), result.participationSeconds(), result.delayedRecallSuccessCount()));
+                    session.getId(), session.getElderId(), HaemiClock.dateInKst(session.getCompletedAt()),
+                    session.getCompletedAt(), result.participationSeconds(), result.delayedRecallSuccessCount()));
         }
-        return viewOf(saved, feedbackFor(question, evaluated, saved));
+        return viewOf(session, feedbackFor(question, evaluated, session));
     }
 
     @Override
@@ -140,13 +138,14 @@ public class TrainingSessionService implements TrainingSessionUseCase {
 
     private TrainingSessionView start(UUID elderId, Instant now, LocalDate today) {
         TrainingSession session = TrainingSession.start(elderId, now, today);
+        TrainingSession saved;
         try {
-            TrainingSession saved = trainingSessionRepository.saveAndFlush(session);
-            questionGenerationService.generateIfAbsent(saved, elderId, elderAge(elderId, today), today);
-            return viewOf(saved);
+            saved = trainingSessionRepository.saveAndFlush(session);
         } catch (DataIntegrityViolationException ex) {
-            throw new DomainException(ErrorCode.INVALID_INPUT, "같은 날 인지 훈련 세션을 중복해서 시작할 수 없습니다.");
+            throw new DomainException(ErrorCode.TRAINING_SESSION_ALREADY_STARTED);
         }
+        questionGenerationService.generateIfAbsent(saved, elderId, elderAge(elderId, today), today);
+        return viewOf(saved);
     }
 
     private TrainingSessionView currentView(TrainingSession session, UUID elderId, Instant now) {

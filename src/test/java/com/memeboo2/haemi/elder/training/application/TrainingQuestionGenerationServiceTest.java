@@ -26,6 +26,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anySet;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 
@@ -93,6 +94,63 @@ class TrainingQuestionGenerationServiceTest {
         then(questionRepository).should().saveAll(captor.capture());
         assertThat(captor.getValue().subList(3, 6)).extracting(TrainingQuestion::getMaterialSource)
                 .containsExactly(MaterialSource.MEMORY, MaterialSource.CONTENT, MaterialSource.CONTENT);
+    }
+
+    @Test
+    void 생년월일이_없으면_null_나이를_그대로_콘텐츠_선택기에_전달한다() {
+        given(memoryQuery.materialsFor(ELDER_ID, 3)).willReturn(List.of());
+        given(contentQuery.selectForTraining(eq(ELDER_ID), isNull(), eq(3), anySet())).willReturn(List.of(
+                content("골목 풍경", 1968), content("가족 나들이", 1973), content("추석 저녁", 1978)));
+        TrainingSession session = TrainingSession.start(ELDER_ID, Instant.parse("2026-08-25T00:00:00Z"), TODAY);
+
+        List<TrainingQuestion> questions = generator.generateIfAbsent(session, ELDER_ID, null, TODAY);
+
+        assertThat(questions).hasSize(10);
+        then(contentQuery).should().selectForTraining(eq(ELDER_ID), isNull(), eq(3), anySet());
+    }
+
+    @Test
+    void 이미지가_없는_추억은_건너뛰고_콘텐츠로_보완한다() {
+        MemoryQuery.MemoryMaterial imageLessMemory = new MemoryQuery.MemoryMaterial(
+                UUID.randomUUID(), "사진 없는 추억", 1970, List.of(), TODAY);
+        given(memoryQuery.materialsFor(ELDER_ID, 3)).willReturn(List.of(imageLessMemory));
+        given(contentQuery.selectForTraining(eq(ELDER_ID), eq(75), eq(3), anySet())).willReturn(List.of(
+                content("골목 풍경", 1968), content("가족 나들이", 1973), content("추석 저녁", 1978)));
+        TrainingSession session = TrainingSession.start(ELDER_ID, Instant.parse("2026-08-25T00:00:00Z"), TODAY);
+
+        List<TrainingQuestion> questions = generator.generateIfAbsent(session, ELDER_ID, 75, TODAY);
+
+        assertThat(questions.subList(3, 6)).extracting(TrainingQuestion::getMaterialSource)
+                .containsOnly(MaterialSource.CONTENT);
+    }
+
+    @Test
+    void 레벨1_연도_보기의_오답은_허용_오차보다_멀리_생성된다() {
+        given(memoryQuery.materialsFor(ELDER_ID, 3)).willReturn(List.of(
+                memory("첫 번째 추억", 1970), memory("두 번째 추억", 1975), memory("세 번째 추억", 1980)));
+        TrainingSession session = TrainingSession.start(ELDER_ID, Instant.parse("2026-08-25T00:00:00Z"), TODAY);
+
+        List<TrainingQuestion> questions = generator.generateIfAbsent(session, ELDER_ID, 75, TODAY);
+
+        TrainingQuestion firstRecall = questions.get(3);
+        int answerYear = Integer.parseInt(firstRecall.getAnswerKey());
+        assertThat(firstRecall.getOptions())
+                .filteredOn(option -> !option.equals(firstRecall.getAnswerKey()))
+                .allSatisfy(option -> assertThat(Math.abs(Integer.parseInt(option) - answerYear)).isGreaterThan(10));
+    }
+
+    @Test
+    void 재료가_부족하면_마지막_사진만_반복하지_않고_순환한다() {
+        MemoryQuery.MemoryMaterial album = memory("앨범 추억", 1970);
+        given(memoryQuery.materialsFor(ELDER_ID, 3)).willReturn(List.of(album));
+        ContentMaterial curated = content("골목 풍경", 1968);
+        given(contentQuery.selectForTraining(eq(ELDER_ID), eq(75), eq(2), anySet())).willReturn(List.of(curated));
+        TrainingSession session = TrainingSession.start(ELDER_ID, Instant.parse("2026-08-25T00:00:00Z"), TODAY);
+
+        List<TrainingQuestion> questions = generator.generateIfAbsent(session, ELDER_ID, 75, TODAY);
+
+        assertThat(questions.subList(3, 6)).extracting(TrainingQuestion::getMaterialId)
+                .containsExactly(album.id(), curated.id(), album.id());
     }
 
     private MemoryQuery.MemoryMaterial memory(String title, int year) {

@@ -18,8 +18,11 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.Random;
 import java.util.UUID;
 
 @Entity
@@ -65,7 +68,7 @@ public class TrainingQuestion extends BaseEntity {
     private String materialTitle;
 
     /** 클라이언트에 내려가지 않는 채점 기준이다. */
-    @Column(nullable = false, length = 200)
+    @Column(nullable = false, length = 700)
     private String answerKey;
 
     @Column(nullable = false)
@@ -96,7 +99,7 @@ public class TrainingQuestion extends BaseEntity {
         TrainingQuestion question = base(
                 sessionId, questionNumber, questionType, questionKind, AnswerMode.CHOICE,
                 prompt, imageKey, material, answerKey, yearTolerance, hint);
-        question.options.addAll(options);
+        question.options.addAll(shuffledOptions(sessionId, questionNumber, options));
         return question;
     }
 
@@ -128,7 +131,7 @@ public class TrainingQuestion extends BaseEntity {
                     return false;
                 }
             }
-            return matchesAnswerKey(selectedOption);
+            return matchesChoiceAnswer(selectedOption);
         }
 
         if ((textAnswer == null || textAnswer.isBlank()) && (voiceMediaKey == null || voiceMediaKey.isBlank())) {
@@ -178,8 +181,25 @@ public class TrainingQuestion extends BaseEntity {
         return questionKind == QuestionKind.RECALL_YEAR || questionKind == QuestionKind.ORIENTATION_YEAR;
     }
 
+    /** 세션·문항 번호로 고정한 보기 순서라 재진입 때도 동일하며 위치 편향은 피한다. */
+    private static List<String> shuffledOptions(UUID sessionId, int questionNumber, List<String> options) {
+        List<String> shuffled = new ArrayList<>(options);
+        long seed = sessionId.getMostSignificantBits()
+                ^ Long.rotateLeft(sessionId.getLeastSignificantBits(), 17)
+                ^ questionNumber;
+        Collections.shuffle(shuffled, new Random(seed));
+        return shuffled;
+    }
+
+    private boolean matchesChoiceAnswer(String answer) {
+        String normalizedAnswer = normalized(answer);
+        return Arrays.stream(answerKey.split("\\u001F"))
+                .map(TrainingQuestion::normalized)
+                .anyMatch(normalizedAnswer::equals);
+    }
+
     private boolean matchesAnswerKey(String answer) {
-        return java.util.Arrays.stream(answerKey.split("\\u001F"))
+        return Arrays.stream(answerKey.split("\\u001F"))
                 .map(TrainingQuestion::normalized)
                 .anyMatch(key -> normalized(answer).contains(key));
     }
