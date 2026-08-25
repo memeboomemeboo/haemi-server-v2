@@ -24,6 +24,11 @@ spring:
     baseline-on-migrate: ${FLYWAY_BASELINE_ON_MIGRATE:false}
     baseline-version: ${FLYWAY_BASELINE_VERSION:1}
 
+logging:
+  pattern:
+    # RequestIdFilter가 MDC에 넣는 requestId를 모든 로그 라인에 포함 (응답 헤더 X-Request-Id와 대조용)
+    level: "%5p [%X{requestId:-no-request-id}]"
+
 management:
   endpoints:
     web:
