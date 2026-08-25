@@ -1,6 +1,7 @@
 package com.memeboo2.haemi.guardian.report.application;
 
 import com.memeboo2.haemi.common.attendance.StreakCalculator;
+import com.memeboo2.haemi.common.attendance.DaysTogetherCalculator;
 import com.memeboo2.haemi.common.error.DomainException;
 import com.memeboo2.haemi.common.error.ErrorCode;
 import com.memeboo2.haemi.common.time.HaemiClock;
@@ -16,8 +17,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.Period;
-import java.time.ZoneId;
-import java.time.temporal.ChronoUnit;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -27,7 +26,6 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class GetElderReportSummaryUseCase {
 
-    private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
     private final CareAccessQuery careAccessQuery;
     private final ElderRepository elderRepository;
@@ -59,7 +57,7 @@ public class GetElderReportSummaryUseCase {
         LocalDate today = clock.today();
         Integer age = elder.getBirthDate() == null ? null : Period.between(elder.getBirthDate(), today).getYears();
         String generation = age == null ? null : (age / 10 * 10) + "대";
-        long daysTogether = ChronoUnit.DAYS.between(elder.getCreatedAt().atZone(KST).toLocalDate(), today);
+        long daysTogether = DaysTogetherCalculator.daysTogether(elder.getCreatedAt(), today);
 
         Set<LocalDate> dates = participationRepository.findByElderId(elderId).stream()
                 .map(ReportParticipation::getParticipationDate)

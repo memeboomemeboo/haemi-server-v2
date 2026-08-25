@@ -1,5 +1,6 @@
 package com.memeboo2.haemi.elder.attendance.application;
 
+import com.memeboo2.haemi.common.attendance.DaysTogetherCalculator;
 import com.memeboo2.haemi.common.time.HaemiClock;
 import com.memeboo2.haemi.elder.attendance.domain.DailyParticipation;
 import com.memeboo2.haemi.elder.attendance.infrastructure.DailyParticipationRepository;
@@ -10,8 +11,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.time.ZoneId;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -24,7 +23,6 @@ import java.util.stream.IntStream;
 @RequiredArgsConstructor
 public class AttendanceQueryImpl implements AttendanceQuery {
 
-    private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
     private final DailyParticipationRepository repository;
     private final ElderQuery elderQuery;
@@ -88,10 +86,7 @@ public class AttendanceQueryImpl implements AttendanceQuery {
     @Transactional(readOnly = true)
     public long daysTogether(UUID elderId) {
         return elderQuery.findById(elderId)
-                .map(info -> {
-                    LocalDate registeredDate = info.registeredAt().atZone(KST).toLocalDate();
-                    return ChronoUnit.DAYS.between(registeredDate, clock.today());
-                })
+                .map(info -> DaysTogetherCalculator.daysTogether(info.registeredAt(), clock.today()))
                 .orElse(0L);
     }
 }
