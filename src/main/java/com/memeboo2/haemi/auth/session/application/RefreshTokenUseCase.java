@@ -37,13 +37,9 @@ public class RefreshTokenUseCase {
             throw new DomainException(ErrorCode.AUTH_REFRESH_TOKEN_INVALID);
         }
 
-        RefreshToken stored = refreshTokenRepository.findByToken(refreshToken)
+        // 기기까지 일치하는 토큰만 조회한다 (다른 기기 토큰으로는 재발급하지 않음).
+        RefreshToken stored = refreshTokenRepository.findByTokenAndDeviceId(refreshToken, deviceId)
                 .orElseThrow(() -> new DomainException(ErrorCode.AUTH_REFRESH_TOKEN_INVALID));
-
-        // 다른 기기의 토큰으로는 재발급하지 않는다
-        if (!stored.getDeviceId().equals(deviceId)) {
-            throw new DomainException(ErrorCode.AUTH_REFRESH_TOKEN_INVALID);
-        }
 
         if (stored.isExpired()) {
             refreshTokenRepository.delete(stored);
@@ -53,12 +49,17 @@ public class RefreshTokenUseCase {
         Account account = accountRepository.findById(stored.getAccountId())
                 .orElseThrow(() -> new DomainException(ErrorCode.AUTH_REFRESH_TOKEN_INVALID));
 
+        // 단일 소비(회전): 이 토큰 행을 조건부로 제거하고, 실제로 지운 요청만 재발급을 진행한다.
+        // 동일 토큰으로 동시 요청이 들어와도 DB가 삭제를 직렬화해 한 요청만 성공한다 (재사용·이중 발급 차단).
+        int consumed = refreshTokenRepository.deleteByTokenAndDeviceId(refreshToken, deviceId);
+        if (consumed == 0) {
+            throw new DomainException(ErrorCode.AUTH_REFRESH_TOKEN_INVALID);
+        }
+
         String newAccessToken = jwtTokenProvider.createAccessToken(account.getId(), account.getRole());
         String newRefreshToken = jwtTokenProvider.createRefreshToken(account.getId());
 
-        // 토큰 회전: 기기별 기존 토큰을 제거하고 새 토큰만 유지
         Instant refreshExpiry = clock.now().plus(jwtProperties.refreshTokenValidity());
-        refreshTokenRepository.deleteByAccountIdAndDeviceId(account.getId(), deviceId);
         refreshTokenRepository.save(RefreshToken.of(account.getId(), deviceId, newRefreshToken, refreshExpiry));
 
         return new LoginUseCase.TokenPair(newAccessToken, newRefreshToken);

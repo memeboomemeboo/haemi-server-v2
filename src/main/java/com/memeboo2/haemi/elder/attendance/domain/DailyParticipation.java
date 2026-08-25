@@ -1,6 +1,5 @@
 package com.memeboo2.haemi.elder.attendance.domain;
 
-import com.memeboo2.haemi.common.attendance.ActivityType;
 import com.memeboo2.haemi.common.persistence.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -55,31 +54,5 @@ public class DailyParticipation extends BaseEntity {
         p.elderId = elderId;
         p.participationDate = participationDate;
         return p;
-    }
-
-    /**
-     * 해당 활동 종류를 완료로 표시한다. 이미 켜져 있으면 false를 반환해
-     * (어르신, 날짜, 종류)당 한 번만 이벤트가 발행되도록 한다 (멱등).
-     */
-    public boolean mark(ActivityType type) {
-        switch (type) {
-            case TRAINING -> {
-                if (trainingDone) return false;
-                trainingDone = true;
-            }
-            case GREETING_READ -> {
-                if (greetingReadDone) return false;
-                greetingReadDone = true;
-            }
-            case MEMORY_VIEWED -> {
-                if (memoryViewedDone) return false;
-                memoryViewedDone = true;
-            }
-            case REPLIED -> {
-                if (repliedDone) return false;
-                repliedDone = true;
-            }
-        }
-        return true;
     }
 }

@@ -46,7 +46,7 @@ class GreetingReadCommandImplTest {
         DailyCare care = careFor(elderId);
         given(dailyCareRepository.findById(dailyCareId)).willReturn(Optional.of(care));
         given(clock.now()).willReturn(Instant.parse("2026-08-25T01:00:00Z"));
-        given(clock.today()).willReturn(LocalDate.of(2026, 8, 25));
+        given(clock.toLocalDate(Instant.parse("2026-08-25T01:00:00Z"))).willReturn(LocalDate.of(2026, 8, 25));
 
         command.markRead(elderId, dailyCareId);
 

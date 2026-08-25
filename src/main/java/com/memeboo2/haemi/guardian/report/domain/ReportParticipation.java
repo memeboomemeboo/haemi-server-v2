@@ -1,6 +1,5 @@
 package com.memeboo2.haemi.guardian.report.domain;
 
-import com.memeboo2.haemi.common.attendance.ActivityType;
 import com.memeboo2.haemi.common.persistence.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -58,15 +57,5 @@ public class ReportParticipation extends BaseEntity {
         p.elderId = elderId;
         p.participationDate = participationDate;
         return p;
-    }
-
-    /** 해당 활동 종류를 완료로 표시한다. 중복 수신에도 안전하다 (멱등). */
-    public void mark(ActivityType type) {
-        switch (type) {
-            case TRAINING -> trainingDone = true;
-            case GREETING_READ -> greetingReadDone = true;
-            case MEMORY_VIEWED -> memoryViewedDone = true;
-            case REPLIED -> repliedDone = true;
-        }
     }
 }

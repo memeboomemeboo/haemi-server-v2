@@ -60,8 +60,9 @@ class RefreshTokenUseCaseTest {
         given(clock.now()).willReturn(NOW);
         given(jwtProperties.refreshTokenValidity()).willReturn(Duration.ofDays(14));
         given(jwtTokenProvider.isValid(refreshToken)).willReturn(true);
-        given(refreshTokenRepository.findByToken(refreshToken))
+        given(refreshTokenRepository.findByTokenAndDeviceId(refreshToken, deviceId))
                 .willReturn(Optional.of(storedToken(deviceId, NOW.plus(Duration.ofDays(7)))));
+        given(refreshTokenRepository.deleteByTokenAndDeviceId(refreshToken, deviceId)).willReturn(1);
         given(accountRepository.findById(accountId)).willReturn(Optional.of(account));
         given(jwtTokenProvider.createAccessToken(accountId, AccountRole.GUARDIAN)).willReturn("new-access");
         given(jwtTokenProvider.createRefreshToken(accountId)).willReturn("new-refresh");
@@ -75,9 +76,27 @@ class RefreshTokenUseCaseTest {
 
         assertThat(pair.accessToken()).isEqualTo("new-access");
         assertThat(pair.refreshToken()).isEqualTo("new-refresh");
-        // 회전: 기기별 기존 토큰 삭제 후 새 토큰 저장
-        verify(refreshTokenRepository).deleteByAccountIdAndDeviceId(accountId, deviceId);
+        // 회전: 이 토큰 행을 원자적으로 소비한 뒤 새 토큰 저장
+        verify(refreshTokenRepository).deleteByTokenAndDeviceId(refreshToken, deviceId);
         verify(refreshTokenRepository).save(any(RefreshToken.class));
+    }
+
+    @Test
+    void 경쟁_요청이_이미_토큰을_소비했으면_401_이고_재발급하지_않는다() {
+        Account account = mock(Account.class);
+        lenient().when(account.getId()).thenReturn(accountId);
+        given(jwtTokenProvider.isValid(refreshToken)).willReturn(true);
+        given(refreshTokenRepository.findByTokenAndDeviceId(refreshToken, deviceId))
+                .willReturn(Optional.of(storedToken(deviceId, NOW.plus(Duration.ofDays(7)))));
+        given(accountRepository.findById(accountId)).willReturn(Optional.of(account));
+        // 다른 요청이 먼저 소비 → 삭제 0건
+        given(refreshTokenRepository.deleteByTokenAndDeviceId(refreshToken, deviceId)).willReturn(0);
+
+        assertThatThrownBy(() -> useCase.execute(refreshToken, deviceId))
+                .isInstanceOf(DomainException.class)
+                .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
+                        .isEqualTo(ErrorCode.AUTH_REFRESH_TOKEN_INVALID));
+        verify(refreshTokenRepository, org.mockito.Mockito.never()).save(any(RefreshToken.class));
     }
 
     @Test
@@ -93,7 +112,7 @@ class RefreshTokenUseCaseTest {
     @Test
     void 저장되지_않은_토큰이면_401() {
         given(jwtTokenProvider.isValid(refreshToken)).willReturn(true);
-        given(refreshTokenRepository.findByToken(refreshToken)).willReturn(Optional.empty());
+        given(refreshTokenRepository.findByTokenAndDeviceId(refreshToken, deviceId)).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> useCase.execute(refreshToken, deviceId))
                 .isInstanceOf(DomainException.class)
@@ -104,8 +123,8 @@ class RefreshTokenUseCaseTest {
     @Test
     void 다른_기기의_토큰이면_401() {
         given(jwtTokenProvider.isValid(refreshToken)).willReturn(true);
-        given(refreshTokenRepository.findByToken(refreshToken))
-                .willReturn(Optional.of(storedToken("other-device", NOW.plus(Duration.ofDays(7)))));
+        // 기기 포함 조회이므로 다른 기기의 토큰은 이 기기(deviceId)로 조회되지 않는다.
+        given(refreshTokenRepository.findByTokenAndDeviceId(refreshToken, deviceId)).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> useCase.execute(refreshToken, deviceId))
                 .isInstanceOf(DomainException.class)
@@ -117,7 +136,7 @@ class RefreshTokenUseCaseTest {
     void 만료된_토큰이면_삭제하고_401() {
         given(jwtTokenProvider.isValid(refreshToken)).willReturn(true);
         RefreshToken expired = storedToken(deviceId, NOW.minus(Duration.ofDays(1)));
-        given(refreshTokenRepository.findByToken(refreshToken)).willReturn(Optional.of(expired));
+        given(refreshTokenRepository.findByTokenAndDeviceId(refreshToken, deviceId)).willReturn(Optional.of(expired));
 
         assertThatThrownBy(() -> useCase.execute(refreshToken, deviceId))
                 .isInstanceOf(DomainException.class)

@@ -1,8 +1,10 @@
 package com.memeboo2.haemi.guardian.report.listener;
 
+import com.memeboo2.haemi.common.attendance.ActivityType;
 import com.memeboo2.haemi.common.event.AttendanceRecorded;
-import com.memeboo2.haemi.guardian.report.domain.ReportParticipation;
+import com.memeboo2.haemi.common.persistence.UuidGenerator;
 import com.memeboo2.haemi.guardian.report.infrastructure.ReportParticipationRepository;
+import com.memeboo2.haemi.guardian.report.infrastructure.ReportParticipationWriter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.modulith.events.ApplicationModuleListener;
 import org.springframework.stereotype.Component;
@@ -12,23 +14,25 @@ import org.springframework.stereotype.Component;
 public class AttendanceRecordedListener {
 
     private final ReportParticipationRepository repository;
+    private final ReportParticipationWriter participationWriter;
 
     /**
-     * 활동 종류 플래그를 스냅샷에 멱등하게 미러링한다. 중복 수신에도 안전하다.
-     * @ApplicationModuleListener가 트랜잭션을 열어 managed 엔티티가 변경 감지로 저장된다.
+     * 활동 종류 플래그를 스냅샷에 원자적으로 미러링한다. 중복 수신·동시 수신에도 안전하다.
      */
     @ApplicationModuleListener
     public void on(AttendanceRecorded event) {
-        ReportParticipation participation = repository
-                .findByElderIdAndParticipationDate(event.elderId(), event.participationDate())
-                .orElse(null);
+        ActivityType type = event.activityType();
+        boolean training = type == ActivityType.TRAINING;
+        boolean greetingRead = type == ActivityType.GREETING_READ;
+        boolean memoryViewed = type == ActivityType.MEMORY_VIEWED;
+        boolean replied = type == ActivityType.REPLIED;
 
-        if (participation == null) {
-            ReportParticipation created = ReportParticipation.of(event.elderId(), event.participationDate());
-            created.mark(event.activityType());
-            repository.saveAndFlush(created);
-        } else {
-            participation.mark(event.activityType());
+        int updated = repository.markActivity(event.elderId(), event.participationDate(),
+                training, greetingRead, memoryViewed, replied);
+        if (updated == 0) {
+            participationWriter.insertIfAbsent(UuidGenerator.generate(), event.elderId(), event.participationDate());
+            repository.markActivity(event.elderId(), event.participationDate(),
+                    training, greetingRead, memoryViewed, replied);
         }
     }
 }

@@ -13,6 +13,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.UUID;
 
 /**
@@ -41,9 +42,12 @@ public class MarkMemoryViewedUseCase {
             throw new DomainException(ErrorCode.RESOURCE_NOT_FOUND, "추억을 찾을 수 없습니다.");
         }
 
-        int inserted = memoryViewRepository.insertIfAbsent(elderId, memoryId, clock.now());
+        // 열람 시각과 이벤트 날짜를 같은 Instant에서 파생한다 — KST 자정을 사이에 두고
+        // now()/today()를 따로 부르면 열람일과 출석일이 어긋날 수 있다.
+        Instant viewedAt = clock.now();
+        int inserted = memoryViewRepository.insertIfAbsent(elderId, memoryId, viewedAt);
         if (inserted == 1) {
-            eventPublisher.publishEvent(new MemoryViewed(elderId, memoryId, clock.today()));
+            eventPublisher.publishEvent(new MemoryViewed(elderId, memoryId, clock.toLocalDate(viewedAt)));
         }
     }
 }

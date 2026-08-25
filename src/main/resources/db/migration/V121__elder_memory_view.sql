@@ -6,6 +6,8 @@ CREATE TABLE elder_memory_views (
     first_viewed_at  TIMESTAMPTZ NOT NULL,
     created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    created_by       UUID,
+    deleted_at       TIMESTAMPTZ,
     CONSTRAINT uk_memory_view_elder_memory UNIQUE (elder_id, memory_id)
 );
 

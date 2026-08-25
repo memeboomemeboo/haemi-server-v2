@@ -12,6 +12,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.UUID;
 
 @Service
@@ -33,10 +34,12 @@ public class GreetingReadCommandImpl implements GreetingReadCommand {
         }
 
         // 최초 열람에서만 이벤트를 발행한다 (markViewed는 최초 1회만 상태를 바꾼다).
+        // 읽은 시각과 이벤트 날짜를 같은 Instant에서 파생해 KST 자정 경계 불일치를 막는다.
+        Instant readAt = clock.now();
         boolean firstRead = !care.isRead();
-        care.markViewed(clock.now());
+        care.markViewed(readAt);
         if (firstRead) {
-            eventPublisher.publishEvent(new GreetingRead(elderId, dailyCareId, clock.today()));
+            eventPublisher.publishEvent(new GreetingRead(elderId, dailyCareId, clock.toLocalDate(readAt)));
         }
     }
 }

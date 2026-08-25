@@ -58,7 +58,7 @@ class MarkMemoryViewedUseCaseTest {
     void 최초_열람이면_MemoryViewed를_발행한다() {
         stubAccess();
         given(clock.now()).willReturn(Instant.parse("2026-08-25T01:00:00Z"));
-        given(clock.today()).willReturn(LocalDate.of(2026, 8, 25));
+        given(clock.toLocalDate(Instant.parse("2026-08-25T01:00:00Z"))).willReturn(LocalDate.of(2026, 8, 25));
         given(memoryViewRepository.insertIfAbsent(elderId, memoryId, clock.now())).willReturn(1);
 
         useCase.execute(elderUserId, memoryId);

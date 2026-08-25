@@ -12,7 +12,14 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, UUID
 
     Optional<RefreshToken> findByToken(String token);
 
+    Optional<RefreshToken> findByTokenAndDeviceId(String token, String deviceId);
+
     @Modifying
     @Query("DELETE FROM RefreshToken rt WHERE rt.accountId = :accountId AND rt.deviceId = :deviceId")
     void deleteByAccountIdAndDeviceId(UUID accountId, String deviceId);
+
+    /** 특정 토큰 행을 조건부로 제거한다. 반환값 1 = 이 요청이 토큰을 소비함(회전 진행), 0 = 경쟁 요청이 이미 소비함. */
+    @Modifying
+    @Query("DELETE FROM RefreshToken rt WHERE rt.token = :token AND rt.deviceId = :deviceId")
+    int deleteByTokenAndDeviceId(String token, String deviceId);
 }
