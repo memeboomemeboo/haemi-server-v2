@@ -1,4 +1,5 @@
--- CIST-TRN-002~006: 고정 문항, 응답, 난이도, 큐레이션 노출, 출석 읽기 모델
+-- CIST-TRN-002~005: 고정 문항, 응답, 난이도, 큐레이션 노출
+-- 일별 출석 원천은 V116의 elder_attendance_daily_participations를 사용한다.
 CREATE TABLE platform_content_items (
     id                  UUID         NOT NULL PRIMARY KEY,
     title               VARCHAR(100) NOT NULL,
@@ -93,20 +94,3 @@ CREATE TABLE elder_training_difficulties (
     deleted_at            TIMESTAMPTZ,
     CONSTRAINT uk_training_difficulty_elder_type UNIQUE (elder_id, question_type)
 );
-
-CREATE TABLE elder_daily_participations (
-    id                    UUID        NOT NULL PRIMARY KEY,
-    training_session_id   UUID        NOT NULL,
-    elder_id              UUID        NOT NULL,
-    participation_date    DATE        NOT NULL,
-    completed_at          TIMESTAMPTZ NOT NULL,
-    created_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
-    created_by            UUID,
-    deleted_at            TIMESTAMPTZ,
-    CONSTRAINT uk_daily_participation_session UNIQUE (training_session_id),
-    CONSTRAINT uk_daily_participation_elder_date UNIQUE (elder_id, participation_date)
-);
-
-CREATE INDEX idx_daily_participations_elder_date
-    ON elder_daily_participations (elder_id, participation_date DESC);

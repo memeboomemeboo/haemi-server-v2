@@ -3,7 +3,9 @@ package com.memeboo2.haemi.guardian.home.presentation.dto;
 import com.memeboo2.haemi.guardian.api.GuardianRole;
 import com.memeboo2.haemi.guardian.home.application.GetGuardianHomeUseCase.ElderCard;
 import com.memeboo2.haemi.guardian.home.application.GetGuardianHomeUseCase.GuardianHomeData;
+import io.swagger.v3.oas.annotations.media.Schema;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -16,14 +18,17 @@ public record GuardianHomeResponse(
             String name,
             Integer age,
             GuardianRole role,
+            String roleLabel,
             long daysTogether,
             boolean attendedToday,
-            boolean greetingSentToday
+            boolean greetingSentToday,
+            @Schema(description = "어르신이 마지막으로 로그인한 시각. 접속 기록이 없으면 null")
+            Instant lastLoginAt
     ) {
         static ElderCardResponse from(ElderCard card) {
             return new ElderCardResponse(
-                    card.elderId(), card.name(), card.age(), card.role(), card.daysTogether(),
-                    card.attendedToday(), card.greetingSentToday());
+                    card.elderId(), card.name(), card.age(), card.role(), card.role().getLabel(),
+                    card.daysTogether(), card.attendedToday(), card.greetingSentToday(), card.lastLoginAt());
         }
     }
 

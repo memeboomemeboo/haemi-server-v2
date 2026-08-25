@@ -16,4 +16,8 @@ public interface FamilyRepository extends JpaRepository<Family, UUID> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT f FROM Family f LEFT JOIN FETCH f.members WHERE f.id = :familyId")
     Optional<Family> findByIdForUpdate(UUID familyId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT f FROM Family f LEFT JOIN FETCH f.members WHERE f.inviteCode = :inviteCode")
+    Optional<Family> findByInviteCodeForUpdate(String inviteCode);
 }

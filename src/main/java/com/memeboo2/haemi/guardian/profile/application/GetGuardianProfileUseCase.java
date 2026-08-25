@@ -7,15 +7,12 @@ import com.memeboo2.haemi.guardian.api.GuardianRole;
 import com.memeboo2.haemi.guardian.eldermanagement.domain.Elder;
 import com.memeboo2.haemi.guardian.eldermanagement.domain.ElderRepository;
 import com.memeboo2.haemi.guardian.eldermanagement.domain.GuardianElderLinkRepository;
-import com.memeboo2.haemi.guardian.family.domain.Family;
-import com.memeboo2.haemi.guardian.family.domain.FamilyRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -23,13 +20,10 @@ import java.util.UUID;
 public class GetGuardianProfileUseCase {
 
     private final AccountQuery accountQuery;
-    private final FamilyRepository familyRepository;
     private final GuardianElderLinkRepository linkRepository;
     private final ElderRepository elderRepository;
 
     public record ElderCard(UUID elderId, String name, LocalDate birthDate, GuardianRole role) {}
-
-    public record FamilyInfo(UUID familyId, String name, String memo, String profileImageUrl) {}
 
     public record GuardianProfile(
             UUID userId,
@@ -38,7 +32,6 @@ public class GetGuardianProfileUseCase {
             String phone,
             String birthDate,
             String profileImageUrl,
-            FamilyInfo family,
             List<ElderCard> elders
     ) {}
 
@@ -46,10 +39,6 @@ public class GetGuardianProfileUseCase {
     public GuardianProfile execute(UUID guardianId) {
         AccountQuery.AccountInfo account = accountQuery.findById(guardianId)
                 .orElseThrow(() -> new DomainException(ErrorCode.RESOURCE_NOT_FOUND));
-
-        Optional<Family> family = familyRepository.findByMembers_UserId(guardianId);
-        FamilyInfo familyInfo = family.map(f -> new FamilyInfo(
-                f.getId(), f.getName(), f.getMemo(), f.getProfileImageUrl())).orElse(null);
 
         List<ElderCard> elders = linkRepository.findAllByGuardianId(guardianId).stream()
                 .map(link -> {
@@ -67,7 +56,6 @@ public class GetGuardianProfileUseCase {
                 account.phone(),
                 account.birthDate(),
                 account.profileImageUrl(),
-                familyInfo,
                 elders
         );
     }

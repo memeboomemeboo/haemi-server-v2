@@ -14,6 +14,7 @@ import com.memeboo2.haemi.elder.training.infrastructure.TrainingQuestionReposito
 import com.memeboo2.haemi.elder.training.infrastructure.TrainingSessionRepository;
 import com.memeboo2.haemi.guardian.eldermanagement.domain.Elder;
 import com.memeboo2.haemi.guardian.eldermanagement.domain.ElderRepository;
+import com.memeboo2.haemi.guardian.report.infrastructure.ReportParticipationRepository;
 import com.memeboo2.haemi.platform.content.domain.ContentItem;
 import com.memeboo2.haemi.platform.content.infrastructure.ContentItemRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -48,6 +49,7 @@ class TrainingSessionHttpTest {
     @Autowired TrainingAnswerRepository answerRepository;
     @Autowired TrainingSessionRepository trainingSessionRepository;
     @Autowired DailyParticipationRepository participationRepository;
+    @Autowired ReportParticipationRepository reportParticipationRepository;
     @Autowired JwtTokenProvider jwtTokenProvider;
     private UUID elderId;
     private String accessToken;
@@ -91,6 +93,7 @@ class TrainingSessionHttpTest {
         assertThat(current.toString()).doesNotContain("answerKey", "correct", "accuracy", "score");
         assertThat(answerRepository.findBySessionIdOrderByQuestionNumberAsc(sessionId)).hasSize(10);
         assertThat(awaitAttendance(elderId, LocalDate.now(com.memeboo2.haemi.common.time.HaemiClock.KST))).isTrue();
+        assertThat(awaitReportParticipation(elderId, LocalDate.now(com.memeboo2.haemi.common.time.HaemiClock.KST))).isTrue();
 
         List<TrainingQuestion> questions = questionRepository.findBySessionIdOrderByQuestionNumberAsc(sessionId);
         assertThat(questions).hasSize(10);
@@ -258,6 +261,16 @@ class TrainingSessionHttpTest {
     private boolean awaitAttendance(UUID targetElderId, LocalDate date) throws InterruptedException {
         for (int attempt = 0; attempt < 20; attempt++) {
             if (participationRepository.existsByElderIdAndParticipationDate(targetElderId, date)) {
+                return true;
+            }
+            Thread.sleep(100);
+        }
+        return false;
+    }
+
+    private boolean awaitReportParticipation(UUID targetElderId, LocalDate date) throws InterruptedException {
+        for (int attempt = 0; attempt < 20; attempt++) {
+            if (reportParticipationRepository.existsByElderIdAndParticipationDate(targetElderId, date)) {
                 return true;
             }
             Thread.sleep(100);

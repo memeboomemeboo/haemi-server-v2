@@ -1,5 +1,6 @@
 package com.memeboo2.haemi.guardian.home.application;
 
+import com.memeboo2.haemi.auth.api.AccountQuery;
 import com.memeboo2.haemi.common.time.HaemiClock;
 import com.memeboo2.haemi.guardian.api.CareAccessQuery;
 import com.memeboo2.haemi.guardian.api.GuardianRole;
@@ -12,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.time.Period;
 import java.time.ZoneId;
 import java.util.List;
@@ -28,6 +30,7 @@ public class GetGuardianHomeUseCase {
     private final DailyCareRepository dailyCareRepository;
     private final MemoryRepository memoryRepository;
     private final AttendanceQuery attendanceQuery;
+    private final AccountQuery accountQuery;
     private final HaemiClock clock;
 
     @Transactional(readOnly = true)
@@ -42,10 +45,12 @@ public class GetGuardianHomeUseCase {
             boolean greetingSentToday = dailyCareRepository
                     .existsByGuardianIdAndElderIdAndCareDate(guardianId, elderId, today);
             Integer age = elder.getBirthDate() == null ? null : Period.between(elder.getBirthDate(), today).getYears();
+            Instant lastLoginAt = accountQuery.findById(elder.getUserId())
+                    .map(AccountQuery.AccountInfo::lastLoginAt).orElse(null);
             return new ElderCard(
                     elderId, elder.getName(), age, role,
                     attendanceQuery.daysTogether(elderId), attendanceQuery.completedToday(elderId),
-                    greetingSentToday);
+                    greetingSentToday, lastLoginAt);
         }).filter(c -> c != null).toList();
 
         boolean memoryRegisteredToday = memoryRepository
@@ -65,7 +70,8 @@ public class GetGuardianHomeUseCase {
             GuardianRole role,
             long daysTogether,
             boolean attendedToday,
-            boolean greetingSentToday
+            boolean greetingSentToday,
+            Instant lastLoginAt
     ) {}
 
     public record Challenge(boolean greetingCompleted, boolean memoryCompleted) {}

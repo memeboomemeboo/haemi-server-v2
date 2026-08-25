@@ -17,12 +17,13 @@ public class GetMemoryDetailUseCase {
 
     private final CareAccessQuery careAccessQuery;
     private final MemoryRepository memoryRepository;
+    private final MemoryCreatorResolver creatorResolver;
 
     @Transactional(readOnly = true)
-    public Memory execute(UUID guardianId, UUID memoryId) {
+    public MemoryWithCreator execute(UUID guardianId, UUID memoryId) {
         Memory memory = memoryRepository.findByIdWithImages(memoryId)
                 .orElseThrow(() -> new DomainException(ErrorCode.RESOURCE_NOT_FOUND));
         careAccessQuery.requireGuardianOf(guardianId, memory.getElderId());
-        return memory;
+        return creatorResolver.resolve(memory, guardianId);
     }
 }

@@ -3,13 +3,12 @@ package com.memeboo2.haemi.elder.attendance.application;
 import com.memeboo2.haemi.common.time.HaemiClock;
 import com.memeboo2.haemi.elder.attendance.infrastructure.DailyParticipationRepository;
 import com.memeboo2.haemi.guardian.api.AttendanceBadge;
-import com.memeboo2.haemi.guardian.api.ElderProfileQuery;
+import com.memeboo2.haemi.guardian.api.ElderQuery;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
@@ -22,7 +21,7 @@ import static org.mockito.BDDMockito.given;
 class AttendanceQueryImplTest {
 
     @Mock DailyParticipationRepository participationRepository;
-    @Mock ElderProfileQuery elderProfileQuery;
+    @Mock ElderQuery elderQuery;
     @Mock HaemiClock clock;
 
     @Test
@@ -30,10 +29,9 @@ class AttendanceQueryImplTest {
         UUID elderId = UUID.randomUUID();
         LocalDate today = LocalDate.of(2026, 8, 25);
         given(clock.today()).willReturn(today);
-        given(participationRepository.findParticipationDatesThrough(elderId, today))
-                .willReturn(List.of(today.minusDays(1), today.minusDays(2)));
+        given(participationRepository.existsByElderIdAndParticipationDate(elderId, today)).willReturn(false);
         given(participationRepository.countByElderId(elderId)).willReturn(30L);
-        AttendanceQueryImpl query = new AttendanceQueryImpl(participationRepository, elderProfileQuery, clock);
+        AttendanceQueryImpl query = new AttendanceQueryImpl(participationRepository, elderQuery, clock);
 
         assertThat(query.currentStreak(elderId)).isZero();
         assertThat(query.unlockedBadges(elderId)).containsExactly(AttendanceBadge.DAYS_7, AttendanceBadge.DAYS_30);
@@ -44,9 +42,10 @@ class AttendanceQueryImplTest {
         UUID elderId = UUID.randomUUID();
         LocalDate today = LocalDate.of(2026, 8, 25);
         given(clock.today()).willReturn(today);
-        given(participationRepository.findParticipationDatesThrough(elderId, today))
+        given(participationRepository.existsByElderIdAndParticipationDate(elderId, today)).willReturn(true);
+        given(participationRepository.findParticipationDatesDesc(elderId))
                 .willReturn(List.of(today, today.minusDays(1), today.minusDays(2), today.minusDays(4)));
-        AttendanceQueryImpl query = new AttendanceQueryImpl(participationRepository, elderProfileQuery, clock);
+        AttendanceQueryImpl query = new AttendanceQueryImpl(participationRepository, elderQuery, clock);
 
         assertThat(query.currentStreak(elderId)).isEqualTo(3);
     }
@@ -55,9 +54,11 @@ class AttendanceQueryImplTest {
     void 완료_응답은_이벤트_소비_전에도_방금_해금된_배지를_보여준다() {
         UUID elderId = UUID.randomUUID();
         UUID sessionId = UUID.randomUUID();
+        LocalDate today = LocalDate.of(2026, 8, 25);
+        given(clock.today()).willReturn(today);
         given(participationRepository.countByElderId(elderId)).willReturn(6L);
-        given(participationRepository.existsByTrainingSessionId(sessionId)).willReturn(false);
-        AttendanceQueryImpl query = new AttendanceQueryImpl(participationRepository, elderProfileQuery, clock);
+        given(participationRepository.existsByElderIdAndParticipationDate(elderId, today)).willReturn(false);
+        AttendanceQueryImpl query = new AttendanceQueryImpl(participationRepository, elderQuery, clock);
 
         assertThat(query.unlockedBadgesAfterCompletion(elderId, sessionId)).containsExactly(AttendanceBadge.DAYS_7);
     }

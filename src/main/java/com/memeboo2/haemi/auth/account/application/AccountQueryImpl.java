@@ -9,6 +9,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -24,7 +26,17 @@ public class AccountQueryImpl implements AccountQuery {
         return accountRepository.findById(userId)
                 .map(a -> new AccountInfo(
                         a.getId(), a.getName(), a.getLoginId(), a.getPhone(),
-                        a.getBirthDate(), a.getProfileImageUrl()));
+                        a.getBirthDate(), a.getProfileImageUrl(), a.getLastLoginAt()));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<AccountInfo> findAllById(Collection<UUID> userIds) {
+        return accountRepository.findAllById(userIds).stream()
+                .map(a -> new AccountInfo(
+                        a.getId(), a.getName(), a.getLoginId(), a.getPhone(),
+                        a.getBirthDate(), a.getProfileImageUrl(), a.getLastLoginAt()))
+                .toList();
     }
 
     @Override

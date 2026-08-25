@@ -157,8 +157,8 @@ auth_sessions                 guardian_memories            elder_training_answer
 platform_media_refs           guardian_greetings           elder_training_difficulties
 platform_content_items        guardian_challenges
 platform_content_exposures    elder_training_question_options
-                              elder_daily_participations
-platform_notifications        guardian_report_participation
+                              elder_attendance_daily_participations
+platform_notifications        guardian_report_participations
 ```
 
 **모듈 간 FK는 걸지 않습니다.** `guardian_memories.elder_id`는 `guardian_elders.id`를 논리적으로 참조하지만, `elder_responses.memory_id`처럼 **그룹을 넘는 참조에는 FK를 두지 않습니다.** 참조 무결성은 `CareAccessQuery`를 지나는 시점에 검증됩니다. FK를 걸면 모듈 분리·삭제 정책 변경이 전부 스키마 변경이 됩니다.
@@ -253,7 +253,6 @@ sequenceDiagram
 flowchart LR
     T[elder/training] -->|TrainingSessionCompleted| OB[(event_publication)]
     OB -->|출석 기록| AT[elder/attendance]
-    OB -->|인지 결과 스냅샷| R[guardian/report]
     AT -->|AttendanceRecorded| OB
     OB -->|출석·참여 스냅샷| R
     RS[elder/response] -->|ElderResponded| OB
@@ -266,7 +265,7 @@ flowchart LR
 
 `spring-modulith-events-jpa`가 레지스트리를 기본 제공하므로 별도 구현이 필요 없습니다.
 
-**출석은 `elder/attendance`가 유일한 원천입니다.** `TrainingSessionCompleted`의 완료 사실을 출석 모듈이 소비해 `DailyParticipation`을 세션 ID와 `(elder_id, participation_date)`로 멱등 기록하고 `AttendanceRecorded`를 발행합니다. `AttendanceQuery`는 오늘 완료 여부·현재 스트릭·D+·7/30/100일 배지를 이 원천에서 계산합니다. `guardian/report`의 이벤트 소비·스냅샷 적재는 아직 구현 전이므로, 리포트는 현재 훈련 완료를 출석으로 직접 해석하지 않습니다.
+**출석은 `elder/attendance`가 유일한 원천입니다.** `TrainingSessionCompleted`의 완료 사실을 출석 모듈이 소비해 `DailyParticipation`을 `(elder_id, participation_date)`로 원자적 멱등 기록하고 `AttendanceRecorded`를 발행합니다. `AttendanceQuery`는 오늘 완료 여부·현재 스트릭·D+·7/30/100일 배지를 이 원천에서 계산합니다. `guardian/report`는 `AttendanceRecorded`만 소비해 출석 스냅샷을 적재합니다.
 
 **트랜잭션 경계는 `application`**. `domain`과 `presentation`에는 `@Transactional`을 쓰지 않습니다.
 
@@ -303,18 +302,16 @@ elder/training ──TrainingSessionCompleted──▶ elder/attendance
                                                     │
                                             AttendanceRecorded
                                                     ▼
-                              guardian_report_participation (출석 원천 스냅샷)
+                              guardian_report_participations (출석 원천 스냅샷)
 
-elder/training ──TrainingSessionCompleted──▶ guardian_report_cognition (인지 원천 스냅샷)
-                                                    │
-                                             조회 시 판정·조합
-                                                    ▼
-        RPT-ATT-003 출석 · 004 영역별 · 005 하이라이트 · 006 서포트
+        RPT-ATT-003 출석·참여 현황
+
+RPT-ATT-004 영역별 인지 상태와 RPT-ATT-005·006은 별도 인지 스냅샷 계약이 필요해 아직 구현하지 않는다.
 ```
 
-- `guardian_report_participation`은 `(elder_id, participation_date)`를 유일 키로 하여 `AttendanceRecorded`를 멱등 적재합니다. 최근 7일의 ●/○와 최근 4주 막대는 이 날짜 행으로 만들고, 오늘 행이 없으면 ○입니다.
+- `guardian_report_participations`는 `(elder_id, participation_date)`를 유일 키로 하여 `AttendanceRecorded`를 멱등 적재합니다. 최근 7일의 ●/○와 최근 4주 막대는 이 날짜 행으로 만들고, 오늘 행이 없으면 ○입니다.
 - 스트릭과 최고 기록은 이벤트에 담긴 가변 숫자를 복사하지 않고, 출석 날짜 스냅샷과 `HaemiClock`으로 **조회 시** 계산합니다. 따라서 자정을 넘겨 미완료가 되면 별도 배치 없이 현재 스트릭이 0으로 보입니다.
-- `guardian/report`는 두 모듈의 테이블을 직접 조회하지 않습니다. `TrainingSessionCompleted`는 인지 결과에만, `AttendanceRecorded`는 출석·참여에만 사용합니다.
+- `guardian/report`는 두 모듈의 테이블을 직접 조회하지 않습니다. 현재는 `AttendanceRecorded`만 출석·참여 스냅샷에 사용하며, `TrainingSessionCompleted`는 출석 모듈만 소비합니다.
 
 `guardian/report`는 **`elder/training`의 테이블을 직접 조회하지 않습니다.**
 
@@ -374,7 +371,7 @@ elder/training ──TrainingSessionCompleted──▶ guardian_report_cognition
 | # | 단계 | 산출물 |
 | --- | --- | --- |
 | 1 | 뼈대 | 패키지 트리 + Modulith verify + CI 통과 |
-| 2 | `common` + `auth` | Clock, 예외, JWT, PIN 로그인, SMS 인증 |
+| 2 | `common` + `auth` | Clock, 예외, JWT, PIN 로그인, 이메일 인증 |
 | 3 | `guardian/family` + `guardian/eldermanagement` + **`access`** | 다대다 관계, 인가 정책, ArchUnit 규칙 |
 | 4 | `platform/media` + `guardian/memory` + `elder/memory` + `elder/response` | 추억 등록·조회·답변 |
 | 5 | `platform/content` + `elder/training` + `elder/attendance` | CIST 세션·난이도·쿨다운 (+ 시간 시나리오 테스트) |

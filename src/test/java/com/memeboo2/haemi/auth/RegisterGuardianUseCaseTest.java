@@ -4,7 +4,7 @@ import com.memeboo2.haemi.auth.account.application.RegisterGuardianUseCase;
 import com.memeboo2.haemi.auth.account.domain.Account;
 import com.memeboo2.haemi.auth.account.infrastructure.AccountRepository;
 import com.memeboo2.haemi.auth.credential.PasswordService;
-import com.memeboo2.haemi.auth.verification.application.PhoneVerificationUseCase;
+import com.memeboo2.haemi.auth.verification.application.EmailVerificationUseCase;
 import com.memeboo2.haemi.common.error.DomainException;
 import com.memeboo2.haemi.common.error.ErrorCode;
 import org.junit.jupiter.api.Test;
@@ -25,7 +25,7 @@ class RegisterGuardianUseCaseTest {
 
     @Mock AccountRepository accountRepository;
     @Mock PasswordService passwordService;
-    @Mock PhoneVerificationUseCase phoneVerificationUseCase;
+    @Mock EmailVerificationUseCase emailVerificationUseCase;
     @InjectMocks RegisterGuardianUseCase sut;
 
     @Test
@@ -33,7 +33,7 @@ class RegisterGuardianUseCaseTest {
         given(accountRepository.existsByLoginId("user01")).willReturn(false);
         given(passwordService.encode("pass1234")).willReturn("hashed");
         UUID expectedId = UUID.randomUUID();
-        given(accountRepository.save(any(Account.class))).willAnswer(inv -> {
+        given(accountRepository.saveAndFlush(any(Account.class))).willAnswer(inv -> {
             Account a = inv.getArgument(0);
             var idField = a.getClass().getSuperclass().getDeclaredField("id");
             idField.setAccessible(true);
@@ -42,20 +42,50 @@ class RegisterGuardianUseCaseTest {
         });
 
         UUID verificationId = UUID.randomUUID();
-        UUID result = sut.execute("홍길동", "user01", "pass1234", "1970-01-01", "01011112222", "123456", verificationId);
+        UUID result = sut.execute("홍길동", "user01", "pass1234", "1970-01-01", "01011112222",
+                "Guardian@Example.com", "123456", verificationId);
 
         assertThat(result).isEqualTo(expectedId);
-        org.mockito.Mockito.verify(phoneVerificationUseCase).consumeVerified(verificationId, "01011112222");
+        org.mockito.Mockito.verify(emailVerificationUseCase).consumeVerified(verificationId, "guardian@example.com");
     }
 
     @Test
     void 중복_아이디_409() {
         given(accountRepository.existsByLoginId("user01")).willReturn(true);
 
-        assertThatThrownBy(() -> sut.execute("홍길동", "user01", "pass1234", "1970-01-01", "01011112222", "123456", UUID.randomUUID()))
+        assertThatThrownBy(() -> sut.execute("홍길동", "user01", "pass1234", "1970-01-01", "01011112222",
+                "guardian@example.com", "123456", UUID.randomUUID()))
                 .isInstanceOf(DomainException.class)
                 .extracting(e -> ((DomainException) e).getErrorCode())
                 .isEqualTo(ErrorCode.LOGIN_ID_ALREADY_TAKEN);
+    }
+
+    @Test
+    void 중복_이메일_409() {
+        given(accountRepository.existsByLoginId("user01")).willReturn(false);
+        given(accountRepository.existsByEmail("guardian@example.com")).willReturn(true);
+
+        assertThatThrownBy(() -> sut.execute("홍길동", "user01", "pass1234", "1970-01-01", "01011112222",
+                "guardian@example.com", "123456", UUID.randomUUID()))
+                .isInstanceOf(DomainException.class)
+                .extracting(e -> ((DomainException) e).getErrorCode())
+                .isEqualTo(ErrorCode.EMAIL_ALREADY_TAKEN);
+    }
+
+    @Test
+    void 동시_가입으로_이메일_유니크_위반이_나면_409로_변환된다() {
+        given(accountRepository.existsByLoginId("user01")).willReturn(false);
+        given(accountRepository.existsByEmail("guardian@example.com")).willReturn(false);
+        given(accountRepository.saveAndFlush(any(Account.class))).willThrow(
+                new org.springframework.dao.DataIntegrityViolationException("insert 실패",
+                        new org.hibernate.exception.ConstraintViolationException(
+                                "duplicate key", new java.sql.SQLException("duplicate key"), "uk_accounts_email")));
+
+        assertThatThrownBy(() -> sut.execute("홍길동", "user01", "pass1234", "1970-01-01", "01011112222",
+                "guardian@example.com", "123456", UUID.randomUUID()))
+                .isInstanceOf(DomainException.class)
+                .extracting(e -> ((DomainException) e).getErrorCode())
+                .isEqualTo(ErrorCode.EMAIL_ALREADY_TAKEN);
     }
 
     @Test

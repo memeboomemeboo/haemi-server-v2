@@ -102,10 +102,8 @@ public class TrainingSessionService implements TrainingSessionUseCase {
         // 비관 잠금으로 조회한 managed 엔티티이므로 트랜잭션 커밋 시 변경 감지로 저장된다.
         if (session.getStatus() == SessionStatus.COMPLETED) {
             difficultyService.evaluateCompletedSession(session);
-            TrainingResultView result = resultService.resultFor(session);
             eventPublisher.publishEvent(new TrainingSessionCompleted(
-                    session.getId(), session.getElderId(), HaemiClock.dateInKst(session.getCompletedAt()),
-                    session.getCompletedAt(), result.participationSeconds(), result.delayedRecallSuccessCount()));
+                    session.getElderId(), HaemiClock.dateInKst(session.getCompletedAt())));
         }
         return viewOf(session, feedbackFor(question, evaluated, session));
     }

@@ -13,13 +13,13 @@ import lombok.NoArgsConstructor;
 import java.time.Instant;
 
 @Entity
-@Table(name = "phone_verifications")
+@Table(name = "email_verifications")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class PhoneVerification extends BaseEntity {
+public class EmailVerification extends BaseEntity {
 
-    @Column(nullable = false, length = 20)
-    private String phone;
+    @Column(nullable = false, length = 255)
+    private String email;
 
     @Column(name = "code_hash", nullable = false, length = 100)
     private String codeHash;
@@ -33,9 +33,13 @@ public class PhoneVerification extends BaseEntity {
     @Column(name = "consumed_at")
     private Instant consumedAt;
 
-    public static PhoneVerification pending(String phone, String codeHash, Instant expiresAt) {
-        PhoneVerification verification = new PhoneVerification();
-        verification.phone = phone;
+    /** 실패 카운터는 원자적 UPDATE로만 증가시킨다 (EmailVerificationRepository#incrementFailCount). */
+    @Column(name = "fail_count", nullable = false)
+    private int failCount;
+
+    public static EmailVerification pending(String email, String codeHash, Instant expiresAt) {
+        EmailVerification verification = new EmailVerification();
+        verification.email = email;
         verification.codeHash = codeHash;
         verification.expiresAt = expiresAt;
         return verification;
@@ -44,22 +48,26 @@ public class PhoneVerification extends BaseEntity {
     public void markVerified(Instant now) {
         requireNotExpired(now);
         if (consumedAt != null) {
-            throw new DomainException(ErrorCode.PHONE_VERIFICATION_REQUIRED, "이미 사용된 휴대폰 인증입니다.");
+            throw new DomainException(ErrorCode.EMAIL_VERIFICATION_REQUIRED, "이미 사용된 이메일 인증입니다.");
         }
         verifiedAt = now;
     }
 
-    public void consumeFor(String requestedPhone, Instant now) {
+    public boolean isLocked(int maxAttempts) {
+        return failCount >= maxAttempts;
+    }
+
+    public void consumeFor(String requestedEmail, Instant now) {
         requireNotExpired(now);
-        if (!phone.equals(requestedPhone) || verifiedAt == null || consumedAt != null) {
-            throw new DomainException(ErrorCode.PHONE_VERIFICATION_REQUIRED, "휴대폰 인증이 필요합니다.");
+        if (!email.equals(requestedEmail) || verifiedAt == null || consumedAt != null) {
+            throw new DomainException(ErrorCode.EMAIL_VERIFICATION_REQUIRED, "이메일 인증이 필요합니다.");
         }
         consumedAt = now;
     }
 
     private void requireNotExpired(Instant now) {
         if (!now.isBefore(expiresAt)) {
-            throw new DomainException(ErrorCode.PHONE_VERIFICATION_REQUIRED, "휴대폰 인증 시간이 만료되었습니다.");
+            throw new DomainException(ErrorCode.EMAIL_VERIFICATION_REQUIRED, "이메일 인증 시간이 만료되었습니다.");
         }
     }
 }
