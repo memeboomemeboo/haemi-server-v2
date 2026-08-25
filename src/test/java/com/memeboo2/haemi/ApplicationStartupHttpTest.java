@@ -23,9 +23,9 @@ class ApplicationStartupHttpTest {
     void health_보안_입력오류와_개발용_스토리지_경로가_실제로_동작한다() throws Exception {
         assertThat(send("/actuator/health", "GET", null).statusCode()).isEqualTo(200);
 
-        HttpResponse<String> invalidPhone = send("/api/v1/auth/phone-verifications", "POST", "{\"phone\":\"invalid\"}");
-        assertThat(invalidPhone.statusCode()).isEqualTo(400);
-        assertThat(invalidPhone.body()).contains("INVALID_INPUT");
+        HttpResponse<String> invalidEmail = send("/api/v1/auth/email-verifications", "POST", "{\"email\":\"invalid\"}");
+        assertThat(invalidEmail.statusCode()).isEqualTo(400);
+        assertThat(invalidEmail.body()).contains("INVALID_INPUT");
 
         assertThat(send("/api/v1/guardian/families", "GET", null).statusCode()).isEqualTo(401);
 

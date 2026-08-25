@@ -46,6 +46,10 @@ public class ElderMemoryQueryImpl implements ElderMemoryQuery {
             creatorName = accountQuery.findById(m.getCreatedBy()).map(AccountQuery.AccountInfo::name).orElse(null);
             creatorRole = linkRepository.findByGuardianIdAndElderId(m.getCreatedBy(), m.getElderId())
                     .map(link -> link.getRole()).orElse(null);
+            // D17: 어르신 화면 문장 깨짐 방지 — "기타"는 "보호자"로 치환
+            if (creatorRole == GuardianRole.OTHER) {
+                creatorRole = GuardianRole.GUARDIAN;
+            }
         }
         return new MemoryItem(
                 m.getId(),

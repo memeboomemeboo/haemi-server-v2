@@ -16,12 +16,18 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class CreateFamilyUseCase {
 
+    private static final int MAX_CODE_ATTEMPTS = 5;
+
     private final FamilyRepository familyRepository;
     private final FamilyProperties props;
     private final MediaUploadCommand mediaUploadCommand;
+    private final InviteCodeGenerator inviteCodeGenerator;
+    private final FamilyInviteCodeSaver familyInviteCodeSaver;
+
+    public record Result(UUID familyId, String inviteCode) {}
 
     @Transactional
-    public UUID execute(UUID guardianId, String familyName, String memo, UUID profileImageMediaRefId) {
+    public Result execute(UUID guardianId, String familyName, String memo, UUID profileImageMediaRefId) {
         // 보호자는 한 가족에만 속할 수 있음 (R2)
         familyRepository.findByMembers_UserId(guardianId).ifPresent(f -> {
             throw new DomainException(ErrorCode.FAMILY_CAPACITY_EXCEEDED,
@@ -30,12 +36,19 @@ public class CreateFamilyUseCase {
 
         String profileImageUrl = profileImageMediaRefId == null ? null
                 : mediaUploadCommand.confirmUpload(guardianId, profileImageMediaRefId, MediaPurpose.PROFILE_IMAGE).toString();
-        Family family = Family.create(familyName, memo, profileImageUrl);
-        family.addMember(guardianId);
-        return familyRepository.save(family).getId();
-    }
 
-    public UUID execute(UUID guardianId, String familyName) {
-        return execute(guardianId, familyName, null, null);
+        for (int attempt = 0; attempt < MAX_CODE_ATTEMPTS; attempt++) {
+            String inviteCode = inviteCodeGenerator.nextCode();
+            Family family = Family.create(familyName, memo, profileImageUrl, inviteCode);
+            family.addMember(guardianId);
+            try {
+                familyInviteCodeSaver.save(family);
+                return new Result(family.getId(), inviteCode);
+            } catch (InviteCodeConflictException retryWithNewCode) {
+                // 다음 코드로 재시도
+            }
+        }
+        throw new DomainException(ErrorCode.FAMILY_INVITE_CODE_GENERATION_FAILED,
+                "초대 코드 생성에 반복적으로 실패했습니다.");
     }
 }

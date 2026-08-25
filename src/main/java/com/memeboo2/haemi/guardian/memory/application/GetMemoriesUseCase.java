@@ -18,13 +18,15 @@ public class GetMemoriesUseCase {
 
     private final CareAccessQuery careAccessQuery;
     private final MemoryRepository memoryRepository;
+    private final MemoryCreatorResolver creatorResolver;
     private final HaemiClock clock;
 
     @Transactional(readOnly = true)
-    public List<Memory> execute(UUID guardianId, UUID elderId) {
+    public List<MemoryWithCreator> execute(UUID guardianId, UUID elderId) {
         careAccessQuery.requireGuardianOf(guardianId, elderId);
 
         Instant oneYearAgo = clock.now().minusSeconds(365L * 24 * 3600);
-        return memoryRepository.findByElderIdSince(elderId, oneYearAgo);
+        List<Memory> memories = memoryRepository.findByElderIdSince(elderId, oneYearAgo);
+        return creatorResolver.resolveAll(memories, elderId, guardianId);
     }
 }

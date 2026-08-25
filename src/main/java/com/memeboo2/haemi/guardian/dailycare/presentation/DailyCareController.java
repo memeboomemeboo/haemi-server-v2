@@ -1,10 +1,13 @@
 package com.memeboo2.haemi.guardian.dailycare.presentation;
 
 import com.memeboo2.haemi.common.web.ApiResponse;
+import com.memeboo2.haemi.guardian.dailycare.application.GetSentDailyCareHistoryUseCase;
 import com.memeboo2.haemi.guardian.dailycare.application.SendDailyCareUseCase;
 import com.memeboo2.haemi.guardian.dailycare.presentation.dto.SendTextRequest;
 import com.memeboo2.haemi.guardian.dailycare.presentation.dto.SendVoiceRequest;
+import com.memeboo2.haemi.guardian.dailycare.presentation.dto.SentDailyCareItem;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -12,6 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
+import java.util.List;
 import java.util.UUID;
 
 @Tag(name = "하루 한마디 (보호자)", description = "보호자가 어르신께 하루 한마디 전송")
@@ -21,6 +25,7 @@ import java.util.UUID;
 public class DailyCareController {
 
     private final SendDailyCareUseCase sendDailyCareUseCase;
+    private final GetSentDailyCareHistoryUseCase getSentDailyCareHistoryUseCase;
 
     @Operation(summary = "텍스트 하루 한마디 전송")
     @PostMapping("/text")
@@ -46,5 +51,20 @@ public class DailyCareController {
         return ResponseEntity
                 .created(URI.create("/api/v1/elder/inbox/" + id))
                 .body(ApiResponse.ok(id));
+    }
+
+    @Operation(summary = "내가 보낸 하루 한마디 이력", description = "R6: 발신자 본인 것만 반환한다.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "인가 실패 — CARE_ACCESS_DENIED")
+    })
+    @GetMapping("/sent")
+    public ResponseEntity<ApiResponse<List<SentDailyCareItem>>> sentHistory(
+            @RequestAttribute UUID guardianId,
+            @PathVariable UUID elderId) {
+
+        List<SentDailyCareItem> result = getSentDailyCareHistoryUseCase.execute(guardianId, elderId)
+                .stream().map(SentDailyCareItem::from).toList();
+        return ResponseEntity.ok(ApiResponse.ok(result));
     }
 }
