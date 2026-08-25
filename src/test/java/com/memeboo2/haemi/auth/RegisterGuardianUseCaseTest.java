@@ -33,7 +33,7 @@ class RegisterGuardianUseCaseTest {
         given(accountRepository.existsByLoginId("user01")).willReturn(false);
         given(passwordService.encode("pass1234")).willReturn("hashed");
         UUID expectedId = UUID.randomUUID();
-        given(accountRepository.save(any(Account.class))).willAnswer(inv -> {
+        given(accountRepository.saveAndFlush(any(Account.class))).willAnswer(inv -> {
             Account a = inv.getArgument(0);
             var idField = a.getClass().getSuperclass().getDeclaredField("id");
             idField.setAccessible(true);
@@ -64,6 +64,22 @@ class RegisterGuardianUseCaseTest {
     void 중복_이메일_409() {
         given(accountRepository.existsByLoginId("user01")).willReturn(false);
         given(accountRepository.existsByEmail("guardian@example.com")).willReturn(true);
+
+        assertThatThrownBy(() -> sut.execute("홍길동", "user01", "pass1234", "1970-01-01", "01011112222",
+                "guardian@example.com", "123456", UUID.randomUUID()))
+                .isInstanceOf(DomainException.class)
+                .extracting(e -> ((DomainException) e).getErrorCode())
+                .isEqualTo(ErrorCode.EMAIL_ALREADY_TAKEN);
+    }
+
+    @Test
+    void 동시_가입으로_이메일_유니크_위반이_나면_409로_변환된다() {
+        given(accountRepository.existsByLoginId("user01")).willReturn(false);
+        given(accountRepository.existsByEmail("guardian@example.com")).willReturn(false);
+        given(accountRepository.saveAndFlush(any(Account.class))).willThrow(
+                new org.springframework.dao.DataIntegrityViolationException("insert 실패",
+                        new org.hibernate.exception.ConstraintViolationException(
+                                "duplicate key", new java.sql.SQLException("duplicate key"), "uk_accounts_email")));
 
         assertThatThrownBy(() -> sut.execute("홍길동", "user01", "pass1234", "1970-01-01", "01011112222",
                 "guardian@example.com", "123456", UUID.randomUUID()))

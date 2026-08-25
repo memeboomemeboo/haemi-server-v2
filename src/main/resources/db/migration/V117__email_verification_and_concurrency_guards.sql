@@ -39,7 +39,19 @@ CREATE TABLE auth_verification_rate_limits (
 );
 
 -- 4) 보호자 1인 1가족(R2)을 DB 제약으로 강제한다. 애플리케이션 선검사만으로는 동시 요청을 막지 못한다.
---    기존 데이터에 같은 user_id가 두 가족에 있으면 이 인덱스 생성이 실패해 앱이 기동하지 않는다.
---    배포 전 확인: SELECT user_id FROM guardian_family_members WHERE deleted_at IS NULL
---                  GROUP BY user_id HAVING count(*) > 1;
-CREATE UNIQUE INDEX uk_family_member_user ON guardian_family_members(user_id) WHERE deleted_at IS NULL;
+--    기존 데이터에 같은 user_id가 두 가족에 남아 있으면 인덱스 생성이 실패해 앱 기동 자체가 막힌다.
+--    이미 깨진 데이터 때문에 배포가 멈추지는 않도록, 중복이 없을 때만 만들고 있으면 경고만 남긴다.
+--    경고가 보이면 아래 쿼리로 중복을 정리한 뒤 인덱스를 수동 생성한다.
+--    SELECT user_id FROM guardian_family_members WHERE deleted_at IS NULL
+--     GROUP BY user_id HAVING count(*) > 1;
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM guardian_family_members WHERE deleted_at IS NULL
+         GROUP BY user_id HAVING count(*) > 1
+    ) THEN
+        RAISE WARNING '보호자 1인 1가족 제약(uk_family_member_user)을 건너뜁니다 — 중복 소속 데이터가 있습니다.';
+    ELSE
+        CREATE UNIQUE INDEX uk_family_member_user ON guardian_family_members(user_id) WHERE deleted_at IS NULL;
+    END IF;
+END $$;

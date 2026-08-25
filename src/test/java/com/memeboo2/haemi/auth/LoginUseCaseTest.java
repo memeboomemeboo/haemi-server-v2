@@ -26,6 +26,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.verify;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -87,23 +88,27 @@ class LoginUseCaseTest {
     }
 
     @Test
-    void 로그인_실패가_상한에_도달하면_계정이_잠긴다() {
+    void 로그인에_실패하면_설정값_그대로_실패_카운터를_기록한다() {
         Account account = guardian();
         given(accountRepository.findByLoginId("guardian01")).willReturn(Optional.of(account));
         given(passwordService.matches("wrong", "password-hash")).willReturn(false);
-        lenient().doAnswer(invocation -> {
-            account.recordLoginFailure(invocation.getArgument(1), invocation.getArgument(2), invocation.getArgument(3));
-            return null;
-        }).when(loginFailureRecorder).recordFailure(eq("guardian01"), any(), anyInt(), anyLong());
 
-        for (int i = 0; i < 5; i++) {
-            assertThatThrownBy(() -> useCase.execute("guardian01", "wrong", null, "device-a"))
-                    .isInstanceOf(DomainException.class)
-                    .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
-                            .isEqualTo(ErrorCode.INVALID_CREDENTIALS));
-        }
+        assertThatThrownBy(() -> useCase.execute("guardian01", "wrong", null, "device-a"))
+                .isInstanceOf(DomainException.class)
+                .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
+                        .isEqualTo(ErrorCode.INVALID_CREDENTIALS));
 
-        assertThat(account.isLocked(NOW)).isTrue();
+        // 실제 증가·잠금은 별도 트랜잭션의 원자적 UPDATE가 담당한다.
+        // 여기서는 잠금 임계값과 잠금 시간이 설정값 그대로 전달되는지만 확인한다.
+        verify(loginFailureRecorder).recordFailure("guardian01", NOW, 5, 900L);
+    }
+
+    @Test
+    void 잠긴_계정은_비밀번호가_맞아도_거부된다() {
+        Account account = guardian();
+        account.recordLoginFailure(NOW, 1, 900L);
+        given(accountRepository.findByLoginId("guardian01")).willReturn(Optional.of(account));
+
         assertThatThrownBy(() -> useCase.execute("guardian01", "password1", null, "device-a"))
                 .isInstanceOf(DomainException.class)
                 .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())

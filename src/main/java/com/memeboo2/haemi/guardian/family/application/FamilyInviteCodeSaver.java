@@ -2,6 +2,7 @@ package com.memeboo2.haemi.guardian.family.application;
 
 import com.memeboo2.haemi.common.error.DomainException;
 import com.memeboo2.haemi.common.error.ErrorCode;
+import com.memeboo2.haemi.common.persistence.ConstraintViolations;
 import com.memeboo2.haemi.guardian.family.domain.Family;
 import com.memeboo2.haemi.guardian.family.domain.FamilyRepository;
 import lombok.RequiredArgsConstructor;
@@ -37,7 +38,6 @@ public class FamilyInviteCodeSaver {
     }
 
     private boolean isGuardianAlreadyInFamily(DataIntegrityViolationException e) {
-        String message = e.getMostSpecificCause().getMessage();
-        return message != null && message.contains("uk_family_member_user");
+        return ConstraintViolations.isViolationOf(e, "uk_family_member_user");
     }
 }
