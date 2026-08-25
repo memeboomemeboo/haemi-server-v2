@@ -11,7 +11,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
+import java.util.HexFormat;
 import java.util.Locale;
 import java.util.UUID;
 
@@ -38,8 +42,11 @@ public class EmailVerificationUseCase {
     public UUID request(String rawEmail) {
         String email = normalize(rawEmail);
         Instant now = clock.now();
-        int attempts = rateLimitRepository.incrementAndGet(rateKey(email), windowStart(now));
-        if (attempts > properties.maxResendPerWindow()) {
+        Instant windowStart = windowStart(now);
+        String rateKey = rateKey(email);
+        rateLimitRepository.increment(rateKey, windowStart);
+        Integer attempts = rateLimitRepository.findAttemptCount(rateKey, windowStart);
+        if (attempts != null && attempts > properties.maxResendPerWindow()) {
             throw new DomainException(ErrorCode.AUTH_VERIFICATION_RESEND_LIMITED);
         }
 
@@ -83,8 +90,21 @@ public class EmailVerificationUseCase {
         return email.trim().toLowerCase(Locale.ROOT);
     }
 
+    /**
+     * rate_key는 VARCHAR(255)이므로 최대 길이(255)인 이메일을 그대로 붙이면 컬럼을 넘긴다.
+     * 주소를 해시해 길이를 고정한다.
+     */
     private String rateKey(String email) {
-        return "email-verification:" + email;
+        return "email-verification:" + sha256(email);
+    }
+
+    private String sha256(String value) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(digest);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     /** 고정 윈도우 시작 시각 (resendWindowSeconds 단위로 내림). */

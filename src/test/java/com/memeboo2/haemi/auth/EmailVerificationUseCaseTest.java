@@ -15,6 +15,7 @@ import com.memeboo2.haemi.common.time.HaemiClock;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -27,6 +28,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
@@ -120,7 +122,7 @@ class EmailVerificationUseCaseTest {
 
     @Test
     void 재발송_제한을_초과하면_거부된다() {
-        given(rateLimitRepository.incrementAndGet(anyString(), any())).willReturn(6);
+        given(rateLimitRepository.findAttemptCount(anyString(), any())).willReturn(6);
 
         assertThatThrownBy(() -> useCase.request(EMAIL))
                 .isInstanceOf(DomainException.class)
@@ -130,7 +132,7 @@ class EmailVerificationUseCaseTest {
 
     @Test
     void 발송_제한은_고정_윈도우_카운터를_원자적으로_증가시켜_판정한다() {
-        given(rateLimitRepository.incrementAndGet(anyString(), any())).willReturn(1);
+        given(rateLimitRepository.findAttemptCount(anyString(), any())).willReturn(1);
         given(codeGenerator.nextCode()).willReturn("123456");
         given(passwordService.encode("123456")).willReturn("hashed-code");
         UUID verificationId = UUID.randomUUID();
@@ -144,8 +146,10 @@ class EmailVerificationUseCaseTest {
 
         assertThat(useCase.request(EMAIL)).isEqualTo(verificationId);
         verify(emailSender).sendVerificationCode(EMAIL, "123456");
-        // 윈도우 시작 시각은 resendWindowSeconds 단위로 내림한 값이어야 한다.
-        verify(rateLimitRepository).incrementAndGet("email-verification:" + EMAIL,
-                Instant.parse("2026-08-23T00:00:00Z"));
+        // 윈도우 시작 시각은 resendWindowSeconds 단위로 내림한 값이어야 하고,
+        // 키는 rate_key 컬럼(255자)을 넘지 않도록 해시된 고정 길이여야 한다.
+        ArgumentCaptor<String> keyCaptor = ArgumentCaptor.forClass(String.class);
+        verify(rateLimitRepository).increment(keyCaptor.capture(), eq(Instant.parse("2026-08-23T00:00:00Z")));
+        assertThat(keyCaptor.getValue()).startsWith("email-verification:").hasSizeLessThan(255);
     }
 }
