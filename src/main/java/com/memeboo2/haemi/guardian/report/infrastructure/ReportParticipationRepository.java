@@ -18,12 +18,26 @@ public interface ReportParticipationRepository extends JpaRepository<ReportParti
 
     List<ReportParticipation> findByElderIdAndParticipationDateGreaterThanEqual(UUID elderId, LocalDate from);
 
-    /** 존재하면 아무것도 하지 않는 원자적 삽입 — exists-then-insert의 REQUIRES_NEW 커밋 실패를 피한다. */
+    /**
+     * 활동 종류 플래그를 멱등하게 켠다. 정확히 한 종류만 true로 넘어온다.
+     * attendance 스냅샷을 미러링하며, 중복 수신에도 안전하다.
+     */
     @Modifying
     @Query(value = """
-            INSERT INTO guardian_report_participations (elder_id, participation_date)
-            VALUES (:elderId, :participationDate)
-            ON CONFLICT (elder_id, participation_date) DO NOTHING
+            INSERT INTO guardian_report_participations
+                (elder_id, participation_date, training_done, greeting_read_done, memory_viewed_done, replied_done)
+            VALUES (:elderId, :participationDate, :training, :greetingRead, :memoryViewed, :replied)
+            ON CONFLICT (elder_id, participation_date) DO UPDATE SET
+                training_done      = guardian_report_participations.training_done      OR EXCLUDED.training_done,
+                greeting_read_done = guardian_report_participations.greeting_read_done OR EXCLUDED.greeting_read_done,
+                memory_viewed_done = guardian_report_participations.memory_viewed_done OR EXCLUDED.memory_viewed_done,
+                replied_done       = guardian_report_participations.replied_done       OR EXCLUDED.replied_done,
+                updated_at = now()
             """, nativeQuery = true)
-    int insertIfAbsent(@Param("elderId") UUID elderId, @Param("participationDate") LocalDate participationDate);
+    int upsertActivity(@Param("elderId") UUID elderId,
+                       @Param("participationDate") LocalDate participationDate,
+                       @Param("training") boolean training,
+                       @Param("greetingRead") boolean greetingRead,
+                       @Param("memoryViewed") boolean memoryViewed,
+                       @Param("replied") boolean replied);
 }

@@ -1,6 +1,7 @@
 package com.memeboo2.haemi.elder.attendance.application;
 
 import com.memeboo2.haemi.common.time.HaemiClock;
+import com.memeboo2.haemi.elder.attendance.domain.DailyParticipation;
 import com.memeboo2.haemi.elder.attendance.infrastructure.DailyParticipationRepository;
 import com.memeboo2.haemi.guardian.api.AttendanceQuery;
 import com.memeboo2.haemi.guardian.api.ElderQuery;
@@ -11,7 +12,12 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /** AttendanceQueryStub을 대체하는 실구현. bean name이 "attendanceQueryImpl"이어야 한다. */
 @Service("attendanceQueryImpl")
@@ -52,6 +58,30 @@ public class AttendanceQueryImpl implements AttendanceQuery {
             cursor = cursor.minusDays(1);
         }
         return streak;
+    }
+
+    private static final int WEEKLY_WINDOW_DAYS = 7;
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<DayActivity> weeklyActivities(UUID elderId) {
+        LocalDate today = clock.today();
+        LocalDate windowStart = today.minusDays(WEEKLY_WINDOW_DAYS - 1L);
+        Map<LocalDate, DailyParticipation> byDate = repository
+                .findByElderIdAndParticipationDateGreaterThanEqual(elderId, windowStart).stream()
+                .collect(Collectors.toMap(DailyParticipation::getParticipationDate, Function.identity(), (a, b) -> a));
+
+        return IntStream.range(0, WEEKLY_WINDOW_DAYS)
+                .mapToObj(i -> today.minusDays(WEEKLY_WINDOW_DAYS - 1L - i))
+                .map(d -> {
+                    DailyParticipation p = byDate.get(d);
+                    if (p == null) {
+                        return new DayActivity(d, d.getDayOfWeek(), false, false, false, false);
+                    }
+                    return new DayActivity(d, d.getDayOfWeek(),
+                            p.isTrainingDone(), p.isGreetingReadDone(), p.isMemoryViewedDone(), p.isRepliedDone());
+                })
+                .toList();
     }
 
     @Override

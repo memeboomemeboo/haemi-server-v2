@@ -1,5 +1,6 @@
 package com.memeboo2.haemi.guardian.report.listener;
 
+import com.memeboo2.haemi.common.attendance.ActivityType;
 import com.memeboo2.haemi.common.event.AttendanceRecorded;
 import com.memeboo2.haemi.guardian.report.infrastructure.ReportParticipationRepository;
 import lombok.RequiredArgsConstructor;
@@ -13,12 +14,15 @@ public class AttendanceRecordedListener {
     private final ReportParticipationRepository repository;
 
     /**
-     * ON CONFLICT DO NOTHING으로 원자적으로 적재한다. exists 검사 후 saveAndFlush를 하면
-     * 중복 수신 시 unique 위반이 REQUIRES_NEW 트랜잭션을 커밋 불가 상태로 만들어,
-     * catch로 잡아도 실제로는 실패·재시도로 남는다.
+     * 활동 종류 플래그를 멱등하게 미러링한다. 중복 수신에도 안전하다.
      */
     @ApplicationModuleListener
     public void on(AttendanceRecorded event) {
-        repository.insertIfAbsent(event.elderId(), event.participationDate());
+        ActivityType type = event.activityType();
+        repository.upsertActivity(event.elderId(), event.participationDate(),
+                type == ActivityType.TRAINING,
+                type == ActivityType.GREETING_READ,
+                type == ActivityType.MEMORY_VIEWED,
+                type == ActivityType.REPLIED);
     }
 }

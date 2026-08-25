@@ -34,6 +34,19 @@ public class ReportParticipation extends BaseEntity {
     @Column(name = "participation_date", nullable = false)
     private LocalDate participationDate;
 
+    // 활동 종류별 완료 플래그 (attendance 스냅샷 미러링).
+    @Column(name = "training_done", nullable = false)
+    private boolean trainingDone;
+
+    @Column(name = "greeting_read_done", nullable = false)
+    private boolean greetingReadDone;
+
+    @Column(name = "memory_viewed_done", nullable = false)
+    private boolean memoryViewedDone;
+
+    @Column(name = "replied_done", nullable = false)
+    private boolean repliedDone;
+
     public static ReportParticipation of(UUID elderId, LocalDate participationDate) {
         ReportParticipation p = new ReportParticipation();
         p.elderId = elderId;

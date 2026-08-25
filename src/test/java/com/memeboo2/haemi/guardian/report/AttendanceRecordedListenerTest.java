@@ -1,5 +1,6 @@
 package com.memeboo2.haemi.guardian.report;
 
+import com.memeboo2.haemi.common.attendance.ActivityType;
 import com.memeboo2.haemi.common.event.AttendanceRecorded;
 import com.memeboo2.haemi.guardian.report.infrastructure.ReportParticipationRepository;
 import com.memeboo2.haemi.guardian.report.listener.AttendanceRecordedListener;
@@ -12,7 +13,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.LocalDate;
 import java.util.UUID;
 
-import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -25,18 +25,10 @@ class AttendanceRecordedListenerTest {
     LocalDate date = LocalDate.of(2026, 8, 25);
 
     @Test
-    void 정상_경로_스냅샷을_적재한다() {
-        listener.on(new AttendanceRecorded(elderId, date));
+    void 활동_종류_플래그를_스냅샷에_미러링한다() {
+        listener.on(new AttendanceRecorded(elderId, date, ActivityType.GREETING_READ));
 
-        verify(repository).insertIfAbsent(elderId, date);
-    }
-
-    @Test
-    void 이미_적재됐으면_원자적_삽입이_아무것도_하지_않는다_멱등() {
-        given(repository.insertIfAbsent(elderId, date)).willReturn(0);
-
-        listener.on(new AttendanceRecorded(elderId, date));
-
-        verify(repository).insertIfAbsent(elderId, date);
+        // GREETING_READ만 true로 upsert
+        verify(repository).upsertActivity(elderId, date, false, true, false, false);
     }
 }

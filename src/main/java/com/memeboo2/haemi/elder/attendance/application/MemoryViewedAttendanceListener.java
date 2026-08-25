@@ -1,20 +1,20 @@
 package com.memeboo2.haemi.elder.attendance.application;
 
 import com.memeboo2.haemi.common.attendance.ActivityType;
-import com.memeboo2.haemi.common.event.TrainingSessionCompleted;
+import com.memeboo2.haemi.common.event.MemoryViewed;
 import lombok.RequiredArgsConstructor;
 import org.springframework.modulith.events.ApplicationModuleListener;
 import org.springframework.stereotype.Component;
 
+/** 어르신이 추억을 처음 열어보면 그날의 MEMORY_VIEWED 참여로 기록한다. */
 @Component
 @RequiredArgsConstructor
-public class TrainingSessionCompletedListener {
+public class MemoryViewedAttendanceListener {
 
     private final AttendanceRecorder recorder;
 
-    /** 같은 (어르신, 날짜) 이벤트가 재전달돼도 TRAINING을 한 번만 기록한다 (멱등). */
     @ApplicationModuleListener
-    public void on(TrainingSessionCompleted event) {
-        recorder.record(event.elderId(), event.sessionDate(), ActivityType.TRAINING);
+    public void on(MemoryViewed event) {
+        recorder.record(event.elderId(), event.viewedDate(), ActivityType.MEMORY_VIEWED);
     }
 }
