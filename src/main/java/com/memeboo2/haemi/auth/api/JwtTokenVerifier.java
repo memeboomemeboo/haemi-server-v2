@@ -25,6 +25,11 @@ public class JwtTokenVerifier implements TokenVerifier {
         Claims claims = jwtTokenProvider.parse(token);
         UUID userId = UUID.fromString(claims.getSubject());
         String role = claims.get("role", String.class);
+        // refresh 토큰은 role 클레임이 없다. 인증 헤더에 실려 오면 SimpleGrantedAuthority(null)이
+        // IllegalArgumentException(500)을 던지므로, 여기서 미인증(401)으로 거부한다.
+        if (role == null || role.isBlank()) {
+            return Optional.empty();
+        }
         return Optional.of(new JwtPrincipal(userId, role));
     }
 }

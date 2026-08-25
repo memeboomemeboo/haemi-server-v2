@@ -24,7 +24,8 @@ public class SecurityConfig {
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> {
                 auth
-                .requestMatchers("/api/v1/auth/guardians/register", "/api/v1/auth/login", "/api/v1/auth/email-verifications/**",
+                .requestMatchers("/api/v1/auth/guardians/register", "/api/v1/auth/login", "/api/v1/auth/refresh",
+                        "/api/v1/auth/email-verifications/**",
                         "/actuator/health", "/swagger-ui/**", "/v3/api-docs/**").permitAll();
                 // LocalStorageAdapter가 만드는 presigned URL을 개발 환경에서만 재현한다.
                 if (localStorageEnabled) {

@@ -4,6 +4,7 @@ import com.memeboo2.haemi.auth.account.application.RegisterGuardianUseCase;
 import com.memeboo2.haemi.auth.verification.application.EmailVerificationUseCase;
 import com.memeboo2.haemi.auth.session.application.LoginUseCase;
 import com.memeboo2.haemi.auth.session.application.LogoutUseCase;
+import com.memeboo2.haemi.auth.session.application.RefreshTokenUseCase;
 import com.memeboo2.haemi.common.security.JwtPrincipal;
 import com.memeboo2.haemi.common.web.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -33,6 +34,7 @@ public class AuthController {
     private final EmailVerificationUseCase emailVerificationUseCase;
     private final LoginUseCase loginUseCase;
     private final LogoutUseCase logoutUseCase;
+    private final RefreshTokenUseCase refreshTokenUseCase;
 
     public record GuardianRegisterRequest(
             @NotBlank @Size(max = 50) String name,
@@ -57,6 +59,11 @@ public class AuthController {
     ) {}
 
     public record LogoutRequest(@NotBlank @Size(max = 100) String deviceId) {}
+
+    public record RefreshRequest(
+            @NotBlank String refreshToken,
+            @NotBlank @Size(max = 100) String deviceId
+    ) {}
 
     public record TokenResponse(String accessToken, String refreshToken) {}
 
@@ -114,6 +121,18 @@ public class AuthController {
                     "비밀번호 또는 PIN을 입력해주세요.");
         }
         LoginUseCase.TokenPair pair = loginUseCase.execute(req.loginId(), req.password(), req.pin(), req.deviceId());
+        return ResponseEntity.ok(ApiResponse.ok(new TokenResponse(pair.accessToken(), pair.refreshToken())));
+    }
+
+    @Operation(summary = "액세스 토큰 재발급", description = "refresh 토큰과 deviceId로 새 access·refresh 토큰을 발급한다. refresh 토큰은 회전된다.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "재발급 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "유효하지 않거나 만료된 refresh 토큰 — AUTH_REFRESH_TOKEN_INVALID")
+    })
+    @PostMapping("/refresh")
+    public ResponseEntity<ApiResponse<TokenResponse>> refresh(
+            @RequestBody @Valid RefreshRequest req) {
+        LoginUseCase.TokenPair pair = refreshTokenUseCase.execute(req.refreshToken(), req.deviceId());
         return ResponseEntity.ok(ApiResponse.ok(new TokenResponse(pair.accessToken(), pair.refreshToken())));
     }
 
