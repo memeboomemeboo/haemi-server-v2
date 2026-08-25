@@ -1,5 +1,7 @@
 package com.memeboo2.haemi.guardian.memory.application;
 
+import com.memeboo2.haemi.common.error.DomainException;
+import com.memeboo2.haemi.common.error.ErrorCode;
 import com.memeboo2.haemi.guardian.api.CareAccessQuery;
 import com.memeboo2.haemi.guardian.memory.domain.Memory;
 import com.memeboo2.haemi.guardian.memory.domain.MemoryRegistered;
@@ -28,6 +30,12 @@ public class RegisterMemoryUseCase {
                         String title, String memo, String message, Integer memoryYear,
                         List<UUID> mediaRefIds) {
         careAccessQuery.requireGuardianOf(guardianId, elderId);
+
+        int maxCount = mediaUploadCommand.memoryImageMaxCount();
+        if (mediaRefIds != null && mediaRefIds.size() > maxCount) {
+            throw new DomainException(ErrorCode.INVALID_INPUT,
+                    "추억 이미지는 최대 " + maxCount + "장까지 등록할 수 있습니다.");
+        }
 
         Memory memory = Memory.create(elderId, title, memo, message, memoryYear);
 

@@ -32,6 +32,12 @@ public class UpdateMemoryUseCase {
             throw new DomainException(ErrorCode.NOT_RESOURCE_OWNER);
         }
 
+        int maxCount = mediaUploadCommand.memoryImageMaxCount();
+        if (mediaRefIds != null && mediaRefIds.size() > maxCount) {
+            throw new DomainException(ErrorCode.INVALID_INPUT,
+                    "추억 이미지는 최대 " + maxCount + "장까지 등록할 수 있습니다.");
+        }
+
         List<String> storageKeys = mediaRefIds.stream()
                 .map(refId -> mediaUploadCommand.confirmUpload(guardianId, refId, MediaPurpose.MEMORY_IMAGE).toString())
                 .toList();

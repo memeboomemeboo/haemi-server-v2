@@ -19,4 +19,7 @@ public interface MediaUploadCommand {
 
     /** 확정된 음성의 서버 검증 길이가 요청 길이와 같은지도 검증한다. */
     URI confirmUpload(UUID actorId, UUID mediaRefId, MediaPurpose expectedPurpose, Integer expectedDurationSeconds);
+
+    /** 추억 하나에 첨부 가능한 이미지 최대 장수 (haemi.media.image.memory-max-count). */
+    int memoryImageMaxCount();
 }
