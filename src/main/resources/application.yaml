@@ -78,10 +78,13 @@ haemi:
     gemini:
       api-key: ${GEMINI_API_KEY:}
       model: ${GEMINI_MODEL:gemini-2.0-flash}
+      base-url: ${GEMINI_BASE_URL:https://generativelanguage.googleapis.com/v1beta}
       connect-timeout: ${GEMINI_CONNECT_TIMEOUT:5s}
       read-timeout: ${GEMINI_READ_TIMEOUT:20s}
       inline-audio-max-bytes: ${GEMINI_INLINE_AUDIO_MAX_BYTES:12582912}
       max-concurrent-audio-requests: ${GEMINI_MAX_CONCURRENT_AUDIO_REQUESTS:2}
+    reminiscence:
+      batch-enabled: ${HAEMI_AI_REMINISCENCE_BATCH_ENABLED:true}
   media:
     image:
       max-size-bytes: ${HAEMI_MEDIA_IMAGE_MAX_SIZE_BYTES:10485760}
