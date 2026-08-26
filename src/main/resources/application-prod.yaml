@@ -27,6 +27,16 @@ springdoc:
     enabled: ${API_DOCS_ENABLED:true}
 
 haemi:
+  media:
+    storage:
+      bucket: ${S3_BUCKET}
+      region: ${S3_REGION:ap-northeast-2}
+      endpoint: ${S3_ENDPOINT:}
+      access-key: ${S3_ACCESS_KEY:}
+      secret-key: ${S3_SECRET_KEY:}
+      path-style-access: ${S3_PATH_STYLE_ACCESS:false}
+      presigned-put-expiry: ${S3_PRESIGNED_PUT_EXPIRY:PT15M}
+      serving-url-expiry: ${S3_SERVING_URL_EXPIRY:PT1H}
   mail:
     from: ${MAIL_FROM}
     public-url: ${APP_PUBLIC_URL}

@@ -21,6 +21,10 @@ public class LocalObjectStorage {
         return Optional.ofNullable(objects.get(key));
     }
 
+    public void remove(String key) {
+        objects.remove(key);
+    }
+
     public record StoredObject(String contentType, byte[] content, Integer durationSeconds) {
         public StoredObject {
             content = content.clone();

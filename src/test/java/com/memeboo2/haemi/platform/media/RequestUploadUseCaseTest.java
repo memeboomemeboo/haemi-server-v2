@@ -131,4 +131,41 @@ class RequestUploadUseCaseTest {
                 .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
                         .isEqualTo(ErrorCode.INVALID_INPUT));
     }
+
+    @Test
+    void 동일_업로더의_동일_해시는_중복으로_재사용된다() {
+        UUID uploaderId = UUID.randomUUID();
+        String hash = "A".repeat(64);
+        MediaRef existing = MediaRef.pending(MediaType.MEMORY_IMAGE, "memory_image/existing.jpg", "old.jpg",
+                "image/jpeg", 1_000_000L, null, uploaderId, NOW, null, hash.toLowerCase());
+        given(repository.findFirstByUploaderIdAndContentHashAndStatus(
+                uploaderId, hash.toLowerCase(), UploadStatus.CONFIRMED)).willReturn(java.util.Optional.of(existing));
+        given(storage.generateServingUrl("memory_image/existing.jpg"))
+                .willReturn(URI.create("http://localhost/serve/existing"));
+
+        RequestUploadUseCase.Result result = useCase.request(
+                uploaderId, MediaType.MEMORY_IMAGE, "new.jpg", "image/jpeg", 1_000_000L, null, hash);
+
+        assertThat(result.duplicate()).isTrue();
+        assertThat(result.presignedUrl()).isNull();
+        assertThat(result.servingUrl()).isEqualTo(URI.create("http://localhost/serve/existing"));
+        verify(repository, org.mockito.Mockito.never()).save(any());
+    }
+
+    @Test
+    void 해시가_있어도_기존이_없으면_정상_발급하고_해시를_저장한다() {
+        UUID uploaderId = UUID.randomUUID();
+        String hash = "b".repeat(64);
+        given(repository.findFirstByUploaderIdAndContentHashAndStatus(
+                uploaderId, hash, UploadStatus.CONFIRMED)).willReturn(java.util.Optional.empty());
+
+        RequestUploadUseCase.Result result = useCase.request(
+                uploaderId, MediaType.MEMORY_IMAGE, "new.jpg", "image/jpeg", 1_000_000L, null, hash);
+
+        assertThat(result.duplicate()).isFalse();
+        assertThat(result.presignedUrl()).isNotNull();
+        ArgumentCaptor<MediaRef> captor = ArgumentCaptor.forClass(MediaRef.class);
+        verify(repository).save(captor.capture());
+        assertThat(captor.getValue().getContentHash()).isEqualTo(hash);
+    }
 }

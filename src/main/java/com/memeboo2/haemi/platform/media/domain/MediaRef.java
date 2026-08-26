@@ -56,6 +56,10 @@ public class MediaRef extends BaseEntity {
     @Column
     private Instant retainUntil;
 
+    /** 클라이언트가 계산한 SHA-256(hex 64자). 동일 업로더 중복 업로드 방지용. null = 미제공. */
+    @Column(name = "content_hash", length = 64)
+    private String contentHash;
+
     public static MediaRef pending(
             MediaType mediaType,
             String storageKey,
@@ -65,7 +69,8 @@ public class MediaRef extends BaseEntity {
             Integer declaredDurationSeconds,
             UUID uploaderId,
             Instant presignedUrlExpiresAt,
-            Instant retainUntil) {
+            Instant retainUntil,
+            String contentHash) {
 
         MediaRef ref = new MediaRef();
         ref.mediaType = mediaType;
@@ -78,7 +83,25 @@ public class MediaRef extends BaseEntity {
         ref.uploaderId = uploaderId;
         ref.presignedUrlExpiresAt = presignedUrlExpiresAt;
         ref.retainUntil = retainUntil;
+        ref.contentHash = contentHash;
         return ref;
+    }
+
+    /**
+     * 확정 가능 여부만 검증한다(상태 전이 없음, 만료 감지 시 EXPIRED로만 표시).
+     * HEIC 변환 등 부수 작업을 confirm 이전에 안전하게 수행하기 위한 선검사.
+     */
+    public void ensureConfirmable(Instant now) {
+        if (status == UploadStatus.CONFIRMED) {
+            return; // 멱등
+        }
+        if (status == UploadStatus.EXPIRED) {
+            throw new DomainException(ErrorCode.INVALID_INPUT, "이미 처리된 업로드입니다.");
+        }
+        if (now.isAfter(presignedUrlExpiresAt)) {
+            this.status = UploadStatus.EXPIRED;
+            throw new DomainException(ErrorCode.INVALID_INPUT, "업로드 URL이 만료되었습니다.");
+        }
     }
 
     public void confirm(Instant now) {
@@ -97,5 +120,12 @@ public class MediaRef extends BaseEntity {
 
     public boolean isOwnedBy(UUID actorId) {
         return uploaderId.equals(actorId);
+    }
+
+    /** 서버 변환(HEIC→JPEG 등) 후 저장 위치·타입·크기를 갱신한다. */
+    public void replaceStorage(String newStorageKey, String newContentType, long newSizeBytes) {
+        this.storageKey = newStorageKey;
+        this.contentType = newContentType;
+        this.declaredSizeBytes = newSizeBytes;
     }
 }

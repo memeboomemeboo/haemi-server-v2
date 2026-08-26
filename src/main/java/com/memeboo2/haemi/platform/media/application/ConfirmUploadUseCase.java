@@ -20,10 +20,14 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ConfirmUploadUseCase implements MediaUploadCommand {
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(ConfirmUploadUseCase.class);
+    private static final java.util.Set<String> HEIC_CONTENT_TYPES = java.util.Set.of("image/heic", "image/heif");
+
     private final MediaRefRepository repository;
     private final StoragePort storage;
     private final HaemiClock clock;
     private final UploadPolicyProperties policy;
+    private final HeicImageConverter heicConverter;
 
     @Override
     @Transactional(noRollbackFor = DomainException.class)
@@ -71,12 +75,60 @@ public class ConfirmUploadUseCase implements MediaUploadCommand {
             }
         }
 
+        // HEIC 변환은 confirm(상태 전이) 이전에 수행한다.
+        // 만료를 먼저 선검사해 변환 후 confirm이 EXPIRED로 던지며 불일치 상태를 커밋하는 일을 막는다.
+        // 변환 실패 시에도 ref를 mutate하기 전에 예외를 던지므로 상태는 PENDING으로 남는다.
+        String originalKeyToPurge = null;
+        if (isHeicImage(ref)) {
+            ref.ensureConfirmable(clock.now());
+            originalKeyToPurge = ref.getStorageKey();
+            convertHeicToJpeg(ref);
+        }
+
         ref.confirm(clock.now());
+
+        // confirm 성공 후에만 원본 HEIC 객체를 정리한다(고아 객체 방지). 실패해도 서빙에는 영향 없음.
+        if (originalKeyToPurge != null) {
+            try {
+                storage.deleteObject(originalKeyToPurge);
+            } catch (RuntimeException e) {
+                // best-effort 정리 — 실패는 로깅만 하고 확정 결과를 막지 않는다.
+                log.warn("HEIC 원본 정리 실패(고아 객체 가능): key={}, cause={}", originalKeyToPurge, e.toString());
+            }
+        }
 
         return storage.generateServingUrl(ref.getStorageKey());
     }
 
     private boolean isVoice(MediaType mediaType) {
         return mediaType == MediaType.RESPONSE_VOICE || mediaType == MediaType.GREETING_VOICE;
+    }
+
+    private boolean isHeicImage(MediaRef ref) {
+        boolean image = ref.getMediaType() == MediaType.MEMORY_IMAGE
+                || ref.getMediaType() == MediaType.RESPONSE_IMAGE
+                || ref.getMediaType() == MediaType.PROFILE_IMAGE;
+        return image && HEIC_CONTENT_TYPES.contains(ref.getContentType().toLowerCase());
+    }
+
+    /** confirm 시 동기 변환: HEIC 원본을 읽어 JPEG로 변환·재저장하고 MediaRef를 갱신한다. */
+    private void convertHeicToJpeg(MediaRef ref) {
+        StoragePort.StoredContent original = storage.getObject(ref.getStorageKey())
+                .orElseThrow(() -> new DomainException(ErrorCode.MEDIA_CONVERSION_FAILED,
+                        "변환할 원본 이미지를 찾을 수 없습니다."));
+
+        byte[] jpeg = heicConverter.toJpeg(original.content());
+        String jpegKey = toJpegKey(ref.getStorageKey());
+        storage.putObject(jpegKey, "image/jpeg", jpeg);
+        ref.replaceStorage(jpegKey, "image/jpeg", jpeg.length);
+    }
+
+    private String toJpegKey(String storageKey) {
+        int dot = storageKey.lastIndexOf('.');
+        int slash = storageKey.lastIndexOf('/');
+        if (dot > slash) {
+            return storageKey.substring(0, dot) + ".jpg";
+        }
+        return storageKey + ".jpg";
     }
 }

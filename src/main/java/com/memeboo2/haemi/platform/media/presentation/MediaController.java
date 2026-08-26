@@ -44,10 +44,11 @@ public class MediaController {
 
         RequestUploadUseCase.Result result = requestUploadUseCase.request(
                 principal.userId(), req.mediaType(), req.originalFilename(), req.contentType(),
-                req.declaredSizeBytes(), req.declaredDurationSeconds());
+                req.declaredSizeBytes(), req.declaredDurationSeconds(), req.contentHash());
 
         RequestUploadResponse body = new RequestUploadResponse(
-                result.mediaRefId(), result.presignedUrl(), result.expiresAt());
+                result.mediaRefId(), result.presignedUrl(), result.expiresAt(),
+                result.duplicate(), result.servingUrl());
 
         return ResponseEntity.created(URI.create("/api/v1/media/" + result.mediaRefId()))
                 .body(ApiResponse.ok(body));

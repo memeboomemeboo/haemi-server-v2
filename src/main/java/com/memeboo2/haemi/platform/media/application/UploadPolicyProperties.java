@@ -18,7 +18,7 @@ public record UploadPolicyProperties(
     public record Image(
             @DefaultValue("10485760") long maxSizeBytes,      // 10 MB
             @DefaultValue("4") int memoryMaxCount,
-            @DefaultValue("image/jpeg,image/png,image/webp") List<String> allowedContentTypes
+            @DefaultValue("image/jpeg,image/png,image/webp,image/heic,image/heif") List<String> allowedContentTypes
     ) {}
 
     public record Voice(

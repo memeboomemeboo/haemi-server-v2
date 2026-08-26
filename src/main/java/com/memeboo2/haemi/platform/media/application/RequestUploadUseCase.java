@@ -5,6 +5,7 @@ import com.memeboo2.haemi.common.error.ErrorCode;
 import com.memeboo2.haemi.common.time.HaemiClock;
 import com.memeboo2.haemi.platform.media.domain.MediaRef;
 import com.memeboo2.haemi.platform.media.domain.MediaType;
+import com.memeboo2.haemi.platform.media.domain.UploadStatus;
 import com.memeboo2.haemi.platform.media.infrastructure.MediaRefRepository;
 import com.memeboo2.haemi.platform.media.infrastructure.StoragePort;
 import lombok.RequiredArgsConstructor;
@@ -13,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.net.URI;
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -27,7 +29,27 @@ public class RequestUploadUseCase {
     @Transactional
     public Result request(UUID uploaderId, MediaType mediaType, String originalFilename, String contentType,
                           long declaredSizeBytes, Integer declaredDurationSeconds) {
+        return request(uploaderId, mediaType, originalFilename, contentType,
+                declaredSizeBytes, declaredDurationSeconds, null);
+    }
+
+    @Transactional
+    public Result request(UUID uploaderId, MediaType mediaType, String originalFilename, String contentType,
+                          long declaredSizeBytes, Integer declaredDurationSeconds, String contentHash) {
         validate(mediaType, contentType, declaredSizeBytes, declaredDurationSeconds);
+
+        // 해시를 한 번만 정규화한다(소문자, 공백/빈값은 null).
+        String normalizedHash = (contentHash == null || contentHash.isBlank()) ? null : contentHash.toLowerCase();
+
+        // SHA-256 중복 방지: 동일 업로더가 이미 확정한 동일 해시 객체가 있으면 재사용한다.
+        if (normalizedHash != null) {
+            Optional<MediaRef> existing = repository.findFirstByUploaderIdAndContentHashAndStatus(
+                    uploaderId, normalizedHash, UploadStatus.CONFIRMED);
+            if (existing.isPresent()) {
+                MediaRef reused = existing.get();
+                return Result.duplicate(reused.getId(), storage.generateServingUrl(reused.getStorageKey()));
+            }
+        }
 
         String storageKey = storage.buildStorageKey(mediaType, originalFilename);
         long expirySeconds = policy.presignedUrl().expiry().toSeconds();
@@ -39,10 +61,11 @@ public class RequestUploadUseCase {
                 storageKey, contentType, expirySeconds, declaredDurationSeconds);
 
         MediaRef ref = MediaRef.pending(mediaType, storageKey, originalFilename, contentType,
-                declaredSizeBytes, declaredDurationSeconds, uploaderId, expiresAt, retainUntil);
+                declaredSizeBytes, declaredDurationSeconds, uploaderId, expiresAt, retainUntil,
+                normalizedHash);
         repository.save(ref);
 
-        return new Result(ref.getId(), presignedUrl, expiresAt);
+        return new Result(ref.getId(), presignedUrl, expiresAt, false, null);
     }
 
     private void validate(MediaType mediaType, String contentType, long sizeBytes, Integer declaredDurationSeconds) {
@@ -85,5 +108,9 @@ public class RequestUploadUseCase {
         };
     }
 
-    public record Result(UUID mediaRefId, URI presignedUrl, Instant expiresAt) {}
+    public record Result(UUID mediaRefId, URI presignedUrl, Instant expiresAt, boolean duplicate, URI servingUrl) {
+        static Result duplicate(UUID mediaRefId, URI servingUrl) {
+            return new Result(mediaRefId, null, null, true, servingUrl);
+        }
+    }
 }
