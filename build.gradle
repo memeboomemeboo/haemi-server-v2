@@ -20,6 +20,7 @@ repositories {
 dependencyManagement {
 	imports {
 		mavenBom 'org.springframework.modulith:spring-modulith-bom:2.0.0'
+		mavenBom 'software.amazon.awssdk:bom:2.33.13'
 	}
 }
 
@@ -45,6 +46,10 @@ dependencies {
 
 	// FCM push notifications (Firebase Admin SDK)
 	implementation 'com.google.firebase:firebase-admin:9.7.0'
+
+	// AWS S3 (실 스토리지 어댑터 — presigned URL 발급/조회)
+	implementation 'software.amazon.awssdk:s3'
+	implementation 'software.amazon.awssdk:apache-client'
 
 	// API docs
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.3'

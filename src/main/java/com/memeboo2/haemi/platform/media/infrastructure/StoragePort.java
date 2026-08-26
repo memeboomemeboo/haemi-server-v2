@@ -25,9 +25,22 @@ public interface StoragePort {
         return Optional.empty();
     }
 
+    /** 실제 객체 바이트를 읽는다. (예: HEIC 서버 변환) */
+    default Optional<StoredContent> getObject(String storageKey) {
+        throw new UnsupportedOperationException("getObject is not supported by this adapter");
+    }
+
+    /** 객체를 저장/덮어쓴다. (예: 변환된 JPEG 재저장) */
+    default void putObject(String storageKey, String contentType, byte[] content) {
+        throw new UnsupportedOperationException("putObject is not supported by this adapter");
+    }
+
     record ObjectMetadata(String contentType, long sizeBytes, Integer durationSeconds) {
         public ObjectMetadata(String contentType, long sizeBytes) {
             this(contentType, sizeBytes, null);
         }
+    }
+
+    record StoredContent(String contentType, byte[] content) {
     }
 }
