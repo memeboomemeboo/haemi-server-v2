@@ -179,6 +179,7 @@ class ConfirmUploadUseCaseTest {
                 "image/heic", 2_000L, null, actorId, EXPIRY, NOW.plusSeconds(86400L * 365), null);
 
         given(repository.findById(refId)).willReturn(Optional.of(ref));
+        given(clock.now()).willReturn(NOW);
         given(storage.headObject("memory_image/key.heic")).willReturn(Optional.of(
                 new StoragePort.ObjectMetadata("image/heic", 2_000L)));
         given(storage.getObject("memory_image/key.heic")).willReturn(Optional.of(

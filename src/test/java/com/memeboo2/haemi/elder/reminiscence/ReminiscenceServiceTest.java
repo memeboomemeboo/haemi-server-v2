@@ -58,6 +58,24 @@ class ReminiscenceServiceTest {
     }
 
     @Test
+    void 응답이_2000자를_넘으면_잘라서_저장한다() {
+        UUID elderId = UUID.randomUUID();
+        LocalDate date = LocalDate.of(2026, 8, 26);
+        given(elderQuery.findById(elderId)).willReturn(Optional.of(
+                new ElderQuery.ElderInfo(elderId, "김순자", Instant.now())));
+        lenient().when(elderProfileQuery.findById(elderId))
+                .thenReturn(new ElderProfileQuery.ElderProfile(null, Instant.now()));
+        given(generator.generate(any())).willReturn("가".repeat(3000));
+        given(generator.isLive()).willReturn(true);
+        given(repository.findByElderIdAndContentDate(elderId, date)).willReturn(Optional.empty());
+        given(repository.save(any())).willAnswer(inv -> inv.getArgument(0));
+
+        GeneratedReminiscence result = service().generateForElder(elderId, date);
+
+        assertThat(result.getContent()).hasSize(2000);
+    }
+
+    @Test
     void 기존_콘텐츠는_갱신된다() {
         UUID elderId = UUID.randomUUID();
         LocalDate date = LocalDate.of(2026, 8, 26);

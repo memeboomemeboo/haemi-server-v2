@@ -87,6 +87,23 @@ public class MediaRef extends BaseEntity {
         return ref;
     }
 
+    /**
+     * 확정 가능 여부만 검증한다(상태 전이 없음, 만료 감지 시 EXPIRED로만 표시).
+     * HEIC 변환 등 부수 작업을 confirm 이전에 안전하게 수행하기 위한 선검사.
+     */
+    public void ensureConfirmable(Instant now) {
+        if (status == UploadStatus.CONFIRMED) {
+            return; // 멱등
+        }
+        if (status == UploadStatus.EXPIRED) {
+            throw new DomainException(ErrorCode.INVALID_INPUT, "이미 처리된 업로드입니다.");
+        }
+        if (now.isAfter(presignedUrlExpiresAt)) {
+            this.status = UploadStatus.EXPIRED;
+            throw new DomainException(ErrorCode.INVALID_INPUT, "업로드 URL이 만료되었습니다.");
+        }
+    }
+
     public void confirm(Instant now) {
         if (status == UploadStatus.CONFIRMED) {
             return; // 멱등: 이미 확정된 경우 재호출 허용

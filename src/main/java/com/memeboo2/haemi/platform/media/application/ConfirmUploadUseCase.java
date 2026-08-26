@@ -76,10 +76,11 @@ public class ConfirmUploadUseCase implements MediaUploadCommand {
         }
 
         // HEIC 변환은 confirm(상태 전이) 이전에 수행한다.
-        // 변환 실패 시 ref를 mutate하기 전에 예외를 던지므로 상태는 PENDING으로 남는다
-        // (noRollbackFor=DomainException이라 커밋되더라도 변경분이 없어 안전).
+        // 만료를 먼저 선검사해 변환 후 confirm이 EXPIRED로 던지며 불일치 상태를 커밋하는 일을 막는다.
+        // 변환 실패 시에도 ref를 mutate하기 전에 예외를 던지므로 상태는 PENDING으로 남는다.
         String originalKeyToPurge = null;
         if (isHeicImage(ref)) {
+            ref.ensureConfirmable(clock.now());
             originalKeyToPurge = ref.getStorageKey();
             convertHeicToJpeg(ref);
         }

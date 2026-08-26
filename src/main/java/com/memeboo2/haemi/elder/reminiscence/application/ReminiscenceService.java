@@ -20,6 +20,9 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ReminiscenceService {
 
+    /** ai_reminiscence_contents.content 컬럼 상한 (V127). LLM 응답이 길어도 초과 저장 실패를 막는다. */
+    private static final int MAX_CONTENT_LENGTH = 2000;
+
     private final AiTextGenerator generator;
     private final ElderQuery elderQuery;
     private final ElderProfileQuery elderProfileQuery;
@@ -35,7 +38,7 @@ public class ReminiscenceService {
     @Transactional
     public GeneratedReminiscence generateForElder(UUID elderId, LocalDate date) {
         String prompt = buildPrompt(elderId, date);
-        String content = generator.generate(prompt);
+        String content = truncate(generator.generate(prompt));
         boolean live = generator.isLive();
 
         GeneratedReminiscence saved = repository.findByElderIdAndContentDate(elderId, date)
@@ -51,6 +54,13 @@ public class ReminiscenceService {
     @Transactional(readOnly = true)
     public Optional<GeneratedReminiscence> findForElder(UUID elderId, LocalDate date) {
         return repository.findByElderIdAndContentDate(elderId, date);
+    }
+
+    private String truncate(String content) {
+        if (content == null) {
+            return "";
+        }
+        return content.length() <= MAX_CONTENT_LENGTH ? content : content.substring(0, MAX_CONTENT_LENGTH);
     }
 
     private String buildPrompt(UUID elderId, LocalDate date) {

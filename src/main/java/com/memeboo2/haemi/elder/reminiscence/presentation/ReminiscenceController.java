@@ -41,10 +41,22 @@ public class ReminiscenceController {
         LocalDate today = clock.today();
 
         GeneratedReminiscence content = reminiscenceService.findForElder(elderId, today)
-                .orElseGet(() -> reminiscenceService.generateForElder(elderId, today));
+                .orElseGet(() -> generateOrReadOnRace(elderId, today));
 
         return ResponseEntity.ok(ApiResponse.ok(new ReminiscenceResponse(
                 content.getContentDate(), content.getContent(), content.isAiGenerated())));
+    }
+
+    /**
+     * 즉석 생성. 08:00 배치나 동시 요청과 경합해 (elder_id, content_date) 유니크 위반이 나면
+     * 이미 저장된 행을 다시 읽어 반환한다(각 서비스 호출이 독립 트랜잭션이라 안전).
+     */
+    private GeneratedReminiscence generateOrReadOnRace(UUID elderId, LocalDate today) {
+        try {
+            return reminiscenceService.generateForElder(elderId, today);
+        } catch (org.springframework.dao.DataIntegrityViolationException race) {
+            return reminiscenceService.findForElder(elderId, today).orElseThrow(() -> race);
+        }
     }
 
     public record ReminiscenceResponse(LocalDate date, String content, boolean aiGenerated) {}
