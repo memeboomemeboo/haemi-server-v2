@@ -108,6 +108,11 @@ jobs:
             GEMINI_API_KEY=$GEMINI_API_KEY
             API_DOCS_ENABLED=true
             EOF
+            # 디스크 부족(no space left on device) 방지: pull 전에 미사용 이미지/캐시 정리.
+            # 실행 중 컨테이너(app·postgres)가 사용하는 이미지와 볼륨(DB 데이터)은 유지된다.
+            docker image prune -af || true
+            docker builder prune -af || true
+            df -h / || true
             printf '%s' "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
             docker compose pull app
             docker compose up -d --no-build --wait
