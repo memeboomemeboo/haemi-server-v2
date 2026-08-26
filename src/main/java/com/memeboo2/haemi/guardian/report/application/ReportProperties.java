@@ -17,12 +17,7 @@ public record ReportProperties(
         @DefaultValue("4") int cognitiveTrendWindowWeeks
 ) {
 
-    /** 보조 생성자가 있어도 Spring은 이 canonical 생성자로 설정을 바인딩한다. */
+    /** Spring은 이 canonical 생성자로 설정을 바인딩한다. */
     @ConstructorBinding
     public ReportProperties {}
-
-    /** 기존 RPT-ATT-003 테스트·생성부와의 호환 생성자. */
-    public ReportProperties(int goodThresholdDays, int normalThresholdDays, int weeklyWindowDays, int monthlyWindowWeeks) {
-        this(goodThresholdDays, normalThresholdDays, weeklyWindowDays, monthlyWindowWeeks, 70, 40, 7, 4);
-    }
 }

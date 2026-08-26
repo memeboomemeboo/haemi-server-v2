@@ -20,7 +20,7 @@
 | 보호자 홈 (어르신 정보·도전과제) | `guardian/presentation/HomeController` | 황정빈 |
 | ㄴ 홈의 출석·스트릭·함께한 일 수 | `elder/attendance`, `AttendanceQuery` | 김연호 |
 | 리포트 (RPT 6기능) | `guardian/report`, `ReportController` | 김연호 |
-| 인지 활동 (CIST 6기능) | `elder/training`, `platform/content`, `TrainingController` | 김연호 |
+| 인지 활동 (CIST 6기능) | `elder/training`, `platform/content`, `TrainingSessionController` | 김연호 |
 
 > 홈만 두 사람 경계에 걸침. 화면 조합 API는 황정빈, 출석 수치는 김연호.
 

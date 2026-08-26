@@ -7,6 +7,7 @@ import com.memeboo2.haemi.guardian.report.api.CognitiveStatus;
 import com.memeboo2.haemi.guardian.report.api.CognitiveStatusQuery;
 import com.memeboo2.haemi.guardian.report.application.GetWeeklyHighlightUseCase;
 import com.memeboo2.haemi.guardian.report.application.ReportProperties;
+import com.memeboo2.haemi.guardian.report.application.WeeklyParticipationDaysCounter;
 import com.memeboo2.haemi.guardian.report.domain.ReportParticipation;
 import com.memeboo2.haemi.guardian.report.infrastructure.ReportParticipationRepository;
 import com.memeboo2.haemi.platform.ai.api.WeeklyHighlightFact;
@@ -39,18 +40,19 @@ class GetWeeklyHighlightUseCaseTest {
     @Mock HaemiClock clock;
 
     private GetWeeklyHighlightUseCase useCase;
+    private ReportProperties reportProperties;
     private final UUID guardianId = UUID.randomUUID();
     private final UUID elderId = UUID.randomUUID();
     private final LocalDate today = LocalDate.of(2026, 8, 26);
 
     @BeforeEach
     void setUp() {
+        reportProperties = new ReportProperties(5, 3, 7, 4, 70, 40, 7, 4);
         useCase = new GetWeeklyHighlightUseCase(
                 careAccessQuery,
                 cognitiveStatusQuery,
-                participationRepository,
+                new WeeklyParticipationDaysCounter(participationRepository, reportProperties),
                 weeklyHighlightWriter,
-                new ReportProperties(5, 3, 7, 4),
                 clock
         );
     }
@@ -109,5 +111,27 @@ class GetWeeklyHighlightUseCaseTest {
         verify(weeklyHighlightWriter).write(promptCaptor.capture());
         assertThat(promptCaptor.getValue().strengths()).isEmpty();
         assertThat(promptCaptor.getValue().observations()).containsExactly(WeeklyHighlightFact.LANGUAGE_SUPPORT);
+    }
+
+    @Test
+    void 같은날의_중복_참여는_하나의_주간_참여일로_계산한다() {
+        given(clock.today()).willReturn(today);
+        given(participationRepository.findByElderIdAndParticipationDateGreaterThanEqual(elderId, today.minusDays(6)))
+                .willReturn(List.of(
+                        ReportParticipation.of(elderId, today),
+                        ReportParticipation.of(elderId, today),
+                        ReportParticipation.of(elderId, today.minusDays(1)),
+                        ReportParticipation.of(elderId, today.minusDays(1))
+                ));
+        given(cognitiveStatusQuery.cognitiveStatus(guardianId, elderId)).willReturn(new CognitiveStatusQuery.CognitiveStatusView(
+                elderId, List.of()
+        ));
+        given(weeklyHighlightWriter.write(org.mockito.ArgumentMatchers.any())).willReturn(List.of());
+
+        useCase.execute(guardianId, elderId);
+
+        ArgumentCaptor<WeeklyHighlightPrompt> promptCaptor = ArgumentCaptor.forClass(WeeklyHighlightPrompt.class);
+        verify(weeklyHighlightWriter).write(promptCaptor.capture());
+        assertThat(promptCaptor.getValue().weeklyParticipationDays()).isEqualTo(2);
     }
 }

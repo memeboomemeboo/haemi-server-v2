@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * 외부 AI 설정 전에도 안전한 결과를 보장하는 RPT-ATT-005 기본 구현.
@@ -58,7 +59,7 @@ public class DeterministicWeeklyHighlightWriter implements WeeklyHighlightWriter
         }
         facts.stream()
                 .map(templates::get)
-                .filter(java.util.Objects::nonNull)
+                .filter(Objects::nonNull)
                 .findFirst()
                 .ifPresent(lines::add);
     }

@@ -5,8 +5,6 @@ import com.memeboo2.haemi.guardian.api.CareAccessQuery;
 import com.memeboo2.haemi.guardian.report.api.CognitiveArea;
 import com.memeboo2.haemi.guardian.report.api.CognitiveStatus;
 import com.memeboo2.haemi.guardian.report.api.CognitiveStatusQuery;
-import com.memeboo2.haemi.guardian.report.domain.ReportParticipation;
-import com.memeboo2.haemi.guardian.report.infrastructure.ReportParticipationRepository;
 import com.memeboo2.haemi.platform.ai.api.WeeklyHighlightFact;
 import com.memeboo2.haemi.platform.ai.api.WeeklyHighlightPrompt;
 import com.memeboo2.haemi.platform.ai.api.WeeklyHighlightWriter;
@@ -25,9 +23,8 @@ public class GetWeeklyHighlightUseCase {
 
     private final CareAccessQuery careAccessQuery;
     private final CognitiveStatusQuery cognitiveStatusQuery;
-    private final ReportParticipationRepository participationRepository;
+    private final WeeklyParticipationDaysCounter weeklyParticipationDaysCounter;
     private final WeeklyHighlightWriter weeklyHighlightWriter;
-    private final ReportProperties props;
     private final HaemiClock clock;
 
     public record WeeklyHighlight(UUID elderId, List<String> lines) {
@@ -41,13 +38,7 @@ public class GetWeeklyHighlightUseCase {
         careAccessQuery.requireGuardianOf(guardianId, elderId);
 
         LocalDate today = clock.today();
-        LocalDate weekStart = today.minusDays(props.weeklyWindowDays() - 1L);
-        int weeklyParticipationDays = (int) participationRepository
-                .findByElderIdAndParticipationDateGreaterThanEqual(elderId, weekStart).stream()
-                .map(ReportParticipation::getParticipationDate)
-                .filter(date -> !date.isAfter(today))
-                .distinct()
-                .count();
+        int weeklyParticipationDays = weeklyParticipationDaysCounter.count(elderId, today);
 
         CognitiveStatusQuery.CognitiveStatusView cognitive = cognitiveStatusQuery.cognitiveStatus(guardianId, elderId);
         WeeklyHighlightPrompt prompt = new WeeklyHighlightPrompt(

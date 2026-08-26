@@ -5,11 +5,10 @@
 > 목적: 같은 가족 내 **어르신이 아닌 보호자들 사이**의 제한이 실제 코드에 어떻게 구현되어 있는지 확인하고,
 > 확정된 정책과 프론트 개발 전에 해결해야 할 항목을 한곳에 모은다.
 >
-> ⚠️ **이 문서는 2026-08-24 시점 스냅샷이다.** 아래 §1 매트릭스·§4의 A1(초대 코드)·A2(가족 조회)·
-> A4(출석·리포트)·A7(하루 한마디 이력)은 2026-08-25 [`docs/handoff-issue-triage.md`](./handoff-issue-triage.md)의
-> 13개 이슈 통합 작업으로 **모두 구현 완료됐다.** "미구현"이라는 서술은 정책 근거가 아니라 과거 상태 기록으로만
-> 읽어야 한다 — 현재 구현 상태는 handoff 문서와 실제 컨트롤러(`FamilyController`, `DailyCareController`,
-> `ReportController`)를 기준으로 판단할 것.
+> ⚠️ **이 문서는 2026-08-24 시점 스냅샷이다.** 아래의 “미구현”·스텁 진단은 정책 근거가 아니라 과거 상태 기록으로만
+> 읽어야 한다. 13개 이슈 통합 작업은 완료됐고, RPT-ATT-004~006도 PR [#90](https://github.com/memeboomemeboo/haemi-server-v2/pull/90)으로
+> 2026-08-26 `main`에 반영됐다. 현재 구현 상태는 [v2-backlog.md](./v2-backlog.md)와 실제 컨트롤러(`FamilyController`,
+> `DailyCareController`, `ReportController`)를 기준으로 판단한다.
 
 ---
 
@@ -38,7 +37,7 @@ MVP 이후 *가족 대표자* 설정으로 권한을 강화할 예정이다.
 | 관계 라벨(딸/아들/손녀) 변경 | ❌ **본인 링크만** | 403 `NOT_RESOURCE_OWNER` | `ChangeGuardianRoleUseCase.java:25` |
 | 어르신 프로필 수정 | ✅ 링크된 모든 보호자 동등 | — | `guardian/eldermanagement` |
 | 어르신 등록 | ✅ 가족 구성원이면 누구나 (상한 4명) | 409 `FAMILY_CAPACITY_EXCEEDED` | `RegisterElderUseCase.java:38` |
-| 리포트 조회 | ✅ 링크된 모든 보호자 (어르신 본인은 ❌) | — | `guardian/report` ([#24](https://github.com/memeboomemeboo/haemi-server-v2/issues/24)) |
+| 리포트 조회 | ✅ 링크된 모든 보호자 (어르신 본인은 ❌) | 403 `CARE_ACCESS_DENIED` | `guardian/report` ([#24](https://github.com/memeboomemeboo/haemi-server-v2/issues/24), [#90](https://github.com/memeboomemeboo/haemi-server-v2/pull/90)) |
 | 다른 보호자 프로필 조회 | ❌ API 없음 — 본인 프로필만 | (엔드포인트 부재) | `ProfileController.java:73` |
 | 가족 합류 | ✅ **초대 코드로 합류** (상한 8명) | 404(코드 무효) / 409 `FAMILY_CAPACITY_EXCEEDED` | `JoinFamilyUseCase.java` ([#21](https://github.com/memeboomemeboo/haemi-server-v2/issues/21)) |
 
@@ -53,13 +52,8 @@ MVP 이후 *가족 대표자* 설정으로 권한을 강화할 예정이다.
 | `POST` | `/api/v1/guardian/families/join` | 초대 코드로 가족 합류 |
 | `GET` | `/api/v1/guardian/families/my` | 가족 세부 조회 (구성원·어르신 목록 포함) |
 
-가족 정보는 여전히 **보호자 프로필 응답에도** 요약이 끼워져 내려간다 (`ProfileController.java:44`).
-
-```
-GET /api/v1/guardian/profile
-  → family : { familyId, name, memo, profileImageUrl }
-  → elders : [ { elderId, name, birthDate, role } ]   // 내 링크 기준 role
-```
+가족 정보는 보호자 프로필 응답에서 제거됐다. `GET /api/v1/guardian/profile`은 본인 프로필·연결 어르신만 반환하고,
+가족 요약·구성원·초대 코드는 `GET /api/v1/guardian/families/my`가 유일한 조회 경로다.
 
 **API를 나누지 않는 것으로 확정했다 (D10).** R2에서 "보호자는 1개 가족에만 속함"이 확정됐고
 `GetGuardianProfileUseCase`도 `findByMembers_UserId`로 `Optional<Family>` 단수를 반환한다.
@@ -83,7 +77,7 @@ GET /api/v1/guardian/families/my
 - 소속 가족이 없으면 404가 아니라 **`family: null`** 로 응답한다 (가족 생성 유도 화면 분기용)
 - `guardians[].role`은 어르신이 2명 이상일 때 **현재 선택된 어르신 기준** 하나만 내려준다 (Q8-1-(3))
 - `inviteCode`는 D4 구현 시 함께 포함한다
-- 프로필 응답의 `family` 필드는 **중복이므로 유지 여부를 함께 결정**해야 한다 (§6 액션 2)
+- 프로필 응답의 가족 필드는 중복 제거됐으며, 가족 화면은 이 응답만 사용한다
 - 이 응답 하나로 프론트의 **가족 요약·구성원 목록·어르신 목록 화면을 모두 그린다.** 추가 호출 없음
 
 ### 역할 분리 (보호자 API vs 어르신 API)
@@ -106,16 +100,16 @@ GET /api/v1/guardian/families/my
 | D3 | 어르신 프로필 수정 | **보호자 전체 수정 가능**. MVP 이후 가족 대표자 설정으로 강화 | ✅ 일치 |
 | D4 | 가족 합류 | 가족 생성 시 **초대 코드 발급**. 어르신은 초대 대상 아님. **보호자만** 참여 대상 | ✅ 구현 완료 ([#21](https://github.com/memeboomemeboo/haemi-server-v2/issues/21)) → A1 종결 |
 | D5 | 어르신 리포트 | **보호자만** 조회. 어르신 본인도 불가 | ✅ 구현 완료 ([#24](https://github.com/memeboomemeboo/haemi-server-v2/issues/24)) |
-| D6 | 보호자 프로필 | **본인만** 조회 | ✅ 일치 → 가족 보호자 목록 노출은 **미채택** (단 A2 참조) |
+| D6 | 보호자 프로필 | **본인만** 조회 | ✅ 일치. 가족 구성원 정보는 프로필이 아닌 `GET /families/my`에서 별도로 제공 |
 | D7 | 참여 빈도 표시 | ~~주별·월별만~~ → **D12로 개정** | — |
-| D8 | 하이라이트·컨디션 문구 | **AI 생성** (`platform/ai`) | ❌ 미구현 → §3-Q6 |
+| D8 | 하이라이트·컨디션 문구 | `platform/ai` 문구 포트 | ✅ 결정적 안전 fallback 구현. 외부 모델 연결은 별도 운영 확장 |
 | D9 | 가족 탈퇴·해체 | **MVP 이후로 연기.** MVP에서는 가족을 나가는 경로를 제공하지 않는다 | ➖ 의도된 미구현 → A5 |
 | D10 | 가족 조회 API 구성 | **API는 나누지 않는다.** 보호자당 가족은 **항상 1개**이므로(R2) "목록"이라는 개념 자체가 성립하지 않는다. `GET /api/v1/guardian/families/my` **단일 엔드포인트**로 전부 내려주고, **화면 분할은 프론트가 담당**한다 | ✅ 구현 완료 ([#22](https://github.com/memeboomemeboo/haemi-server-v2/issues/22)) → A2 종결 |
 | D11 | 컨디션 수치 점수 | **노출하지 않는다.** 3색 라벨 + "이번 주 N/7일" 참여 게이지로 표시한다 | 명세 RPT-ATT-004 유지 |
 | D12 | 참여 빈도 표시 (D7 개정) | **일·주·월 3단위 모두** 제공. 홈 화면에는 **요일별** 표시 | 막대는 참여/미참여 **2단계**만 (D11에 따라 높이 차등 불가) |
 | D13 | "인지 활동 N회" | **사용하지 않는다** | 훈련 세션 집계 불필요 |
-| D14 | "마지막 접속 시각" | **사용한다. 홈 화면에만** 노출 | ❌ 필드 신설 필요 → A17 |
-| D15 | 가족 세부 화면 | **가족 생성 시 입력한 항목 전부** 노출 (가족명·메모·프로필 이미지) | ⚠️ 구성원 노출 여부는 미결 → A2 잔존 |
+| D14 | "마지막 접속 시각" | **사용한다. 홈 화면에만** 노출 | ✅ 구현 완료 ([#25](https://github.com/memeboomemeboo/haemi-server-v2/issues/25)) |
+| D15 | 가족 세부 화면 | **가족 생성 시 입력한 항목 전부**와 구성원 이름·관계를 노출 | ✅ `GET /families/my` 구현 완료 ([#22](https://github.com/memeboomemeboo/haemi-server-v2/issues/22)) |
 | D16 | 타 보호자 호칭 표기 | **`{어르신 이름} 어르신의 {관계} · {이름}`** 형태로 표기 | Q8-1-(3) 확정 |
 | D17 | `기타` 호칭 표시 | **`기타`일 때만 "보호자"로 표기**한다 | 어르신 화면 문장 깨짐 해소 |
 | D18 | 어르신 답변 취소·횟수 | **취소 기능 없음. 횟수 제한도 두지 않는다** | 현행 유지 → A19 종결 |
@@ -129,7 +123,10 @@ GET /api/v1/guardian/families/my
 
 ## 3. 질의 응답 — 코드 확인 결과
 
-### Q5. 홈 "어르신 컨디션" 지표가 API에 있는가 → **없다**
+### Q5. 홈 "어르신 컨디션" 지표가 API에 있는가 — 2026-08-24 역사적 진단
+
+> 아래 Q5/Q5-1의 스텁·부재 설명은 당시 코드 기준이다. 현재 `AttendanceQueryImpl`, 마지막 접속 시각, 리포트 목록·요약·출석 API는
+> 구현돼 있으며, RPT-ATT-004~006도 PR [#90](https://github.com/memeboomemeboo/haemi-server-v2/pull/90)으로 `main`에 반영됐다.
 
 보호자 홈이 내려주는 필드는 4개뿐이다 (`GetGuardianHomeUseCase.java`).
 
@@ -219,7 +216,10 @@ D7은 "주별·월별만, 일별 그래프 없음"으로 확정됐으나 이 카
 
 → 같은 어르신을 A는 "딸", B는 "손녀"로 보는 동작이 그대로 성립한다. ✅
 
-### Q8. 가족 호칭 지침 → **enum 6개가 전부. 지침은 없다**
+### Q8. 가족 호칭 지침 — 2026-08-24 역사적 분석
+
+> 현재는 [#30](https://github.com/memeboomemeboo/haemi-server-v2/issues/30)으로 코드값과 표시명을 분리했고,
+> 호칭 목록은 여섯 개를 유지하기로 확정했다. `기타`의 표시 규칙은 D17을 따른다. 아래는 그 결정 전 분석이다.
 
 ```java
 public enum GuardianRole { 보호자, 딸, 아들, 손녀, 손자, 기타 }
@@ -233,7 +233,10 @@ public enum GuardianRole { 보호자, 딸, 아들, 손녀, 손자, 기타 }
 
 **결정 필요**: 호칭 목록 확정 + `기타` 선택 시 표시 문구.
 
-### Q8-1. 관계 라벨이 **어느 관계에서 어떻게 보이는가** — 표시 설계
+### Q8-1. 관계 라벨이 **어느 관계에서 어떻게 보이는가** — 역사적 표시 설계
+
+> 현재 표시 원칙은 D16·D17과 [v2-open-questions-for-product.md](./v2-open-questions-for-product.md)의 확정 사항을 따른다.
+> 아래의 “확정 필요”·“경로 없음”은 초기 분석 당시의 상태다.
 
 라벨은 `GuardianElderLink(guardianId, elderId, role)` 한 곳에만 저장되지만,
 **보는 사람에 따라 의미가 달라진다.** 방향별로 규칙을 따로 정해야 한다.
@@ -306,7 +309,7 @@ D6(보호자 프로필은 본인만 조회)으로 인해, 지금은 **다른 보
 
 ---
 
-## 4. 미확정으로 불편을 줄 수 있는 지점 (Q9)
+## 4. 2026-08-24 미확정 항목 목록 (Q9, 역사 기록)
 
 | # | 항목 | 증상 | 심각도 |
 | --- | --- | --- | --- |
@@ -334,7 +337,10 @@ D6(보호자 프로필은 본인만 조회)으로 인해, 지금은 **다른 보
 
 ---
 
-## 5. 프론트 화면 분기 규칙 (그대로 사용 가능)
+## 5. 2026-08-24 프론트 임시 분기 규칙 (역사 기록)
+
+> A4 미해결을 전제로 한 숨김·스켈레톤 지침은 현재 적용하지 않는다. 현재 리포트 API 계약은
+> [v2-architecture.md](./v2-architecture.md)를 기준으로 한다.
 
 | 화면 | 규칙 |
 | --- | --- |
@@ -357,7 +363,9 @@ D6(보호자 프로필은 본인만 조회)으로 인해, 지금은 **다른 보
 
 ---
 
-## 6. 다음 액션 (우선순위)
+## 6. 2026-08-24 당시 다음 액션 (역사 기록)
+
+> 이 절의 A2 관련 작업은 #22로 종결됐다. 현재 제품 미결 사항은 [v2-open-questions-for-product.md](./v2-open-questions-for-product.md)를 따른다.
 
 결정이 끝난 항목은 그대로 구현하면 되고, 아래 2건만 답이 남아 있다.
 

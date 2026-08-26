@@ -14,7 +14,10 @@ public interface CognitiveResultSnapshotRepository extends JpaRepository<Cogniti
 
     List<CognitiveResultSnapshot> findByElderIdAndSessionDateGreaterThanEqual(UUID elderId, LocalDate from);
 
-    /** 외부 이벤트 재전달도 (session_id, cognitive_area) 유일 키로 원자적으로 무시한다. */
+    /**
+     * PostgreSQL 15+의 MERGE를 사용한다(운영 DB: PostgreSQL 16).
+     * 재전달은 (session_id, cognitive_area) 유일 키로 원자적으로 무시하며, 재채점·정정은 별도 버전 정책이 정해지기 전까지 갱신하지 않는다.
+     */
     @Modifying
     @Query(value = """
             MERGE INTO guardian_report_cognitive_results AS target

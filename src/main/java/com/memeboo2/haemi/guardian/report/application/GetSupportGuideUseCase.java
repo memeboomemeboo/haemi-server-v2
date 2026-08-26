@@ -10,7 +10,6 @@ import com.memeboo2.haemi.guardian.report.api.CognitiveArea;
 import com.memeboo2.haemi.guardian.report.api.CognitiveStatus;
 import com.memeboo2.haemi.guardian.report.api.CognitiveStatusQuery;
 import com.memeboo2.haemi.guardian.report.api.CognitiveStatusQuery.AreaStatus;
-import com.memeboo2.haemi.guardian.report.infrastructure.ReportParticipationRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,7 +27,7 @@ public class GetSupportGuideUseCase {
 
     private final CareAccessQuery careAccessQuery;
     private final ElderRepository elderRepository;
-    private final ReportParticipationRepository participationRepository;
+    private final WeeklyParticipationDaysCounter weeklyParticipationDaysCounter;
     private final ReportProperties reportProperties;
     private final CognitiveStatusQuery cognitiveStatusQuery;
     private final HaemiClock clock;
@@ -44,17 +43,12 @@ public class GetSupportGuideUseCase {
         Elder elder = elderRepository.findById(elderId)
                 .orElseThrow(() -> new DomainException(ErrorCode.RESOURCE_NOT_FOUND));
         LocalDate today = clock.today();
-        LocalDate weekStart = today.minusDays(reportProperties.weeklyWindowDays() - 1L);
-        int weeklyParticipationDays = (int) participationRepository
-                .findByElderIdAndParticipationDateGreaterThanEqual(elderId, weekStart)
-                .stream()
-                .filter(participation -> !participation.getParticipationDate().isAfter(today))
-                .count();
+        int weeklyParticipationDays = weeklyParticipationDaysCounter.count(elderId, today);
         CognitiveStatusQuery.CognitiveStatusView cognitiveStatus = cognitiveStatusQuery
                 .cognitiveStatus(guardianId, elderId);
 
         List<Suggestion> suggestions = new ArrayList<>();
-        if (weeklyParticipationDays <= 2) {
+        if (weeklyParticipationDays < reportProperties.normalThresholdDays()) {
             suggestions.add(new Suggestion(
                     SupportGuideAction.SEND_DAILY_CARE,
                     "%s 어르신께 하루 한마디를 보내기로 응원해보세요.".formatted(elder.getName())
