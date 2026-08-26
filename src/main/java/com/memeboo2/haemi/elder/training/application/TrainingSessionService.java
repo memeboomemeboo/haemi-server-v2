@@ -2,6 +2,7 @@ package com.memeboo2.haemi.elder.training.application;
 
 import com.memeboo2.haemi.common.error.DomainException;
 import com.memeboo2.haemi.common.error.ErrorCode;
+import com.memeboo2.haemi.common.event.CognitiveTrainingCompleted;
 import com.memeboo2.haemi.common.event.TrainingSessionCompleted;
 import com.memeboo2.haemi.common.security.ElderAccessChecked;
 import com.memeboo2.haemi.common.time.HaemiClock;
@@ -26,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.Period;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -103,8 +105,10 @@ public class TrainingSessionService implements TrainingSessionUseCase {
         // 비관 잠금으로 조회한 managed 엔티티이므로 트랜잭션 커밋 시 변경 감지로 저장된다.
         if (session.getStatus() == SessionStatus.COMPLETED) {
             difficultyService.evaluateCompletedSession(session);
-            eventPublisher.publishEvent(new TrainingSessionCompleted(
-                    session.getElderId(), HaemiClock.dateInKst(session.getCompletedAt())));
+            LocalDate completedDate = HaemiClock.dateInKst(session.getCompletedAt());
+            eventPublisher.publishEvent(new TrainingSessionCompleted(session.getElderId(), completedDate));
+            eventPublisher.publishEvent(new CognitiveTrainingCompleted(
+                    session.getElderId(), session.getId(), completedDate, cognitiveAreaResults(session.getId())));
         }
         return viewOf(session, feedbackFor(question, evaluated, session));
     }
@@ -166,6 +170,21 @@ public class TrainingSessionService implements TrainingSessionUseCase {
         TrainingResultView result = session.getStatus() == SessionStatus.COMPLETED ? resultService.resultFor(session) : null;
         return TrainingSessionView.from(
                 session, policy.totalQuestionCount(), policy.inactivityReminderSeconds(), feedback, currentQuestion, result);
+    }
+
+    /**
+     * 완료 트랜잭션 안에서 리포트용 최소 집계만 만든다.
+     * guardian/report는 이 이벤트를 소비할 뿐 training 저장소를 역으로 조회하지 않는다.
+     */
+    private List<CognitiveTrainingCompleted.CognitiveAreaResult> cognitiveAreaResults(UUID sessionId) {
+        return java.util.Arrays.stream(QuestionType.values())
+                .map(type -> {
+                    List<TrainingAnswer> answers = answerRepository.findBySessionIdAndQuestionType(sessionId, type);
+                    int scored = (int) answers.stream().filter(answer -> answer.getCorrect() != null).count();
+                    int correct = (int) answers.stream().filter(answer -> Boolean.TRUE.equals(answer.getCorrect())).count();
+                    return new CognitiveTrainingCompleted.CognitiveAreaResult(type.name(), scored, correct);
+                })
+                .toList();
     }
 
     private String feedbackFor(TrainingQuestion question, Boolean evaluated, TrainingSession session) {

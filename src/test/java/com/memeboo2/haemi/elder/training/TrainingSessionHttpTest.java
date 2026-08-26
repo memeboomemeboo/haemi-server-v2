@@ -16,6 +16,7 @@ import com.memeboo2.haemi.elder.training.infrastructure.TrainingSessionRepositor
 import com.memeboo2.haemi.guardian.eldermanagement.domain.Elder;
 import com.memeboo2.haemi.guardian.eldermanagement.domain.ElderRepository;
 import com.memeboo2.haemi.guardian.report.infrastructure.ReportParticipationRepository;
+import com.memeboo2.haemi.guardian.report.infrastructure.CognitiveResultSnapshotRepository;
 import com.memeboo2.haemi.platform.content.domain.ContentItem;
 import com.memeboo2.haemi.platform.content.infrastructure.ContentItemRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -52,6 +53,7 @@ class TrainingSessionHttpTest {
     @Autowired DailyParticipationRepository participationRepository;
     @Autowired DailyParticipationWriter participationWriter;
     @Autowired ReportParticipationRepository reportParticipationRepository;
+    @Autowired CognitiveResultSnapshotRepository cognitiveResultSnapshotRepository;
     @Autowired JwtTokenProvider jwtTokenProvider;
     private UUID elderId;
     private String accessToken;
@@ -96,6 +98,7 @@ class TrainingSessionHttpTest {
         assertThat(answerRepository.findBySessionIdOrderByQuestionNumberAsc(sessionId)).hasSize(10);
         assertThat(awaitAttendance(elderId, LocalDate.now(com.memeboo2.haemi.common.time.HaemiClock.KST))).isTrue();
         assertThat(awaitReportParticipation(elderId, LocalDate.now(com.memeboo2.haemi.common.time.HaemiClock.KST))).isTrue();
+        assertThat(awaitCognitiveSnapshots(elderId, sessionId)).isTrue();
 
         List<TrainingQuestion> questions = questionRepository.findBySessionIdOrderByQuestionNumberAsc(sessionId);
         assertThat(questions).hasSize(10);
@@ -282,6 +285,22 @@ class TrainingSessionHttpTest {
     private boolean awaitReportParticipation(UUID targetElderId, LocalDate date) throws InterruptedException {
         for (int attempt = 0; attempt < 20; attempt++) {
             if (reportParticipationRepository.existsByElderIdAndParticipationDate(targetElderId, date)) {
+                return true;
+            }
+            Thread.sleep(100);
+        }
+        return false;
+    }
+
+    private boolean awaitCognitiveSnapshots(UUID targetElderId, UUID sessionId) throws InterruptedException {
+        for (int attempt = 0; attempt < 20; attempt++) {
+            long count = cognitiveResultSnapshotRepository
+                    .findByElderIdAndSessionDateGreaterThanEqual(
+                            targetElderId, LocalDate.now(com.memeboo2.haemi.common.time.HaemiClock.KST))
+                    .stream()
+                    .filter(snapshot -> snapshot.getSessionId().equals(sessionId))
+                    .count();
+            if (count == 4) {
                 return true;
             }
             Thread.sleep(100);

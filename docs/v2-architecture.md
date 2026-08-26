@@ -243,6 +243,16 @@ sequenceDiagram
 
 `questionType`은 클라이언트 입력으로 받지 않는다. 문항 ID와 번호가 현재 세션 진행 상태에 함께 일치해야 하므로, 유실된 응답을 재전송해도 다른 문항을 완료할 수 없다. `inactivityReminderSeconds`는 앱이 90초 무입력 음성 안내를 예약할 수 있게 하는 설정값이며, 어르신 응답에는 정답·점수·정답률을 포함하지 않는다.
 
+### 보호자 리포트 API (RPT-ATT-004~006, 리뷰 중)
+
+| 요청 | 경로 | 핵심 계약 |
+| --- | --- | --- |
+| GET | `/api/v1/guardian/elders/{elderId}/report/cognitive-status` | 네 영역의 상태·4주 하락 신호만 반환하며 정답률·점수는 반환하지 않는다. |
+| GET | `/api/v1/guardian/elders/{elderId}/report/highlight` | 잘한 점을 먼저 두고 관찰 신호를 뒤에 둔 1~3줄을 반환한다. |
+| GET | `/api/v1/guardian/elders/{elderId}/report/support-guide` | 상태를 하루 한마디·추억 등록·안부 전화·칭찬의 실행 가능한 제안으로 번역한다. |
+
+세 경로 모두 `requireGuardianOf`로 해당 어르신과 연결된 보호자만 허용한다. 하이라이트의 외부 AI 어댑터는 모델·자격증명·실패 정책이 확정되기 전까지 안전한 결정적 문구 생성기로 대체한다.
+
 ---
 
 ## 7. 이벤트와 트랜잭션 (`common/event`)
@@ -253,6 +263,8 @@ sequenceDiagram
 flowchart LR
     T[elder/training] -->|TrainingSessionCompleted| OB[(event_publication)]
     OB -->|출석 기록| AT[elder/attendance]
+    T -->|CognitiveTrainingCompleted| OB
+    OB -->|인지 결과 스냅샷| R
     AT -->|AttendanceRecorded| OB
     OB -->|출석·참여 스냅샷| R
     RS[elder/response] -->|ElderResponded| OB
@@ -265,7 +277,7 @@ flowchart LR
 
 `spring-modulith-events-jpa`가 레지스트리를 기본 제공하므로 별도 구현이 필요 없습니다.
 
-**출석은 `elder/attendance`가 유일한 원천입니다.** `TrainingSessionCompleted`의 완료 사실을 출석 모듈이 소비해 `DailyParticipation`을 `(elder_id, participation_date)`로 원자적 멱등 기록하고 `AttendanceRecorded`를 발행합니다. `AttendanceQuery`는 오늘 완료 여부·현재 스트릭·D+·7/30/100일 배지를 이 원천에서 계산합니다. `guardian/report`는 `AttendanceRecorded`만 소비해 출석 스냅샷을 적재합니다.
+**출석은 `elder/attendance`가 유일한 원천입니다.** `TrainingSessionCompleted`의 완료 사실을 출석 모듈이 소비해 `DailyParticipation`을 `(elder_id, participation_date)`로 원자적 멱등 기록하고 `AttendanceRecorded`를 발행합니다. `AttendanceQuery`는 오늘 완료 여부·현재 스트릭·D+·7/30/100일 배지를 이 원천에서 계산합니다. `guardian/report`는 `AttendanceRecorded`로 출석 스냅샷을, 별도 `CognitiveTrainingCompleted`로 영역별 인지 스냅샷을 적재한다. 두 경우 모두 훈련 원천 테이블을 직접 읽지 않는다.
 
 **트랜잭션 경계는 `application`**. `domain`과 `presentation`에는 `@Transactional`을 쓰지 않습니다.
 
@@ -306,7 +318,7 @@ elder/training ──TrainingSessionCompleted──▶ elder/attendance
 
         RPT-ATT-003 출석·참여 현황
 
-RPT-ATT-004 영역별 인지 상태와 RPT-ATT-005·006은 별도 인지 스냅샷 계약이 필요해 아직 구현하지 않는다.
+RPT-ATT-004~006은 `CognitiveTrainingCompleted` 인지 스냅샷 계약 위에 구현되어 리뷰 중이다. 정답률·점수는 읽기 모델과 내부 계산에만 쓰고 API에는 3색 상태·관찰 신호만 노출한다.
 ```
 
 - `guardian_report_participations`는 `(elder_id, participation_date)`를 유일 키로 하여 `AttendanceRecorded`를 멱등 적재합니다. 최근 7일의 ●/○와 최근 4주 막대는 이 날짜 행으로 만들고, 오늘 행이 없으면 ○입니다.
