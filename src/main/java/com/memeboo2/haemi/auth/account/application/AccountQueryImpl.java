@@ -31,6 +31,14 @@ public class AccountQueryImpl implements AccountQuery {
 
     @Override
     @Transactional(readOnly = true)
+    public Optional<String> emailOf(UUID userId) {
+        return accountRepository.findById(userId)
+                .map(Account::getEmail)
+                .filter(email -> email != null && !email.isBlank());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<AccountInfo> findAllById(Collection<UUID> userIds) {
         return accountRepository.findAllById(userIds).stream()
                 .map(a -> new AccountInfo(

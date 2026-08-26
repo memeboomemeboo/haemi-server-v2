@@ -1,0 +1,8 @@
+NanumGothic-Regular.ttf
+Copyright (c) 2010, NAVER Corporation (https://www.navercorp.com/)
+with Reserved Font Name Nanum, Naver Nanum, NanumGothic, Naver NanumGothic.
+
+This Font Software is licensed under the SIL Open Font License, Version 1.1.
+This license is available with a FAQ at: https://scripts.sil.org/OFL
+
+리포트 PDF 렌더링 시 한글 임베드용으로 번들된다. (openhtmltopdf useFont)

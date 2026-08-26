@@ -65,6 +65,13 @@ public class CareAccessQueryImpl implements CareAccessQuery {
     }
 
     @Override
+    public List<CareLink> allLinks() {
+        return linkRepository.findAll().stream()
+                .map(l -> new CareLink(l.getGuardianId(), l.getElderId(), l.getRole()))
+                .toList();
+    }
+
+    @Override
     public GuardianRole roleOf(UUID guardianId, UUID elderId) {
         return linkRepository.findByGuardianIdAndElderId(guardianId, elderId)
                 .map(GuardianElderLink::getRole)

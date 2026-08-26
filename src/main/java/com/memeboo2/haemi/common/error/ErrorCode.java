@@ -31,7 +31,10 @@ public enum ErrorCode {
 
     // 인지 훈련
     TRAINING_SESSION_ALREADY_STARTED(HttpStatus.CONFLICT, "이미 해당 날짜의 인지 훈련 세션이 있습니다."),
-    TRAINING_MATERIAL_UNAVAILABLE(HttpStatus.CONFLICT, "인지 훈련에 필요한 사진 자료를 준비하고 있습니다.");
+    TRAINING_MATERIAL_UNAVAILABLE(HttpStatus.CONFLICT, "인지 훈련에 필요한 사진 자료를 준비하고 있습니다."),
+
+    // 인지 리포트
+    REPORT_PDF_RENDER_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "리포트 PDF 생성에 실패했습니다.");
 
     private final HttpStatus status;
     private final String defaultMessage;
