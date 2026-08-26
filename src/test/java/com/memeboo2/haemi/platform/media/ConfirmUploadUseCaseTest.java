@@ -43,7 +43,7 @@ class ConfirmUploadUseCaseTest {
     private MediaRef pendingRef(UUID uploaderId) {
         return MediaRef.pending(
                 MediaType.MEMORY_IMAGE, "memory_image/key.jpg", "photo.jpg",
-                "image/jpeg", 1_000_000L, null, uploaderId, EXPIRY, NOW.plusSeconds(86400L * 365));
+                "image/jpeg", 1_000_000L, null, uploaderId, EXPIRY, NOW.plusSeconds(86400L * 365), null);
     }
 
     @Test
@@ -128,7 +128,7 @@ class ConfirmUploadUseCaseTest {
         UUID actorId = UUID.randomUUID();
         UUID refId = UUID.randomUUID();
         MediaRef ref = MediaRef.pending(MediaType.RESPONSE_VOICE, "response_voice/key.aac", "reply.aac",
-                "audio/aac", 1_000_000L, 61, actorId, EXPIRY, NOW.plusSeconds(86400L));
+                "audio/aac", 1_000_000L, 61, actorId, EXPIRY, NOW.plusSeconds(86400L), null);
         given(repository.findById(refId)).willReturn(Optional.of(ref));
         given(storage.headObject(ref.getStorageKey())).willReturn(Optional.of(
                 new StoragePort.ObjectMetadata("audio/aac", 1_000_000L, 61)));
