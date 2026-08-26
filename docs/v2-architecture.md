@@ -243,7 +243,7 @@ sequenceDiagram
 
 `questionType`은 클라이언트 입력으로 받지 않는다. 문항 ID와 번호가 현재 세션 진행 상태에 함께 일치해야 하므로, 유실된 응답을 재전송해도 다른 문항을 완료할 수 없다. `inactivityReminderSeconds`는 앱이 90초 무입력 음성 안내를 예약할 수 있게 하는 설정값이며, 어르신 응답에는 정답·점수·정답률을 포함하지 않는다.
 
-### 보호자 리포트 API (RPT-ATT-004~006, 리뷰 중)
+### 보호자 리포트 API (RPT-ATT-004~006, `main` 반영 · PR [#90](https://github.com/memeboomemeboo/haemi-server-v2/pull/90))
 
 | 요청 | 경로 | 핵심 계약 |
 | --- | --- | --- |
@@ -318,7 +318,7 @@ elder/training ──TrainingSessionCompleted──▶ elder/attendance
 
         RPT-ATT-003 출석·참여 현황
 
-RPT-ATT-004~006은 `CognitiveTrainingCompleted` 인지 스냅샷 계약 위에 구현되어 리뷰 중이다. 정답률·점수는 읽기 모델과 내부 계산에만 쓰고 API에는 3색 상태·관찰 신호만 노출한다.
+RPT-ATT-004~006은 `CognitiveTrainingCompleted` 인지 스냅샷 계약 위에 구현되어 `main`에 반영됐다(PR [#90](https://github.com/memeboomemeboo/haemi-server-v2/pull/90)). 정답률·점수는 읽기 모델과 내부 계산에만 쓰고 API에는 3색 상태·관찰 신호만 노출한다.
 ```
 
 - `guardian_report_participations`는 `(elder_id, participation_date)`를 유일 키로 하여 `AttendanceRecorded`를 멱등 적재합니다. 최근 7일의 ●/○와 최근 4주 막대는 이 날짜 행으로 만들고, 오늘 행이 없으면 ○입니다.

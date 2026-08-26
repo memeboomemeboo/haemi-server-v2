@@ -27,9 +27,13 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.Period;
+import java.util.Arrays;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /** CIST-TRN-001~006의 세션 진입, 실제 답변, 결과 조회를 조합한다. */
 @Service
@@ -175,11 +179,19 @@ public class TrainingSessionService implements TrainingSessionUseCase {
     /**
      * 완료 트랜잭션 안에서 리포트용 최소 집계만 만든다.
      * guardian/report는 이 이벤트를 소비할 뿐 training 저장소를 역으로 조회하지 않는다.
+     * 자동 채점 결과가 없는 영역도 (0, 0)으로 전달해, 리포트가 임의의 상태 대신 NOT_AVAILABLE로 표시한다.
      */
     private List<CognitiveTrainingCompleted.CognitiveAreaResult> cognitiveAreaResults(UUID sessionId) {
-        return java.util.Arrays.stream(QuestionType.values())
+        Map<QuestionType, List<TrainingAnswer>> answersByType = answerRepository
+                .findBySessionIdOrderByQuestionNumberAsc(sessionId)
+                .stream()
+                .collect(Collectors.groupingBy(
+                        TrainingAnswer::getQuestionType,
+                        () -> new EnumMap<>(QuestionType.class),
+                        Collectors.toList()));
+        return Arrays.stream(QuestionType.values())
                 .map(type -> {
-                    List<TrainingAnswer> answers = answerRepository.findBySessionIdAndQuestionType(sessionId, type);
+                    List<TrainingAnswer> answers = answersByType.getOrDefault(type, List.of());
                     int scored = (int) answers.stream().filter(answer -> answer.getCorrect() != null).count();
                     int correct = (int) answers.stream().filter(answer -> Boolean.TRUE.equals(answer.getCorrect())).count();
                     return new CognitiveTrainingCompleted.CognitiveAreaResult(type.name(), scored, correct);

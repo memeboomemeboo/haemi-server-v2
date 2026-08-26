@@ -25,6 +25,10 @@ public class CognitiveStatusCalculator {
         return CognitiveStatus.NORMAL;
     }
 
+    /**
+     * 보수적인 4주 연속 하락 판정이다. 모든 주에 자동 채점 응답이 있어야 하며, 주별 정답률이 매주 엄격히 낮아야 한다.
+     * 결측 주와 동률을 하락으로 볼지 여부는 제품 결정 전까지 이 규칙을 유지한다.
+     */
     public boolean strictlyDeclines(int[] scoredCounts, int[] correctCounts) {
         if (scoredCounts.length != properties.cognitiveTrendWindowWeeks()
                 || correctCounts.length != properties.cognitiveTrendWindowWeeks()) {

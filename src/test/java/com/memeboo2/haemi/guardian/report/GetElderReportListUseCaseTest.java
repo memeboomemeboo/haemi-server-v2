@@ -42,7 +42,7 @@ class GetElderReportListUseCaseTest {
 
     @BeforeEach
     void setUp() {
-        ReportProperties props = new ReportProperties(5, 3, 7, 4);
+        ReportProperties props = new ReportProperties(5, 3, 7, 4, 70, 40, 7, 4);
         useCase = new GetElderReportListUseCase(
                 careAccessQuery, elderRepository, participationRepository,
                 new ReportStatusCalculator(props), props, clock);

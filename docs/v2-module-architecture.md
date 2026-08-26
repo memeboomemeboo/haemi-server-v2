@@ -188,7 +188,7 @@ elder ──────────▶ guardian ──────▶ auth ─�
 | 발행 | 이벤트 | 구독 |
 | --- | --- | --- |
 | `elder/training` | `TrainingSessionCompleted` | `elder/attendance` (출석 기록, 구현) |
-| `elder/training` | `CognitiveTrainingCompleted` | `guardian/report` (영역별 인지 스냅샷, 리뷰 중) |
+| `elder/training` | `CognitiveTrainingCompleted` | `guardian/report` (영역별 인지 스냅샷, `main` 반영 · PR [#90](https://github.com/memeboomemeboo/haemi-server-v2/pull/90)) |
 | `elder/attendance` | `AttendanceRecorded` | `guardian/report` (출석·참여 스냅샷, 구현) |
 | `elder/response` | `ElderResponded` | `platform/notification` |
 | `guardian/dailycare` | `GreetingSent` | `elder/inbox`, `platform/notification` |

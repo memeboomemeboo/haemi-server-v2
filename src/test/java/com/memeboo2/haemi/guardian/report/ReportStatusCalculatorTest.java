@@ -9,7 +9,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class ReportStatusCalculatorTest {
 
-    private final ReportStatusCalculator calculator = new ReportStatusCalculator(new ReportProperties(5, 3, 7, 4));
+    private final ReportStatusCalculator calculator = new ReportStatusCalculator(
+            new ReportProperties(5, 3, 7, 4, 70, 40, 7, 4));
 
     @Test
     void 주5일_이상이면_GOOD() {

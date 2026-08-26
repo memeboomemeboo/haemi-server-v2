@@ -2,6 +2,10 @@
 
 > 작성일: 2026-08-25 / 작성자 세션에서 정리. 새 채팅 세션은 이 문서만 읽고 바로 이어서 작업 가능하도록 구성.
 > 이 문서는 임시 작업 메모입니다. `docs/v2-*.md`(공식 스펙)와는 별개이며, 실제 근거는 항상 아래 "근거 문서" 절의 원본을 확인할 것.
+>
+> **2026-08-26 정정:** 이 문서의 13개 이슈 라운드는 완료됐다. RPT-ATT-004~006은 후속 PR
+> [#90](https://github.com/memeboomemeboo/haemi-server-v2/pull/90)으로 `main`에 병합됐다. 새 작업은 이 문서의
+> 순서표가 아니라 [v2-backlog.md](./v2-backlog.md)와 GitHub 이슈를 기준으로 시작한다.
 
 ## 0. 담당자 / 저장소
 
@@ -67,7 +71,7 @@
 
 ### 5구간 · 출석·리포트 — 분량 가장 큼, 신규 모듈, 마지막에 독립 집중
 
-| 13 | [#24](https://github.com/memeboomemeboo/haemi-server-v2/issues/24) `elder/attendance` 실구현 + `guardian/report` 신규 모듈 | 완료 (PR [#50](https://github.com/memeboomemeboo/haemi-server-v2/pull/50)) | RPT-LST-001/002 + RPT-ATT-003 구현. RPT-ATT-004/005/006은 후속 구현으로 리뷰 중 (아래 "3. #24 상세" 참조) |
+| 13 | [#24](https://github.com/memeboomemeboo/haemi-server-v2/issues/24) `elder/attendance` 실구현 + `guardian/report` 신규 모듈 | 완료 (PR [#50](https://github.com/memeboomemeboo/haemi-server-v2/pull/50)) | RPT-LST-001/002 + RPT-ATT-003 구현. 후속 RPT-ATT-004/005/006도 PR [#90](https://github.com/memeboomemeboo/haemi-server-v2/pull/90)으로 완료 |
 
 ## 3. #24 상세 (완료 — PR #50)
 
@@ -76,15 +80,15 @@
 - **elder/attendance**: `DailyParticipation`(출석의 유일한 원천) 완성. `TrainingSessionCompleted` 이벤트를 원자적으로 멱등 소비해 기록 → `AttendanceRecorded` 발행하는 리스너, `AttendanceQueryStub`를 대체하는 `AttendanceQueryImpl` 모두 완료. 스트릭은 최신 참여일을 내림차순으로 읽다가 첫 공백에서 멈추며, 자정 미완료 시 즉시 0으로 리셋된다.
   - **`elder/training` 발행처**: PR [#37](https://github.com/memeboomemeboo/haemi-server-v2/pull/37)의 `TrainingSessionService`가 10번째 문항 완료 시 `TrainingSessionCompleted`를 발행한다. 기존의 세션 없는 임시 완료 경로와 컨트롤러는 제거하며, 출석·리포트 소비자는 그대로 유지한다.
 - **guardian/report**: 신규 구현 완료. `ReportParticipation` 스냅샷(원천 테이블 직접 조회 금지 원칙 준수), 3색 상태(D11/D12: 수치 미노출, 참여 게이지)를 조회 시 계산. 구현한 엔드포인트: `GET /report/elders`(RPT-LST-001), `GET /elders/{elderId}/report/summary`(RPT-LST-002), `GET /elders/{elderId}/report/attendance`(RPT-ATT-003).
-  - **RPT-ATT-004~006**은 후속 작업으로 구현되어 리뷰 중이다. CIST 완료 시 `CognitiveTrainingCompleted`가 영역별 자동채점 집계를 별도 스냅샷으로 전달하며, 리포트는 훈련 원천 테이블을 직접 읽지 않는다.
+  - **RPT-ATT-004~006**은 후속 PR [#90](https://github.com/memeboomemeboo/haemi-server-v2/pull/90)으로 `main`에 병합됐다. CIST 완료 시 `CognitiveTrainingCompleted`가 영역별 자동채점 집계를 별도 스냅샷으로 전달하며, 리포트는 훈련 원천 테이블을 직접 읽지 않는다.
   - **RPT-ATT-005**는 `platform/ai` 문구 생성 포트와 결정적 안전 fallback을 사용한다. 외부 모델 어댑터는 모델·자격증명·실패 정책 확정 후 추가한다.
   - RPT-LST-001/002의 "종합상태" 배지는 RPT-COG-004(→RPT-ATT-004)가 아니라 **D11 정책에 따라 RPT-ATT-003(참여 빈도) 기준으로 산출** — 인지 데이터 의존을 피할 수 있는 유일한 방법이라 이렇게 결정.
 - 참고: `RPT-SUM-002`, `RPT-COG-004`는 기능명세서에 없는 ID → [부록 B](./v2-functional-spec.md#부록-b-명세-결손-목록) 참조, 각각 `RPT-LST-002`·`RPT-ATT-004`로 해석.
 - 근거: [기능명세서 §4.5](./v2-functional-spec.md), [인가 R7](./v2-authorization.md)
 
-### 다음 세션에 남는 것
+### 후속 운영 항목
 
-RPT-ATT-004~006은 구현 완료 후 리뷰 중이다. 남은 운영 결정은 RPT-ATT-005의 외부 AI 모델·자격증명·실패 정책이며, CIST-TRN-003/004의 큐레이션 콘텐츠 500건 원본도 적재가 필요하다.
+RPT-ATT-004~006은 병합 완료다. 외부 모델을 하이라이트에 연결할지와 그 자격증명·실패 정책은 기능 완료와 별개의 운영 확장이다. CIST-TRN-003/004의 큐레이션 콘텐츠 500건 원본 적재도 필요하다.
 
 ## 4. 진행 중 유의사항
 
@@ -94,7 +98,6 @@ RPT-ATT-004~006은 구현 완료 후 리뷰 중이다. 남은 운영 결정은 R
 
 ## 5. 새 세션에서 시작하는 법
 
-1. 이 문서(`docs/handoff-issue-triage.md`)를 먼저 읽는다.
-2. "2. 작업 순서" 표에서 상태가 `시작 전`인 가장 앞 항목부터 진행한다.
-3. 이슈 본문 원문은 `gh issue view <번호>`로 확인한다.
-4. 작업 완료 후 이 문서의 상태 컬럼을 갱신한다.
+1. [v2-backlog.md](./v2-backlog.md)에서 현재 기능 상태를 읽는다.
+2. GitHub 이슈 본문은 `gh issue view <번호>`로 확인한다.
+3. 제품 결정이 필요한 경우 [v2-open-questions-for-product.md](./v2-open-questions-for-product.md)를 갱신하고, 확정 전에는 구현 범위를 넓히지 않는다.

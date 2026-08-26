@@ -14,6 +14,7 @@ import com.memeboo2.haemi.guardian.report.api.CognitiveStatusQuery.CognitiveStat
 import com.memeboo2.haemi.guardian.report.application.GetSupportGuideUseCase;
 import com.memeboo2.haemi.guardian.report.application.ReportProperties;
 import com.memeboo2.haemi.guardian.report.application.SupportGuideAction;
+import com.memeboo2.haemi.guardian.report.application.WeeklyParticipationDaysCounter;
 import com.memeboo2.haemi.guardian.report.domain.ReportParticipation;
 import com.memeboo2.haemi.guardian.report.infrastructure.ReportParticipationRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -47,12 +48,15 @@ class GetSupportGuideUseCaseTest {
     private final UUID elderId = UUID.randomUUID();
     private final LocalDate today = LocalDate.of(2026, 8, 26);
     private GetSupportGuideUseCase useCase;
+    private ReportProperties reportProperties;
 
     @BeforeEach
     void setUp() {
+        reportProperties = new ReportProperties(5, 3, 7, 4, 70, 40, 7, 4);
         useCase = new GetSupportGuideUseCase(
-                careAccessQuery, elderRepository, participationRepository,
-                new ReportProperties(5, 3, 7, 4), cognitiveStatusQuery, clock
+                careAccessQuery, elderRepository,
+                new WeeklyParticipationDaysCounter(participationRepository, reportProperties),
+                reportProperties, cognitiveStatusQuery, clock
         );
     }
 
@@ -145,6 +149,55 @@ class GetSupportGuideUseCaseTest {
                 area(CognitiveArea.RECALL, CognitiveStatus.GOOD),
                 area(CognitiveArea.LANGUAGE, CognitiveStatus.GOOD),
                 area(CognitiveArea.DELAYED_RECALL, CognitiveStatus.NOT_AVAILABLE)
+        ));
+
+        var guide = useCase.execute(guardianId, elderId);
+
+        assertThat(guide.suggestions()).isEmpty();
+    }
+
+    @Test
+    void 같은날의_중복_참여는_하나의_참여일로_계산해_하루한마디를_제안한다() {
+        stubAccessibleElder();
+        given(participationRepository.findByElderIdAndParticipationDateGreaterThanEqual(elderId, today.minusDays(6)))
+                .willReturn(List.of(
+                        ReportParticipation.of(elderId, today),
+                        ReportParticipation.of(elderId, today),
+                        ReportParticipation.of(elderId, today.minusDays(1)),
+                        ReportParticipation.of(elderId, today.minusDays(1))
+                ));
+        given(cognitiveStatusQuery.cognitiveStatus(guardianId, elderId)).willReturn(status(
+                area(CognitiveArea.ORIENTATION, CognitiveStatus.NORMAL),
+                area(CognitiveArea.RECALL, CognitiveStatus.NORMAL),
+                area(CognitiveArea.LANGUAGE, CognitiveStatus.NORMAL),
+                area(CognitiveArea.DELAYED_RECALL, CognitiveStatus.NORMAL)
+        ));
+
+        var guide = useCase.execute(guardianId, elderId);
+
+        assertThat(guide.suggestions()).extracting(GetSupportGuideUseCase.Suggestion::action)
+                .containsExactly(SupportGuideAction.SEND_DAILY_CARE);
+    }
+
+    @Test
+    void 하루한마디_제안_기준은_normalThresholdDays_설정을_따른다() {
+        reportProperties = new ReportProperties(5, 2, 7, 4, 70, 40, 7, 4);
+        useCase = new GetSupportGuideUseCase(
+                careAccessQuery, elderRepository,
+                new WeeklyParticipationDaysCounter(participationRepository, reportProperties),
+                reportProperties, cognitiveStatusQuery, clock
+        );
+        stubAccessibleElder();
+        given(participationRepository.findByElderIdAndParticipationDateGreaterThanEqual(elderId, today.minusDays(6)))
+                .willReturn(List.of(
+                        ReportParticipation.of(elderId, today),
+                        ReportParticipation.of(elderId, today.minusDays(1))
+                ));
+        given(cognitiveStatusQuery.cognitiveStatus(guardianId, elderId)).willReturn(status(
+                area(CognitiveArea.ORIENTATION, CognitiveStatus.NORMAL),
+                area(CognitiveArea.RECALL, CognitiveStatus.NORMAL),
+                area(CognitiveArea.LANGUAGE, CognitiveStatus.NORMAL),
+                area(CognitiveArea.DELAYED_RECALL, CognitiveStatus.NORMAL)
         ));
 
         var guide = useCase.execute(guardianId, elderId);
