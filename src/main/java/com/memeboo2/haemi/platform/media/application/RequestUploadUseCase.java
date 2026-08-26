@@ -38,16 +38,17 @@ public class RequestUploadUseCase {
                           long declaredSizeBytes, Integer declaredDurationSeconds, String contentHash) {
         validate(mediaType, contentType, declaredSizeBytes, declaredDurationSeconds);
 
+        // 해시를 한 번만 정규화한다(소문자, 공백/빈값은 null).
+        String normalizedHash = (contentHash == null || contentHash.isBlank()) ? null : contentHash.toLowerCase();
+
         // SHA-256 중복 방지: 동일 업로더가 이미 확정한 동일 해시 객체가 있으면 재사용한다.
-        if (contentHash != null && !contentHash.isBlank()) {
-            String normalizedHash = contentHash.toLowerCase();
+        if (normalizedHash != null) {
             Optional<MediaRef> existing = repository.findFirstByUploaderIdAndContentHashAndStatus(
                     uploaderId, normalizedHash, UploadStatus.CONFIRMED);
             if (existing.isPresent()) {
                 MediaRef reused = existing.get();
                 return Result.duplicate(reused.getId(), storage.generateServingUrl(reused.getStorageKey()));
             }
-            contentHash = normalizedHash;
         }
 
         String storageKey = storage.buildStorageKey(mediaType, originalFilename);
@@ -61,7 +62,7 @@ public class RequestUploadUseCase {
 
         MediaRef ref = MediaRef.pending(mediaType, storageKey, originalFilename, contentType,
                 declaredSizeBytes, declaredDurationSeconds, uploaderId, expiresAt, retainUntil,
-                contentHash != null && contentHash.isBlank() ? null : contentHash);
+                normalizedHash);
         repository.save(ref);
 
         return new Result(ref.getId(), presignedUrl, expiresAt, false, null);

@@ -65,6 +65,11 @@ class LocalStorageAdapter implements StoragePort {
                 .orElse(null));
     }
 
+    @Override
+    public void deleteObject(String storageKey) {
+        objectStorage.remove(storageKey);
+    }
+
     private String extractExtension(String filename) {
         int dot = filename.lastIndexOf('.');
         return dot >= 0 ? filename.substring(dot) : "";
