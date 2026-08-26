@@ -167,7 +167,7 @@ elder ──────────▶ guardian ──────▶ auth ─�
 | # | 규칙 |
 | --- | --- |
 | 1 | 그룹 간 호출은 **`api` 패키지를 통해서만**. `domain`·`infrastructure` 직접 import 금지 |
-| 2 | 역방향(`elder` → `guardian`)은 **도메인 이벤트로만**. 현재 `TrainingSessionCompleted`는 출석 모듈에 일자별 완료 사실을, `AttendanceRecorded`는 출석·참여 결과를 `guardian/report`에 전달 |
+| 2 | 역방향(`elder` → `guardian`)은 **도메인 이벤트로만**. `TrainingSessionCompleted`는 출석 모듈에 일자별 완료 사실을, `CognitiveTrainingCompleted`는 `guardian/report`에 영역별 집계 스냅샷을, `AttendanceRecorded`는 출석·참여 결과를 전달 |
 | 3 | 엔티티를 그룹 밖으로 넘기지 않음. **ID와 DTO만** |
 | 4 | `common`에 **엔티티 금지** |
 | 5 | 트랜잭션 경계는 `application`. `domain`·`presentation`에 `@Transactional` 금지 |
@@ -188,6 +188,7 @@ elder ──────────▶ guardian ──────▶ auth ─�
 | 발행 | 이벤트 | 구독 |
 | --- | --- | --- |
 | `elder/training` | `TrainingSessionCompleted` | `elder/attendance` (출석 기록, 구현) |
+| `elder/training` | `CognitiveTrainingCompleted` | `guardian/report` (영역별 인지 스냅샷, 리뷰 중) |
 | `elder/attendance` | `AttendanceRecorded` | `guardian/report` (출석·참여 스냅샷, 구현) |
 | `elder/response` | `ElderResponded` | `platform/notification` |
 | `guardian/dailycare` | `GreetingSent` | `elder/inbox`, `platform/notification` |
@@ -239,7 +240,7 @@ elder ──────────▶ guardian ──────▶ auth ─�
 - **ACC-REG-002 어르신 회원가입** — `guardian/eldermanagement`가 `auth/api/AccountCommand`에 User 생성을 요청하고, 반환받은 ID로 `GuardianElderLink`를 맺습니다. 가입 플로우 문서의 *"보호자 계정 아래에 종속시키지 않는다"* 를 지키는 순서입니다. 반대로 하면 종속 구조가 됩니다.
 - **CIST-TRN-003/004** — 소스 우선순위(추억앨범 → 큐레이션)의 판단 주체는 `elder/training`입니다. `guardian/api/MemoryQuery`와 `platform/content`를 순서대로 조회합니다.
 - **RPT-ATT-003** — `guardian/report`는 `elder/attendance`가 발행한 `AttendanceRecorded`만 받아 참여일 읽기 모델을 쌓습니다. 따라서 최근 7일의 ●/○, 최근 4주 막대, 스트릭·최고 기록은 출석 데이터에서만 만듭니다.
-- **RPT-ATT-004** — `guardian/report`는 `elder/training`의 테이블을 직접 조회하지 않습니다. 현재 `TrainingSessionCompleted`는 어르신 ID와 완료 일자만 담으므로, 영역별 리포트가 시작될 때는 전용 인지 스냅샷 계약을 추가합니다.
+- **RPT-ATT-004** — `guardian/report`는 `elder/training`의 테이블을 직접 조회하지 않습니다. `CognitiveTrainingCompleted`가 세션별 영역 집계만 전달하고, `guardian_report_cognitive_results` 읽기 모델이 최근 7일·4주 추세를 조회 시 계산합니다.
 
 ---
 

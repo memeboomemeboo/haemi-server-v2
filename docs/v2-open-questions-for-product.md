@@ -70,4 +70,4 @@
 - ✅ **본인 인증 수단을 SMS → 이메일로 전환** — 완료 (SMS 발송 경로는 제거)
 - ✅ **초대 코드 발급·합류** — 완료
 - ✅ **가족 세부 조회 API** — 완료
-- ✅ **출석 집계** — PR [#37](https://github.com/memeboomemeboo/haemi-server-v2/pull/37)의 10문항 CIST 세션 완료 → 출석 집계 → 리포트 참여 스냅샷 적재 경로를 사용합니다. 출석 이벤트에는 일자별 참여 사실만 담기며, 영역별 인지 결과 스냅샷은 별도 후속 범위입니다.
+- ✅ **출석·인지 리포트 데이터 경로** — PR [#37](https://github.com/memeboomemeboo/haemi-server-v2/pull/37)의 10문항 CIST 세션 완료는 출석 집계·리포트 참여 스냅샷을 만들고, 별도 `CognitiveTrainingCompleted` 이벤트는 영역별 인지 스냅샷을 적재합니다. 정답률·점수는 외부 응답에 노출하지 않습니다.

@@ -1,7 +1,7 @@
 # 보호자 ↔ 보호자 권한 — 백엔드 현황 및 확정 사항
 
 > 조사일: 2026-08-24 · 브랜치 `feat/hjb-cist-rpt`
-> 근거: [v2-authorization.md](./v2-authorization.md) · [v2-funcctional-spec.md](./v2-funcctional-spec.md)
+> 근거: [v2-authorization.md](./v2-authorization.md) · [v2-functional-spec.md](./v2-functional-spec.md)
 > 목적: 같은 가족 내 **어르신이 아닌 보호자들 사이**의 제한이 실제 코드에 어떻게 구현되어 있는지 확인하고,
 > 확정된 정책과 프론트 개발 전에 해결해야 할 항목을 한곳에 모은다.
 >

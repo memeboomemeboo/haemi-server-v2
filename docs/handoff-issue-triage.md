@@ -16,7 +16,7 @@
 | 문서 | 용도 |
 | --- | --- |
 | [v2-work-assignment.md](./v2-work-assignment.md) | 파일 소유권(§1.3), Flyway 대역(§1.4), DoD(§1.8) |
-| [v2-funcctional-spec.md](./v2-funcctional-spec.md) | 기능 요구사항 수치·문구의 유일한 출처 |
+| [v2-functional-spec.md](./v2-functional-spec.md) | 기능 요구사항 수치·문구의 유일한 출처 |
 | [v2-module-architecture.md](./v2-module-architecture.md) | 패키지 위치, 의존 방향 |
 | [v2-architecture.md](./v2-architecture.md) | 시간·영속성·이벤트·API 규약 |
 | [v2-authorization.md](./v2-authorization.md) | 인가 규칙 (R1~R9 등) — 여기 없는 인가 판단은 구현 금지 |
@@ -67,7 +67,7 @@
 
 ### 5구간 · 출석·리포트 — 분량 가장 큼, 신규 모듈, 마지막에 독립 집중
 
-| 13 | [#24](https://github.com/memeboomemeboo/haemi-server-v2/issues/24) `elder/attendance` 실구현 + `guardian/report` 신규 모듈 | 완료 (PR [#50](https://github.com/memeboomemeboo/haemi-server-v2/pull/50)) | RPT-LST-001/002 + RPT-ATT-003 구현. **RPT-ATT-004/005/006은 elder/training·platform/ai 미구현으로 이번 범위에서 제외 — 별도 이슈 필요** (아래 "3. #24 상세" 참조) |
+| 13 | [#24](https://github.com/memeboomemeboo/haemi-server-v2/issues/24) `elder/attendance` 실구현 + `guardian/report` 신규 모듈 | 완료 (PR [#50](https://github.com/memeboomemeboo/haemi-server-v2/pull/50)) | RPT-LST-001/002 + RPT-ATT-003 구현. RPT-ATT-004/005/006은 후속 구현으로 리뷰 중 (아래 "3. #24 상세" 참조) |
 
 ## 3. #24 상세 (완료 — PR #50)
 
@@ -76,15 +76,15 @@
 - **elder/attendance**: `DailyParticipation`(출석의 유일한 원천) 완성. `TrainingSessionCompleted` 이벤트를 원자적으로 멱등 소비해 기록 → `AttendanceRecorded` 발행하는 리스너, `AttendanceQueryStub`를 대체하는 `AttendanceQueryImpl` 모두 완료. 스트릭은 최신 참여일을 내림차순으로 읽다가 첫 공백에서 멈추며, 자정 미완료 시 즉시 0으로 리셋된다.
   - **`elder/training` 발행처**: PR [#37](https://github.com/memeboomemeboo/haemi-server-v2/pull/37)의 `TrainingSessionService`가 10번째 문항 완료 시 `TrainingSessionCompleted`를 발행한다. 기존의 세션 없는 임시 완료 경로와 컨트롤러는 제거하며, 출석·리포트 소비자는 그대로 유지한다.
 - **guardian/report**: 신규 구현 완료. `ReportParticipation` 스냅샷(원천 테이블 직접 조회 금지 원칙 준수), 3색 상태(D11/D12: 수치 미노출, 참여 게이지)를 조회 시 계산. 구현한 엔드포인트: `GET /report/elders`(RPT-LST-001), `GET /elders/{elderId}/report/summary`(RPT-LST-002), `GET /elders/{elderId}/report/attendance`(RPT-ATT-003).
-  - ❌ **RPT-ATT-004(인지 영역별 상태)는 구현하지 않음** — 지남력/회상/언어/지연회상 영역별 정답률이 필요한데 `elder/training`에 CIST 데이터가 전혀 없어 구현 불가능. `elder/training` 구현이 선행돼야 하는 **별도 이슈**.
-  - ❌ **RPT-ATT-005(하이라이트)·006(서포트 가이드)도 제외** — `platform/ai` 미구현 + RPT-ATT-004 의존.
+  - **RPT-ATT-004~006**은 후속 작업으로 구현되어 리뷰 중이다. CIST 완료 시 `CognitiveTrainingCompleted`가 영역별 자동채점 집계를 별도 스냅샷으로 전달하며, 리포트는 훈련 원천 테이블을 직접 읽지 않는다.
+  - **RPT-ATT-005**는 `platform/ai` 문구 생성 포트와 결정적 안전 fallback을 사용한다. 외부 모델 어댑터는 모델·자격증명·실패 정책 확정 후 추가한다.
   - RPT-LST-001/002의 "종합상태" 배지는 RPT-COG-004(→RPT-ATT-004)가 아니라 **D11 정책에 따라 RPT-ATT-003(참여 빈도) 기준으로 산출** — 인지 데이터 의존을 피할 수 있는 유일한 방법이라 이렇게 결정.
 - 참고: `RPT-SUM-002`, `RPT-COG-004`는 기능명세서에 없는 ID → [부록 B](./v2-functional-spec.md#부록-b-명세-결손-목록) 참조, 각각 `RPT-LST-002`·`RPT-ATT-004`로 해석.
-- 근거: [기능명세서 §4.5](./v2-funcctional-spec.md), [인가 R7](./v2-authorization.md)
+- 근거: [기능명세서 §4.5](./v2-functional-spec.md), [인가 R7](./v2-authorization.md)
 
-### 다음 세션에 남는 것 (elder/training 신규 이슈 필요)
+### 다음 세션에 남는 것
 
-RPT-ATT-004(인지 영역별 상태)·RPT-ATT-005·006은 여전히 별도 이슈다. 현재 `TrainingSessionCompleted`는 출석용 일자만 전달하므로, 영역별 리포트에는 별도 인지 스냅샷 계약이 필요하다. 명세 §3.1 CIST-TRN-001~006 참조.
+RPT-ATT-004~006은 구현 완료 후 리뷰 중이다. 남은 운영 결정은 RPT-ATT-005의 외부 AI 모델·자격증명·실패 정책이며, CIST-TRN-003/004의 큐레이션 콘텐츠 500건 원본도 적재가 필요하다.
 
 ## 4. 진행 중 유의사항
 
