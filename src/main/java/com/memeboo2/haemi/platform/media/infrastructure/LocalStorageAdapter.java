@@ -52,6 +52,19 @@ class LocalStorageAdapter implements StoragePort {
                         object.durationSeconds()));
     }
 
+    @Override
+    public java.util.Optional<StoredContent> getObject(String storageKey) {
+        return objectStorage.get(storageKey)
+                .map(object -> new StoredContent(object.contentType(), object.content()));
+    }
+
+    @Override
+    public void putObject(String storageKey, String contentType, byte[] content) {
+        objectStorage.put(storageKey, contentType, content, objectStorage.get(storageKey)
+                .map(LocalObjectStorage.StoredObject::durationSeconds)
+                .orElse(null));
+    }
+
     private String extractExtension(String filename) {
         int dot = filename.lastIndexOf('.');
         return dot >= 0 ? filename.substring(dot) : "";
