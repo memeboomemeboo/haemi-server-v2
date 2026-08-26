@@ -119,5 +119,18 @@ jobs:
             # 명명된 볼륨(DB 데이터)은 down으로 삭제되지 않으므로 데이터는 보존된다.
             docker compose down --remove-orphans || true
             docker compose up -d --no-build --wait --remove-orphans
-            curl --fail --retry 12 --retry-connrefused --retry-delay 2 "http://127.0.0.1:${APP_PORT}/actuator/health"
+            # 앱 기동(Spring Boot + Flyway) 대기 후 헬스체크.
+            # docker-proxy는 앱 기동 전에도 연결을 수락 후 리셋하므로(curl exit 56)
+            # --retry-connrefused로는 부족하다. 모든 오류를 재시도하는 루프로 확인한다.
+            ok=""
+            for i in $(seq 1 30); do
+              if curl --fail -s "http://127.0.0.1:${APP_PORT}/actuator/health" >/dev/null; then ok=1; break; fi
+              sleep 5
+            done
+            if [ -z "$ok" ]; then
+              echo "Health check failed after ~150s; recent app logs:"
+              docker compose logs --tail=80 app || true
+              exit 1
+            fi
+            echo "Health check passed."
             docker image prune -f
