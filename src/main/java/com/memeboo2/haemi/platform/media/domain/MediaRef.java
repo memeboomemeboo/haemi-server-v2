@@ -56,6 +56,10 @@ public class MediaRef extends BaseEntity {
     @Column
     private Instant retainUntil;
 
+    /** 클라이언트가 계산한 SHA-256(hex 64자). 동일 업로더 중복 업로드 방지용. null = 미제공. */
+    @Column(name = "content_hash", length = 64)
+    private String contentHash;
+
     public static MediaRef pending(
             MediaType mediaType,
             String storageKey,
@@ -65,7 +69,8 @@ public class MediaRef extends BaseEntity {
             Integer declaredDurationSeconds,
             UUID uploaderId,
             Instant presignedUrlExpiresAt,
-            Instant retainUntil) {
+            Instant retainUntil,
+            String contentHash) {
 
         MediaRef ref = new MediaRef();
         ref.mediaType = mediaType;
@@ -78,6 +83,7 @@ public class MediaRef extends BaseEntity {
         ref.uploaderId = uploaderId;
         ref.presignedUrlExpiresAt = presignedUrlExpiresAt;
         ref.retainUntil = retainUntil;
+        ref.contentHash = contentHash;
         return ref;
     }
 
