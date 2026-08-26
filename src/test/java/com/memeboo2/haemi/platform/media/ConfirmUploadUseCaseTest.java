@@ -166,6 +166,34 @@ class ConfirmUploadUseCaseTest {
         assertThat(ref.getStorageKey()).isEqualTo("memory_image/key.jpg");
         assertThat(ref.getDeclaredSizeBytes()).isEqualTo(4L);
         org.mockito.Mockito.verify(storage).putObject("memory_image/key.jpg", "image/jpeg", new byte[]{10, 20, 30, 40});
+        // 변환 후 원본 HEIC 객체는 정리된다.
+        org.mockito.Mockito.verify(storage).deleteObject("memory_image/key.heic");
         assertThat(ref.getStatus()).isEqualTo(UploadStatus.CONFIRMED);
+    }
+
+    @Test
+    void HEIC_변환_실패시_확정되지_않고_PENDING으로_남는다() {
+        UUID actorId = UUID.randomUUID();
+        UUID refId = UUID.randomUUID();
+        MediaRef ref = MediaRef.pending(MediaType.MEMORY_IMAGE, "memory_image/key.heic", "photo.heic",
+                "image/heic", 2_000L, null, actorId, EXPIRY, NOW.plusSeconds(86400L * 365), null);
+
+        given(repository.findById(refId)).willReturn(Optional.of(ref));
+        given(storage.headObject("memory_image/key.heic")).willReturn(Optional.of(
+                new StoragePort.ObjectMetadata("image/heic", 2_000L)));
+        given(storage.getObject("memory_image/key.heic")).willReturn(Optional.of(
+                new StoragePort.StoredContent("image/heic", new byte[]{1, 2, 3})));
+        given(heicConverter.toJpeg(any()))
+                .willThrow(new DomainException(ErrorCode.MEDIA_CONVERSION_FAILED));
+
+        assertThatThrownBy(() -> useCase.confirmUpload(actorId, refId))
+                .isInstanceOf(DomainException.class)
+                .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
+                        .isEqualTo(ErrorCode.MEDIA_CONVERSION_FAILED));
+
+        // 변환 실패 → 상태 전이 없음, 스토리지 키 원본 유지, 정리도 없음.
+        assertThat(ref.getStatus()).isEqualTo(UploadStatus.PENDING);
+        assertThat(ref.getStorageKey()).isEqualTo("memory_image/key.heic");
+        org.mockito.Mockito.verify(storage, org.mockito.Mockito.never()).deleteObject(any());
     }
 }

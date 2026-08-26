@@ -30,7 +30,9 @@ class GeminiTextGenerator implements AiTextGenerator {
                 "contents", List.of(Map.of("parts", List.of(Map.of("text", prompt)))));
         try {
             Map<?, ?> response = restClient.post()
-                    .uri("/models/{model}:generateContent?key={key}", props.model(), props.apiKey())
+                    .uri("/models/{model}:generateContent", props.model())
+                    // API 키는 URL 쿼리(로그 노출 위험) 대신 헤더로 전달한다.
+                    .header("x-goog-api-key", props.apiKey())
                     .body(body)
                     .retrieve()
                     .body(Map.class);

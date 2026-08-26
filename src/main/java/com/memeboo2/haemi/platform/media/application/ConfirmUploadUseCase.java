@@ -20,6 +20,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ConfirmUploadUseCase implements MediaUploadCommand {
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(ConfirmUploadUseCase.class);
     private static final java.util.Set<String> HEIC_CONTENT_TYPES = java.util.Set.of("image/heic", "image/heif");
 
     private final MediaRefRepository repository;
@@ -74,10 +75,25 @@ public class ConfirmUploadUseCase implements MediaUploadCommand {
             }
         }
 
+        // HEIC 변환은 confirm(상태 전이) 이전에 수행한다.
+        // 변환 실패 시 ref를 mutate하기 전에 예외를 던지므로 상태는 PENDING으로 남는다
+        // (noRollbackFor=DomainException이라 커밋되더라도 변경분이 없어 안전).
+        String originalKeyToPurge = null;
+        if (isHeicImage(ref)) {
+            originalKeyToPurge = ref.getStorageKey();
+            convertHeicToJpeg(ref);
+        }
+
         ref.confirm(clock.now());
 
-        if (isHeicImage(ref)) {
-            convertHeicToJpeg(ref);
+        // confirm 성공 후에만 원본 HEIC 객체를 정리한다(고아 객체 방지). 실패해도 서빙에는 영향 없음.
+        if (originalKeyToPurge != null) {
+            try {
+                storage.deleteObject(originalKeyToPurge);
+            } catch (RuntimeException e) {
+                // best-effort 정리 — 실패는 로깅만 하고 확정 결과를 막지 않는다.
+                log.warn("HEIC 원본 정리 실패(고아 객체 가능): key={}, cause={}", originalKeyToPurge, e.toString());
+            }
         }
 
         return storage.generateServingUrl(ref.getStorageKey());

@@ -36,13 +36,20 @@ public class ProcessHeicImageConverter implements HeicImageConverter {
         }
         Path in = null;
         Path out = null;
+        Path procLog = null;
         try {
             in = Files.createTempFile("haemi-heic-", ".heic");
             out = Files.createTempFile("haemi-heic-", ".jpg");
+            // 프로세스의 stdout/stderr를 파일로 리다이렉트한다. 파이프를 쓰지 않으므로
+            // 출력이 많아도 버퍼가 차서 블록되는 일이 없다(waitFor 타임아웃 정상 동작).
+            procLog = Files.createTempFile("haemi-heic-", ".log");
             Files.write(in, heic);
 
             List<String> command = List.of(props.command(), in.toString(), out.toString());
-            Process process = new ProcessBuilder(command).redirectErrorStream(true).start();
+            Process process = new ProcessBuilder(command)
+                    .redirectErrorStream(true)
+                    .redirectOutput(procLog.toFile())
+                    .start();
 
             boolean finished = process.waitFor(props.timeout().toMillis(), TimeUnit.MILLISECONDS);
             if (!finished) {
@@ -50,8 +57,7 @@ public class ProcessHeicImageConverter implements HeicImageConverter {
                 throw new DomainException(ErrorCode.MEDIA_CONVERSION_FAILED, "HEIC 변환이 시간 초과되었습니다.");
             }
             if (process.exitValue() != 0) {
-                String output = new String(process.getInputStream().readAllBytes());
-                log.warn("HEIC 변환 실패 exit={} output={}", process.exitValue(), output);
+                log.warn("HEIC 변환 실패 exit={} output={}", process.exitValue(), readTail(procLog));
                 throw new DomainException(ErrorCode.MEDIA_CONVERSION_FAILED, "HEIC 변환에 실패했습니다.");
             }
             byte[] jpeg = Files.readAllBytes(out);
@@ -67,6 +73,16 @@ public class ProcessHeicImageConverter implements HeicImageConverter {
         } finally {
             deleteQuietly(in);
             deleteQuietly(out);
+            deleteQuietly(procLog);
+        }
+    }
+
+    private String readTail(Path procLog) {
+        try {
+            String output = Files.readString(procLog);
+            return output.length() > 500 ? output.substring(output.length() - 500) : output;
+        } catch (IOException e) {
+            return "(출력 읽기 실패)";
         }
     }
 

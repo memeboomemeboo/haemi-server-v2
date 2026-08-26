@@ -121,6 +121,14 @@ class S3StorageAdapter implements StoragePort {
                 RequestBody.fromBytes(content));
     }
 
+    @Override
+    public void deleteObject(String storageKey) {
+        s3Client.deleteObject(software.amazon.awssdk.services.s3.model.DeleteObjectRequest.builder()
+                .bucket(props.bucket())
+                .key(storageKey)
+                .build());
+    }
+
     private Integer parseDuration(String raw) {
         if (raw == null || raw.isBlank()) {
             return null;
