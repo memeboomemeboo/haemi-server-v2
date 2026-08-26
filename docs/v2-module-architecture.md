@@ -240,7 +240,7 @@ elder ──────────▶ guardian ──────▶ auth ─�
 - **ACC-REG-002 어르신 회원가입** — `guardian/eldermanagement`가 `auth/api/AccountCommand`에 User 생성을 요청하고, 반환받은 ID로 `GuardianElderLink`를 맺습니다. 가입 플로우 문서의 *"보호자 계정 아래에 종속시키지 않는다"* 를 지키는 순서입니다. 반대로 하면 종속 구조가 됩니다.
 - **CIST-TRN-003/004** — 소스 우선순위(추억앨범 → 큐레이션)의 판단 주체는 `elder/training`입니다. `guardian/api/MemoryQuery`와 `platform/content`를 순서대로 조회합니다.
 - **RPT-ATT-003** — `guardian/report`는 `elder/attendance`가 발행한 `AttendanceRecorded`만 받아 참여일 읽기 모델을 쌓습니다. 따라서 최근 7일의 ●/○, 최근 4주 막대, 스트릭·최고 기록은 출석 데이터에서만 만듭니다.
-- **RPT-ATT-004** — `guardian/report`는 `elder/training`의 테이블을 직접 조회하지 않습니다. `CognitiveTrainingCompleted`가 세션별 영역 집계만 전달하고, `guardian_report_cognitive_results` 읽기 모델이 최근 7일·4주 추세를 조회 시 계산합니다.
+- **RPT-ATT-004** — `guardian/report`는 `elder/training`의 테이블을 직접 조회하지 않습니다. `CognitiveTrainingCompleted`가 세션별 영역 집계만 전달하고, `guardian_report_cognitive_results` 읽기 모델이 최근 7일·4주 추세를 조회 시 계산합니다. 4주 하락은 모든 주에 자동 채점 응답이 있고 정답률이 엄격히 낮아질 때만 성립하며, 결측·동률은 하락이 아닙니다.
 
 ---
 

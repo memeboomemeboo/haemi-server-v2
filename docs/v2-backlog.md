@@ -156,7 +156,7 @@
 | `RPT-LST-001` | 어르신 리포트 목록 | 김연호 | ✅ `main` 반영 | 100% | #50 | 접근 가능 어르신만, 🟠→🟡→🟢 정렬 |
 | `RPT-LST-002` | 어르신 요약 카드 | 김연호 | ✅ `main` 반영 | 100% | #50 | 연세·D+·출석·주간 참여·종합상태 |
 | `RPT-ATT-003` | 출석 및 참여 현황 | 김연호 | ✅ `main` 반영 | 100% | #50 | 최근 7일 + 4주, 스트릭 |
-| `RPT-ATT-004` | 인지 영역별 상태 | 김연호 | ✅ `main` 반영 | 100% | [#90](https://github.com/memeboomemeboo/haemi-server-v2/pull/90) | 70/40% 기준 + 4주 연속 하락, 전용 인지 스냅샷 |
+| `RPT-ATT-004` | 인지 영역별 상태 | 김연호 | ✅ `main` 반영 | 100% | [#90](https://github.com/memeboomemeboo/haemi-server-v2/pull/90) | 70/40% 기준 + 네 주 모두 자동 채점·엄격 하락일 때만 🟠, 전용 인지 스냅샷 |
 | `RPT-ATT-005` | 이번 주 하이라이트 | 김연호 | ✅ `main` 반영 | 100% | [#90](https://github.com/memeboomemeboo/haemi-server-v2/pull/90) | 1~3줄, 잘한 점 우선 · 결정적 안전 fallback |
 | `RPT-ATT-006` | 서포트 가이드 | 김연호 | ✅ `main` 반영 | 100% | [#90](https://github.com/memeboomemeboo/haemi-server-v2/pull/90) | 상태에 맞춰 기존 기능으로 행동 제안 |
 
