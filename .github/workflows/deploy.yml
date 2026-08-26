@@ -41,15 +41,75 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Deploy to EC2
+      - name: Prepare EC2 deployment directory
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_KEY }}
           script: |
+            set -e
+            sudo install -d -o "$(id -un)" -g "$(id -gn)" /opt/haemi
+
+      - name: Copy Docker Compose configuration
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_KEY }}
+          source: docker-compose.yml
+          target: /opt/haemi
+
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1
+        env:
+          APP_PORT: ${{ secrets.APP_PORT }}
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          ELDER_HEALTH_ENCRYPTION_KEY: ${{ secrets.ELDER_HEALTH_ENCRYPTION_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          MAIL_FROM: ${{ secrets.MAIL_FROM }}
+          MAIL_HOST: ${{ secrets.MAIL_HOST }}
+          MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
+          MAIL_PORT: ${{ secrets.MAIL_PORT }}
+          MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
+          POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+          SPRING_PROFILES_ACTIVE: ${{ secrets.SPRING_PROFILES_ACTIVE }}
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_KEY }}
+          envs: APP_PORT,EC2_HOST,ELDER_HEALTH_ENCRYPTION_KEY,GEMINI_API_KEY,JWT_SECRET,MAIL_FROM,MAIL_HOST,MAIL_PASSWORD,MAIL_PORT,MAIL_USERNAME,POSTGRES_DB,POSTGRES_PASSWORD,POSTGRES_USER,SPRING_PROFILES_ACTIVE,DOCKER_USERNAME,DOCKER_PASSWORD
+          script: |
+            set -e
             cd /opt/haemi
-            echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
-            docker pull ${{ secrets.DOCKER_USERNAME }}/haemi-server:latest
-            docker compose up -d --no-build app
+            umask 077
+            if [ -z "$APP_PORT" ]; then APP_PORT=8080; fi
+            APP_PUBLIC_URL="http://${EC2_HOST}:${APP_PORT}"
+            cat > .env <<EOF
+            SPRING_PROFILES_ACTIVE=$SPRING_PROFILES_ACTIVE
+            POSTGRES_DB=$POSTGRES_DB
+            POSTGRES_USER=$POSTGRES_USER
+            POSTGRES_PASSWORD=$POSTGRES_PASSWORD
+            APP_PORT=$APP_PORT
+            DOCKER_IMAGE=$DOCKER_USERNAME/haemi-server:latest
+            JWT_SECRET=$JWT_SECRET
+            ELDER_HEALTH_ENCRYPTION_KEY=$ELDER_HEALTH_ENCRYPTION_KEY
+            MAIL_HOST=$MAIL_HOST
+            MAIL_PORT=$MAIL_PORT
+            MAIL_USERNAME=$MAIL_USERNAME
+            MAIL_PASSWORD=$MAIL_PASSWORD
+            MAIL_FROM=$MAIL_FROM
+            APP_PUBLIC_URL=$APP_PUBLIC_URL
+            GEMINI_API_KEY=$GEMINI_API_KEY
+            API_DOCS_ENABLED=true
+            EOF
+            printf '%s' "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+            docker compose pull app
+            docker compose up -d --no-build --wait
+            curl --fail --retry 12 --retry-connrefused --retry-delay 2 "http://127.0.0.1:${APP_PORT}/actuator/health"
             docker image prune -f
