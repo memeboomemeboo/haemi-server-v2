@@ -20,10 +20,13 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ConfirmUploadUseCase implements MediaUploadCommand {
 
+    private static final java.util.Set<String> HEIC_CONTENT_TYPES = java.util.Set.of("image/heic", "image/heif");
+
     private final MediaRefRepository repository;
     private final StoragePort storage;
     private final HaemiClock clock;
     private final UploadPolicyProperties policy;
+    private final HeicImageConverter heicConverter;
 
     @Override
     @Transactional(noRollbackFor = DomainException.class)
@@ -73,10 +76,42 @@ public class ConfirmUploadUseCase implements MediaUploadCommand {
 
         ref.confirm(clock.now());
 
+        if (isHeicImage(ref)) {
+            convertHeicToJpeg(ref);
+        }
+
         return storage.generateServingUrl(ref.getStorageKey());
     }
 
     private boolean isVoice(MediaType mediaType) {
         return mediaType == MediaType.RESPONSE_VOICE || mediaType == MediaType.GREETING_VOICE;
+    }
+
+    private boolean isHeicImage(MediaRef ref) {
+        boolean image = ref.getMediaType() == MediaType.MEMORY_IMAGE
+                || ref.getMediaType() == MediaType.RESPONSE_IMAGE
+                || ref.getMediaType() == MediaType.PROFILE_IMAGE;
+        return image && HEIC_CONTENT_TYPES.contains(ref.getContentType().toLowerCase());
+    }
+
+    /** confirm 시 동기 변환: HEIC 원본을 읽어 JPEG로 변환·재저장하고 MediaRef를 갱신한다. */
+    private void convertHeicToJpeg(MediaRef ref) {
+        StoragePort.StoredContent original = storage.getObject(ref.getStorageKey())
+                .orElseThrow(() -> new DomainException(ErrorCode.MEDIA_CONVERSION_FAILED,
+                        "변환할 원본 이미지를 찾을 수 없습니다."));
+
+        byte[] jpeg = heicConverter.toJpeg(original.content());
+        String jpegKey = toJpegKey(ref.getStorageKey());
+        storage.putObject(jpegKey, "image/jpeg", jpeg);
+        ref.replaceStorage(jpegKey, "image/jpeg", jpeg.length);
+    }
+
+    private String toJpegKey(String storageKey) {
+        int dot = storageKey.lastIndexOf('.');
+        int slash = storageKey.lastIndexOf('/');
+        if (dot > slash) {
+            return storageKey.substring(0, dot) + ".jpg";
+        }
+        return storageKey + ".jpg";
     }
 }

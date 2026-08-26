@@ -35,6 +35,7 @@ class ConfirmUploadUseCaseTest {
     @Mock StoragePort storage;
     @Mock HaemiClock clock;
     @Mock UploadPolicyProperties policy;
+    @Mock com.memeboo2.haemi.platform.media.application.HeicImageConverter heicConverter;
     @InjectMocks ConfirmUploadUseCase useCase;
 
     static final Instant NOW    = Instant.parse("2026-08-23T00:00:00Z");
@@ -139,5 +140,32 @@ class ConfirmUploadUseCaseTest {
                 .isInstanceOf(DomainException.class)
                 .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
                         .isEqualTo(ErrorCode.INVALID_INPUT));
+    }
+
+    @Test
+    void HEIC_이미지는_확정시_JPEG로_변환_재저장된다() {
+        UUID actorId = UUID.randomUUID();
+        UUID refId = UUID.randomUUID();
+        MediaRef ref = MediaRef.pending(MediaType.MEMORY_IMAGE, "memory_image/key.heic", "photo.heic",
+                "image/heic", 2_000L, null, actorId, EXPIRY, NOW.plusSeconds(86400L * 365), null);
+
+        given(repository.findById(refId)).willReturn(Optional.of(ref));
+        given(clock.now()).willReturn(NOW);
+        given(storage.headObject("memory_image/key.heic")).willReturn(Optional.of(
+                new StoragePort.ObjectMetadata("image/heic", 2_000L)));
+        given(storage.getObject("memory_image/key.heic")).willReturn(Optional.of(
+                new StoragePort.StoredContent("image/heic", new byte[]{1, 2, 3})));
+        given(heicConverter.toJpeg(any())).willReturn(new byte[]{10, 20, 30, 40});
+        given(storage.generateServingUrl("memory_image/key.jpg"))
+                .willReturn(URI.create("http://localhost/serve/key.jpg"));
+
+        URI url = useCase.confirmUpload(actorId, refId);
+
+        assertThat(url).isEqualTo(URI.create("http://localhost/serve/key.jpg"));
+        assertThat(ref.getContentType()).isEqualTo("image/jpeg");
+        assertThat(ref.getStorageKey()).isEqualTo("memory_image/key.jpg");
+        assertThat(ref.getDeclaredSizeBytes()).isEqualTo(4L);
+        org.mockito.Mockito.verify(storage).putObject("memory_image/key.jpg", "image/jpeg", new byte[]{10, 20, 30, 40});
+        assertThat(ref.getStatus()).isEqualTo(UploadStatus.CONFIRMED);
     }
 }

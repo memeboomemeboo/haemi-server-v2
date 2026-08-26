@@ -104,4 +104,11 @@ public class MediaRef extends BaseEntity {
     public boolean isOwnedBy(UUID actorId) {
         return uploaderId.equals(actorId);
     }
+
+    /** 서버 변환(HEIC→JPEG 등) 후 저장 위치·타입·크기를 갱신한다. */
+    public void replaceStorage(String newStorageKey, String newContentType, long newSizeBytes) {
+        this.storageKey = newStorageKey;
+        this.contentType = newContentType;
+        this.declaredSizeBytes = newSizeBytes;
+    }
 }

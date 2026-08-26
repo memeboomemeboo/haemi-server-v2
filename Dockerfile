@@ -13,6 +13,9 @@ RUN ./gradlew bootJar --no-daemon -x test -q
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 
+# HEIC→JPEG 서버 변환용 네이티브 바이너리 (heif-convert = libheif-tools, magick = imagemagick)
+RUN apk add --no-cache libheif-tools imagemagick
+
 RUN addgroup -S haemi && adduser -S haemi -G haemi
 USER haemi
 
