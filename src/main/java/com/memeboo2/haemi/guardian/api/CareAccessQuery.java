@@ -24,4 +24,9 @@ public interface CareAccessQuery {
 
     /** 역할 라벨 (딸/아들/손녀 …). */
     GuardianRole roleOf(UUID guardianId, UUID elderId);
+
+    /** 정기 리포트 발송 등 배치용 전체 링크 열거. 인가 관문 아님 — 스케줄러 전용. */
+    List<CareLink> allLinks();
+
+    record CareLink(UUID guardianId, UUID elderId, GuardianRole role) {}
 }

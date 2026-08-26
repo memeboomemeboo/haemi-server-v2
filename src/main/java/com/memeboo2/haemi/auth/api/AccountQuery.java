@@ -13,6 +13,9 @@ public interface AccountQuery {
 
     Optional<AccountInfo> findById(UUID userId);
 
+    /** 알림·리포트 발송용 이메일 조회. 미설정이면 empty. */
+    Optional<String> emailOf(UUID userId);
+
     /** 목록 조회용 일괄 조회 — N+1 방지. */
     List<AccountInfo> findAllById(Collection<UUID> userIds);
 

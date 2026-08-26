@@ -51,6 +51,9 @@ dependencies {
 	implementation 'software.amazon.awssdk:s3'
 	implementation 'software.amazon.awssdk:apache-client'
 
+	// 인지 리포트 PDF (HTML→PDF, 한글 TTF 임베드)
+	implementation 'com.openhtmltopdf:openhtmltopdf-pdfbox:1.0.10'
+
 	// API docs
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.3'
 
