@@ -115,6 +115,9 @@ jobs:
             df -h / || true
             printf '%s' "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
             docker compose pull app
-            docker compose up -d --no-build --wait
+            # 기존 컨테이너를 먼저 정리해 포트 충돌(5432 already allocated)을 방지한다.
+            # 명명된 볼륨(DB 데이터)은 down으로 삭제되지 않으므로 데이터는 보존된다.
+            docker compose down --remove-orphans || true
+            docker compose up -d --no-build --wait --remove-orphans
             curl --fail --retry 12 --retry-connrefused --retry-delay 2 "http://127.0.0.1:${APP_PORT}/actuator/health"
             docker image prune -f
