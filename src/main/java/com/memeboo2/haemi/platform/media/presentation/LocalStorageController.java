@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /** LocalStorageAdapter가 발급하는 개발용 업로드·서빙 URL의 실제 처리기. */
 @RestController
-@RequestMapping("/internal/storage")
+@RequestMapping("/api/v1/internal/storage")
 @Profile("!prod")
 public class LocalStorageController {
 

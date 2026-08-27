@@ -200,9 +200,11 @@ public interface CareAccessQuery {
 
 | # | 규칙 |
 | --- | --- |
-| AU-1 | `**/application/**`의 public 메서드 중 파라미터에 `ElderId`를 받는 것은 `CareAccessQuery`의 `requireGuardianOf` 또는 `requireSelf` 호출을 포함해야 한다 |
-| AU-2 | `elder/presentation/dto/**`의 필드명에 `score`, `correct`, `rate`, `accuracy`, `rank`, `level` 사용 금지 |
-| AU-3 | `elder/**`는 `guardian/**` 중 `guardian.api` 외 패키지를 import할 수 없다 |
+| AU-1 | 어르신 사용자 유스케이스의 UUID 입력 public 메서드는 `@ElderAccessChecked`를 표시하고, 구현체는 `CareAccessQuery`에 의존한다. 내부 배치·생성 서비스에는 이 마커를 쓰지 않는다. 각 유스케이스의 실제 `requireSelf`/케어 관계 검증은 인가 테스트로 확인한다. |
+| AU-2 | `elder/**/presentation/dto/**`의 필드명에 점수·정답률·순위·레벨을 뜻하는 camelCase 토큰(`score`, `correct`, `rate`, `accuracy`, `rank`, `level`, `percent`, `ratio`, `ranking`) 사용 금지 |
+| AU-3 | `elder/**`는 `guardian.api` 외 guardian 내부를, `guardian/**`는 elder 내부 구현을 import할 수 없다 |
+
+레이어 방향, 트랜잭션 위치, Controller의 Repository 직접 의존, 엔티티의 presentation DTO 노출, `/api/v1` REST 경로, 순환 의존과 로깅 금지 항목도 같은 ArchUnit CI 게이트에서 검증한다. 전체 목록과 JPA 매핑 예외는 [모듈 구조 §6](./v2-module-architecture.md#6-경계-강제)를 따른다.
 
 ### 테스트 (유스케이스마다 필수 1건)
 

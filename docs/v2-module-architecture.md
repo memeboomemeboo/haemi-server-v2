@@ -260,10 +260,19 @@ void 모듈_경계를_지킨다() {
 }
 ```
 
-추가로 **ArchUnit** 규칙 두 가지를 CI 게이트로 둡니다.
+추가로 **ArchUnit** 아키텍처 규칙을 CI 게이트로 둡니다. 구현은
+`src/test/java/com/memeboo2/haemi/architecture/ArchitectureTest.java`가 유일한 실행 근거이며, 주요 범위는 다음과 같습니다.
 
-1. `application` 패키지의 public 메서드 중 `ElderId`를 파라미터로 받는 것은 `CareAccessQuery` 호출을 반드시 포함한다.
-2. `elder/presentation/dto`의 클래스는 점수·정답률 관련 필드명을 가질 수 없다.
+| 범주 | 강제 규칙 |
+| --- | --- |
+| AU-1 인가 경계 | 어르신 사용자 유스케이스의 UUID 입력 public 메서드는 `@ElderAccessChecked`를 표시하고, 구현체는 `CareAccessQuery`에 의존한다. 내부 배치·생성 서비스에는 이 마커를 붙이지 않는다. |
+| AU-2 어르신 DTO | `elder/**/presentation/dto`에 점수·정답률·순위·레벨을 뜻하는 camelCase 필드 토큰을 두지 않는다. |
+| AU-3 모듈 통로 | `elder`는 `guardian.api` 외 guardian 내부를, `guardian`은 elder 내부 구현을 직접 참조하지 않는다. |
+| 레이어·영속성 | application의 presentation 역참조와 domain의 application/presentation/infrastructure 역참조를 금지한다. domain은 Spring Web·Servlet에 의존하지 않으며, 엔티티는 presentation DTO를 노출하지 않는다. |
+| HTTP·운영 | Controller의 Repository 직접 의존, `/api/v1` 밖의 REST 경로, `System.out`·`printStackTrace`·직접 `RuntimeException` 생성을 금지한다. |
+| 구조 관례 | 트랜잭션은 application에만 두고 조회 트랜잭션은 `readOnly = true`를 명시한다. 역할별 컴포넌트 이름과 최상위 모듈 슬라이스의 무순환도 검증한다. |
+
+`domain`은 현재 JPA 엔티티를 직접 소유한다. 따라서 JPA 매핑 애노테이션은 이 규칙의 명시적 예외이며, 이를 분리하는 작업은 영속성 모델 전환 과제로 별도 결정한다.
 
 DB도 같은 원칙 — **테이블 접두사를 그룹·모듈명으로** 통일하고(`auth_*`, `guardian_memory_*`, `elder_training_*`), 모듈 간 FK는 걸지 않습니다.
 

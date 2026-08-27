@@ -22,7 +22,7 @@ public class ReportDispatchTestController {
     private final ReportDeliveryService deliveryService;
 
     @Operation(summary = "정기 리포트 발송 수동 트리거 (주간/월간)")
-    @PostMapping("/internal/report/dispatch")
+    @PostMapping("/api/v1/internal/report/dispatch")
     public ResponseEntity<ApiResponse<ReportDeliveryService.DispatchResult>> dispatch(
             @RequestParam(defaultValue = "WEEKLY") ReportPeriod period) {
         return ResponseEntity.ok(ApiResponse.ok(deliveryService.dispatchAll(period)));

@@ -104,7 +104,7 @@ public MemoryId register(UserId actor, RegisterMemoryCommand cmd) {
 
 **빠뜨리는 걸 어떻게 막는가** — 관례로는 못 막습니다. 두 겹으로 방어합니다.
 
-1. **ArchUnit**: `application`의 public 메서드 중 `ElderId`를 받는 것은 `CareAccessQuery` 호출을 반드시 포함해야 한다.
+1. **ArchUnit**: 어르신 사용자 유스케이스의 UUID 입력 public 메서드는 `@ElderAccessChecked`를 표시하고 구현체는 `CareAccessQuery`에 의존한다. 실제 `requireSelf`·케어 관계 검증은 유스케이스 인가 테스트로 확인한다.
 2. **인가 테스트 필수**: 유스케이스마다 "권한 없는 보호자 → 403" 1건.
 
 ### 어르신 쪽
@@ -350,7 +350,7 @@ RPT-ATT-004~006은 `CognitiveTrainingCompleted` 인지 스냅샷 계약 위에 �
 | 도메인 단위 | 난이도 조절, 스트릭, 쿨다운, 3색 판정 — `common/test`의 고정 Clock으로 시간 시나리오 | 가장 두껍게 |
 | 모듈 슬라이스 | `@ApplicationModuleTest` — 모듈 하나만 기동 | 중간 |
 | **인가 테스트** | 유스케이스마다 "권한 없는 보호자 → 403" **필수** | 필수 |
-| 아키텍처 | `ApplicationModules.verify()` + ArchUnit 2종 | CI 게이트 |
+| 아키텍처 | `ApplicationModules.verify()` + ArchUnit 경계·레이어·HTTP·트랜잭션 규칙 | CI 게이트 |
 | 통합 | Testcontainers PostgreSQL, 핵심 플로우만 | 얇게 |
 
 **시간 시나리오 테스트가 이 서비스의 핵심 테스트입니다.** "7일 연속 참여 후 하루 빠지면 스트릭이 리셋되는가", "2일 연속 80% 넘으면 레벨이 오르는가" — 이걸 못 하면 정량 명세를 구현했는지 확인할 방법이 없습니다.

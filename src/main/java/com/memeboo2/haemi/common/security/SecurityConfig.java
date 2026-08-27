@@ -29,7 +29,7 @@ public class SecurityConfig {
                         "/actuator/health", "/swagger-ui/**", "/v3/api-docs/**").permitAll();
                 // LocalStorageAdapter가 만드는 presigned URL을 개발 환경에서만 재현한다.
                 if (localStorageEnabled) {
-                    auth.requestMatchers("/internal/storage/**").permitAll();
+                    auth.requestMatchers("/api/v1/internal/storage/**").permitAll();
                 }
                 auth
                 .requestMatchers("/api/v1/guardian/**").hasRole("GUARDIAN")
