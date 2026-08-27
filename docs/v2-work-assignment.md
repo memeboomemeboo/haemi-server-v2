@@ -96,7 +96,7 @@
 
 - [ ] `./gradlew build` 통과
 - [ ] `ApplicationModules.verify()` 통과
-- [ ] ArchUnit AU-1/2/3 통과 ([인가 문서 §5](./v2-authorization.md))
+- [ ] ArchUnit 아키텍처 규칙 통과 ([인가 문서 §5](./v2-authorization.md))
 - [ ] `elderId`를 다루는 유스케이스마다 **"권한 없는 보호자 → 403" 테스트 1건**
 - [ ] 명세 수치를 하드코딩하지 않고 `@ConfigurationProperties`로 노출
 - [ ] 시간 의존 로직에 `HaemiClock` 주입 (`LocalDate.now()` 직접 호출 금지)

@@ -22,7 +22,7 @@ public class ReminiscenceBatchTestController {
     private final HaemiClock clock;
 
     @Operation(summary = "개인화 회상 콘텐츠 배치 수동 실행")
-    @PostMapping("/internal/ai/reminiscence/run")
+    @PostMapping("/api/v1/internal/ai/reminiscence/run")
     public ResponseEntity<ApiResponse<DailyReminiscenceBatch.BatchResult>> run() {
         return ResponseEntity.ok(ApiResponse.ok(batch.generateForAll(clock.today())));
     }

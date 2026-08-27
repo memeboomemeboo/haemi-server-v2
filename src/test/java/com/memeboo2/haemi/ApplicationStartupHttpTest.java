@@ -29,10 +29,10 @@ class ApplicationStartupHttpTest {
 
         assertThat(send("/api/v1/guardian/families", "GET", null).statusCode()).isEqualTo(401);
 
-        HttpResponse<String> upload = send("/internal/storage/upload?key=http-test-object&contentType=text/plain", "PUT", "hello");
+        HttpResponse<String> upload = send("/api/v1/internal/storage/upload?key=http-test-object&contentType=text/plain", "PUT", "hello");
         assertThat(upload.statusCode()).isEqualTo(204);
 
-        HttpResponse<String> serve = send("/internal/storage/serve?key=http-test-object", "GET", null);
+        HttpResponse<String> serve = send("/api/v1/internal/storage/serve?key=http-test-object", "GET", null);
         assertThat(serve.statusCode()).isEqualTo(200);
         assertThat(serve.body()).isEqualTo("hello");
     }

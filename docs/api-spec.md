@@ -450,6 +450,6 @@ body `{ "emotions": ["LONGING","HAPPY"] }` (최소 1, **최대 2개**)
 
 | Path | 용도 |
 | --- | --- |
-| `PUT /internal/storage/upload`, `GET /internal/storage/serve` | 로컬 스토리지(개발용) |
-| `POST /internal/ai/reminiscence/run` | 회상 배치 수동 트리거(테스트) |
-| `POST /internal/report/dispatch` | 리포트 발송 수동 트리거(테스트) |
+| `PUT /api/v1/internal/storage/upload`, `GET /api/v1/internal/storage/serve` | 로컬 스토리지(개발용) |
+| `POST /api/v1/internal/ai/reminiscence/run` | 회상 배치 수동 트리거(테스트) |
+| `POST /api/v1/internal/report/dispatch` | 리포트 발송 수동 트리거(테스트) |

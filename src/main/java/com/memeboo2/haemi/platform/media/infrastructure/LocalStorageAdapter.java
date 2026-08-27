@@ -27,7 +27,7 @@ class LocalStorageAdapter implements StoragePort {
     public URI generatePresignedPutUrl(String storageKey, String contentType, long expirySeconds,
                                        Integer expectedDurationSeconds) {
         String durationQuery = expectedDurationSeconds == null ? "" : "&durationSeconds=" + expectedDurationSeconds;
-        return URI.create("http://localhost:8080/internal/storage/upload?key="
+        return URI.create("http://localhost:8080/api/v1/internal/storage/upload?key="
                 + URLEncoder.encode(storageKey, StandardCharsets.UTF_8)
                 + "&contentType=" + URLEncoder.encode(contentType, StandardCharsets.UTF_8)
                 + durationQuery);
@@ -35,7 +35,7 @@ class LocalStorageAdapter implements StoragePort {
 
     @Override
     public URI generateServingUrl(String storageKey) {
-        return URI.create("http://localhost:8080/internal/storage/serve?key="
+        return URI.create("http://localhost:8080/api/v1/internal/storage/serve?key="
                 + URLEncoder.encode(storageKey, StandardCharsets.UTF_8));
     }
 

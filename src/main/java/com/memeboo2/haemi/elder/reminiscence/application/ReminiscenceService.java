@@ -1,6 +1,5 @@
 package com.memeboo2.haemi.elder.reminiscence.application;
 
-import com.memeboo2.haemi.common.security.ElderAccessChecked;
 import com.memeboo2.haemi.common.time.HaemiClock;
 import com.memeboo2.haemi.guardian.api.ElderProfileQuery;
 import com.memeboo2.haemi.guardian.api.ElderQuery;
@@ -34,7 +33,6 @@ public class ReminiscenceService {
      * <p>elderId는 호출부에서 확정된 도메인 ID다: 어르신 엔드포인트는 JWT 사용자 ID를
      * {@code CareAccessQuery.elderIdForUser}로 해석해 본인으로 제한하고, 배치는 신뢰된 시스템 호출이다.
      */
-    @ElderAccessChecked
     @Transactional
     public GeneratedReminiscence generateForElder(UUID elderId, LocalDate date) {
         String prompt = buildPrompt(elderId, date);
@@ -50,7 +48,6 @@ public class ReminiscenceService {
         return saved;
     }
 
-    @ElderAccessChecked
     @Transactional(readOnly = true)
     public Optional<GeneratedReminiscence> findForElder(UUID elderId, LocalDate date) {
         return repository.findByElderIdAndContentDate(elderId, date);
