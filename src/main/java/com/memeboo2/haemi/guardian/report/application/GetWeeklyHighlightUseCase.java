@@ -8,6 +8,7 @@ import com.memeboo2.haemi.guardian.report.api.CognitiveStatusQuery;
 import com.memeboo2.haemi.platform.ai.api.WeeklyHighlightFact;
 import com.memeboo2.haemi.platform.ai.api.WeeklyHighlightPrompt;
 import com.memeboo2.haemi.platform.ai.api.WeeklyHighlightWriter;
+import com.memeboo2.haemi.guardian.report.infrastructure.WeeklyHighlightOverrideRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +26,7 @@ public class GetWeeklyHighlightUseCase {
     private final CognitiveStatusQuery cognitiveStatusQuery;
     private final WeeklyParticipationDaysCounter weeklyParticipationDaysCounter;
     private final WeeklyHighlightWriter weeklyHighlightWriter;
+    private final WeeklyHighlightOverrideRepository overrideRepository;
     private final HaemiClock clock;
 
     public record WeeklyHighlight(UUID elderId, List<String> lines) {
@@ -38,6 +40,14 @@ public class GetWeeklyHighlightUseCase {
         careAccessQuery.requireGuardianOf(guardianId, elderId);
 
         LocalDate today = clock.today();
+
+        // 보호자가 이번 주 문구를 편집(#100 M5)했다면 자동 생성 대신 그 문구를 그대로 반환한다.
+        LocalDate weekStart = WeekAnchor.of(today);
+        var override = overrideRepository.findByElderIdAndWeekStart(elderId, weekStart);
+        if (override.isPresent()) {
+            return new WeeklyHighlight(elderId, WeekAnchor.splitLines(override.get().getContent()));
+        }
+
         int weeklyParticipationDays = weeklyParticipationDaysCounter.count(elderId, today);
 
         CognitiveStatusQuery.CognitiveStatusView cognitive = cognitiveStatusQuery.cognitiveStatus(guardianId, elderId);

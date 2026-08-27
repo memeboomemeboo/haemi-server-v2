@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -17,6 +18,20 @@ public class ResponseQueryImpl implements ResponseQuery {
 
     @Override
     @Transactional(readOnly = true)
+    public List<ElderResponseActivity> findByElderIdBetween(UUID elderId, Instant from, Instant to) {
+        return responseRepository
+                .findByElderIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(elderId, from, to).stream()
+                .map(r -> new ElderResponseActivity(
+                        r.getMemoryId(),
+                        r.getResponseType().name(),
+                        r.getText(),
+                        r.getTranscript(),
+                        r.getCreatedAt()))
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<ResponseItem> findByMemoryId(UUID memoryId) {
         return responseRepository.findByMemoryId(memoryId).stream()
                 .map(r -> new ResponseItem(
@@ -24,7 +39,9 @@ public class ResponseQueryImpl implements ResponseQuery {
                         r.getResponseType().name(),
                         r.getEmotions().stream().map(Enum::name).toList(),
                         r.getText(),
-                        r.getMediaKey()
+                        r.getMediaKey(),
+                        r.getTranscript(),
+                        r.getCreatedAt()
                 ))
                 .toList();
     }

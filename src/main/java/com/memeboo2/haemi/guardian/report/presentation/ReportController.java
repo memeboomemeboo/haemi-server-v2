@@ -7,6 +7,7 @@ import com.memeboo2.haemi.guardian.report.application.GetElderReportListUseCase;
 import com.memeboo2.haemi.guardian.report.application.GetElderReportSummaryUseCase;
 import com.memeboo2.haemi.guardian.report.application.GetSupportGuideUseCase;
 import com.memeboo2.haemi.guardian.report.application.GetWeeklyHighlightUseCase;
+import com.memeboo2.haemi.guardian.report.application.UpdateWeeklyHighlightUseCase;
 import com.memeboo2.haemi.guardian.report.presentation.dto.AttendanceDetailResponse;
 import com.memeboo2.haemi.guardian.report.presentation.dto.CognitiveStatusResponse;
 import com.memeboo2.haemi.guardian.report.presentation.dto.ElderReportCardResponse;
@@ -33,6 +34,7 @@ public class ReportController {
     private final GetAttendanceDetailUseCase getAttendanceDetailUseCase;
     private final GetCognitiveStatusUseCase getCognitiveStatusUseCase;
     private final GetWeeklyHighlightUseCase getWeeklyHighlightUseCase;
+    private final UpdateWeeklyHighlightUseCase updateWeeklyHighlightUseCase;
     private final GetSupportGuideUseCase getSupportGuideUseCase;
 
     @Operation(summary = "어르신 리포트 목록 (RPT-LST-001)",
@@ -101,6 +103,25 @@ public class ReportController {
             @RequestAttribute UUID guardianId,
             @PathVariable UUID elderId) {
         var highlight = getWeeklyHighlightUseCase.execute(guardianId, elderId);
+        return ResponseEntity.ok(ApiResponse.ok(WeeklyHighlightResponse.from(highlight)));
+    }
+
+    public record UpdateHighlightRequest(
+            @jakarta.validation.constraints.NotEmpty List<@jakarta.validation.constraints.NotBlank String> lines) {}
+
+    @Operation(summary = "이번 주 하이라이트 편집 (#100 M5)",
+            description = "보호자가 이번 주 하이라이트 문구를 직접 수정한다. 이후 조회는 편집된 문구를 반환한다.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "수정 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "빈 문구 — INVALID_INPUT"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "인가 실패 — CARE_ACCESS_DENIED")
+    })
+    @PatchMapping("/api/v1/guardian/elders/{elderId}/report/highlight")
+    public ResponseEntity<ApiResponse<WeeklyHighlightResponse>> updateWeeklyHighlight(
+            @RequestAttribute UUID guardianId,
+            @PathVariable UUID elderId,
+            @org.springframework.web.bind.annotation.RequestBody @jakarta.validation.Valid UpdateHighlightRequest req) {
+        var highlight = updateWeeklyHighlightUseCase.execute(guardianId, elderId, req.lines());
         return ResponseEntity.ok(ApiResponse.ok(WeeklyHighlightResponse.from(highlight)));
     }
 

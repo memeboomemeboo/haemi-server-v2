@@ -49,6 +49,10 @@ public class Response extends BaseEntity {
     @Column(length = 500)
     private String mediaKey;
 
+    /** 음성 답변 전사(STT) 텍스트. 아직 전사되지 않았거나 음성 타입이 아니면 null (#100 X3) */
+    @Column(name = "transcript", length = 1000)
+    private String transcript;
+
     public static Response emotion(UUID memoryId, UUID elderId, List<Emotion> emotions) {
         if (emotions == null || emotions.isEmpty() || emotions.size() > MAX_EMOTIONS) {
             throw new DomainException(ErrorCode.INVALID_INPUT, "감정은 1~" + MAX_EMOTIONS + "개 선택해야 합니다.");
