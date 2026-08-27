@@ -18,9 +18,9 @@ public class RegisterElderAccountUseCase {
 
     @Transactional
     public UUID execute(UUID guardianId, UUID familyId, String name, LocalDate birthDate,
-                        String loginId, String password, String pin, String phone, String gender) {
+                        String loginId, String credential, String phone, String gender) {
         UUID accountId = accountCommand.createElderAccount(
-                name, loginId, password, pin,
+                name, loginId, credential,
                 birthDate == null ? null : birthDate.toString(), phone, gender);
         return registerElderUseCase.execute(guardianId, accountId, familyId, name, birthDate);
     }

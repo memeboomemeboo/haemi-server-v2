@@ -21,14 +21,13 @@ public class CreateElderAccountUseCase implements AccountCommand {
 
     @Override
     @Transactional
-    public UUID createElderAccount(String name, String loginId, String password, String pin,
+    public UUID createElderAccount(String name, String loginId, String credential,
                                    String birthDate, String phone, String gender) {
         if (accountRepository.existsByLoginId(loginId)) {
             throw new DomainException(ErrorCode.LOGIN_ID_ALREADY_TAKEN);
         }
-        String passwordHash = passwordService.encode(password);
-        String pinHash = passwordService.encode(pin);
-        Account account = Account.elder(name, loginId, passwordHash, pinHash, birthDate, phone, gender);
+        String credentialHash = passwordService.encode(credential);
+        Account account = Account.elder(name, loginId, credentialHash, birthDate, phone, gender);
         accountRepository.save(account);
         return account.getId();
     }
