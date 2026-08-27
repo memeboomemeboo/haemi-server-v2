@@ -1,6 +1,8 @@
 services:
   db:
     image: postgres:16-alpine
+    # t3.small(2 GiB)에서 앱·OS와 공존하도록 DB의 최대 메모리를 제한한다.
+    mem_limit: 384m
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-haemi}
       POSTGRES_USER: ${POSTGRES_USER:-haemi}
@@ -17,6 +19,9 @@ services:
 
   app:
     image: ${DOCKER_IMAGE:-haemi/haemi-server:latest}
+    # Java 힙은 Dockerfile의 MaxRAMPercentage(60%)에 따라 최대 약 540 MB가 된다.
+    # 남은 메모리는 JVM 네이티브 영역, Docker, PostgreSQL, OS에 확보한다.
+    mem_limit: 900m
     build:
       context: .
     depends_on:
