@@ -48,7 +48,8 @@ public class MemoryController {
                 .body(ApiResponse.ok(memoryId));
     }
 
-    @Operation(summary = "추억 목록 조회 (최근 1년)")
+    @Operation(summary = "추억 목록 조회 (최근 1년)",
+            description = "elderId를 지정하면 해당 어르신 추억만, 미지정 시 접근 가능한 전 어르신 추억을 통합('전체' 탭) 조회한다.")
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "인가 실패 — CARE_ACCESS_DENIED")
@@ -56,10 +57,12 @@ public class MemoryController {
     @GetMapping
     public ResponseEntity<ApiResponse<List<MemorySummaryResponse>>> list(
             @RequestAttribute UUID guardianId,
-            @RequestParam UUID elderId) {
+            @RequestParam(required = false) UUID elderId) {
 
-        List<MemorySummaryResponse> result = getMemoriesUseCase.execute(guardianId, elderId)
-                .stream().map(MemorySummaryResponse::from).toList();
+        List<MemoryWithCreator> memories = elderId == null
+                ? getMemoriesUseCase.executeAll(guardianId)
+                : getMemoriesUseCase.execute(guardianId, elderId);
+        List<MemorySummaryResponse> result = memories.stream().map(MemorySummaryResponse::from).toList();
 
         return ResponseEntity.ok(ApiResponse.ok(result));
     }

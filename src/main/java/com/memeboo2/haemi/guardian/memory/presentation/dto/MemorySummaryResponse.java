@@ -9,6 +9,8 @@ import java.util.UUID;
 
 public record MemorySummaryResponse(
         UUID id,
+        @Schema(description = "이 추억의 대상 어르신 id. '전체' 탭에서 어르신별 분류·필터에 사용")
+        UUID elderId,
         String title,
         String thumbnailKey,
         boolean responded,
@@ -23,7 +25,7 @@ public record MemorySummaryResponse(
         Memory m = mc.memory();
         String thumbnail = m.getImages().isEmpty() ? null : m.getImages().get(0).getStorageKey();
         GuardianRole role = mc.creatorRole();
-        return new MemorySummaryResponse(m.getId(), m.getTitle(), thumbnail, m.isResponded(),
+        return new MemorySummaryResponse(m.getId(), m.getElderId(), m.getTitle(), thumbnail, m.isResponded(),
                 mc.creatorName(), role, role == null ? null : role.getLabel(), mc.isMine());
     }
 }

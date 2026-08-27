@@ -33,7 +33,7 @@ public class ElderController {
             @Valid @RequestBody RegisterElderRequest req) {
         UUID elderId = registerElderAccountUseCase.execute(
                 guardianId, req.familyId(), req.name(), req.birthDate(), req.loginId(),
-                req.password(), req.pin(), req.phone(), req.gender());
+                req.credential(), req.phone(), req.gender());
         return ResponseEntity.created(URI.create("/api/v1/guardian/elders/" + elderId))
                 .body(ApiResponse.ok(elderId));
     }

@@ -1,5 +1,6 @@
 package com.memeboo2.haemi.auth.presentation;
 
+import com.memeboo2.haemi.auth.account.application.CheckLoginIdAvailabilityUseCase;
 import com.memeboo2.haemi.auth.account.application.RegisterGuardianUseCase;
 import com.memeboo2.haemi.auth.verification.application.EmailVerificationUseCase;
 import com.memeboo2.haemi.auth.session.application.LoginUseCase;
@@ -8,18 +9,19 @@ import com.memeboo2.haemi.auth.session.application.RefreshTokenUseCase;
 import com.memeboo2.haemi.common.security.JwtPrincipal;
 import com.memeboo2.haemi.common.web.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
@@ -28,9 +30,11 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
+@Validated
 public class AuthController {
 
     private final RegisterGuardianUseCase registerGuardianUseCase;
+    private final CheckLoginIdAvailabilityUseCase checkLoginIdAvailabilityUseCase;
     private final EmailVerificationUseCase emailVerificationUseCase;
     private final LoginUseCase loginUseCase;
     private final LogoutUseCase logoutUseCase;
@@ -41,11 +45,11 @@ public class AuthController {
             @NotBlank @Size(min = 4, max = 50) String loginId,
             @NotBlank @Size(min = 8, max = 50) String password,
             @NotBlank @Pattern(regexp = "\\d{4}-\\d{2}-\\d{2}") String birthDate,
-            @NotBlank @Pattern(regexp = "01\\d{8,9}") String phone,
-            @NotBlank @Email @Size(max = 255) String email,
-            @NotBlank @Pattern(regexp = "\\d{6}") String pin,
-            @NotNull UUID emailVerificationId
+            @NotBlank @Pattern(regexp = "\\d{6}") String pin
     ) {}
+
+    public record LoginIdAvailabilityResponse(
+            @Schema(description = "해당 loginId가 아직 사용 가능하면 true") boolean available) {}
 
     public record EmailVerificationRequest(@NotBlank @Email @Size(max = 255) String email) {}
 
@@ -74,10 +78,18 @@ public class AuthController {
     public ResponseEntity<ApiResponse<RegisterResponse>> registerGuardian(
             @RequestBody @Valid GuardianRegisterRequest req) {
         UUID userId = registerGuardianUseCase.execute(
-                req.name(), req.loginId(), req.password(), req.birthDate(), req.phone(), req.email(),
-                req.pin(), req.emailVerificationId());
+                req.name(), req.loginId(), req.password(), req.birthDate(), req.pin());
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.ok(new RegisterResponse(userId)));
+    }
+
+    @Operation(summary = "아이디 중복 확인",
+            description = "제출 전 loginId 사용 가능 여부를 조회한다. 회원가입·프로필 수정·어르신 등록의 '중복 확인' 버튼용.")
+    @GetMapping("/login-id/availability")
+    public ResponseEntity<ApiResponse<LoginIdAvailabilityResponse>> checkLoginIdAvailability(
+            @RequestParam @NotBlank @Size(min = 4, max = 50) String loginId) {
+        boolean available = checkLoginIdAvailabilityUseCase.isAvailable(loginId);
+        return ResponseEntity.ok(ApiResponse.ok(new LoginIdAvailabilityResponse(available)));
     }
 
     @Operation(summary = "이메일 인증번호 발송")
