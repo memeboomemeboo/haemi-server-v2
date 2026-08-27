@@ -10,6 +10,7 @@ import com.memeboo2.haemi.guardian.eldermanagement.domain.Elder;
 import com.memeboo2.haemi.guardian.eldermanagement.domain.ElderRepository;
 import com.memeboo2.haemi.guardian.home.application.GetGuardianHomeUseCase;
 import com.memeboo2.haemi.guardian.memory.infrastructure.MemoryRepository;
+import com.memeboo2.haemi.guardian.report.api.CognitiveStatusQuery;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -36,6 +37,7 @@ class GetGuardianHomeUseCaseTest {
     @Mock MemoryRepository memoryRepository;
     @Mock AttendanceQuery attendanceQuery;
     @Mock AccountQuery accountQuery;
+    @Mock CognitiveStatusQuery cognitiveStatusQuery;
     @Mock HaemiClock clock;
     @InjectMocks GetGuardianHomeUseCase useCase;
 
@@ -57,6 +59,8 @@ class GetGuardianHomeUseCaseTest {
         given(accountQuery.findById(elderUserId)).willReturn(Optional.of(
                 new AccountQuery.AccountInfo(elderUserId, "황정빈", "elder01", "010", null, null, lastLoginAt)));
         lenient().when(memoryRepository.existsByCreatedByAndCreatedAtAfter(any(), any())).thenReturn(false);
+        lenient().when(cognitiveStatusQuery.cognitiveStatus(any(), any())).thenReturn(
+                new CognitiveStatusQuery.CognitiveStatusView(elderId, List.of()));
 
         var result = useCase.execute(guardianId);
 
@@ -80,6 +84,8 @@ class GetGuardianHomeUseCaseTest {
                 .willReturn(false);
         given(accountQuery.findById(elderUserId)).willReturn(Optional.empty());
         lenient().when(memoryRepository.existsByCreatedByAndCreatedAtAfter(any(), any())).thenReturn(false);
+        lenient().when(cognitiveStatusQuery.cognitiveStatus(any(), any())).thenReturn(
+                new CognitiveStatusQuery.CognitiveStatusView(elderId, List.of()));
 
         var result = useCase.execute(guardianId);
 

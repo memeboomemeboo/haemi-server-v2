@@ -10,6 +10,7 @@ import com.memeboo2.haemi.guardian.report.application.ReportProperties;
 import com.memeboo2.haemi.guardian.report.application.WeeklyParticipationDaysCounter;
 import com.memeboo2.haemi.guardian.report.domain.ReportParticipation;
 import com.memeboo2.haemi.guardian.report.infrastructure.ReportParticipationRepository;
+import com.memeboo2.haemi.guardian.report.infrastructure.WeeklyHighlightOverrideRepository;
 import com.memeboo2.haemi.platform.ai.api.WeeklyHighlightFact;
 import com.memeboo2.haemi.platform.ai.api.WeeklyHighlightPrompt;
 import com.memeboo2.haemi.platform.ai.api.WeeklyHighlightWriter;
@@ -37,6 +38,7 @@ class GetWeeklyHighlightUseCaseTest {
     @Mock CognitiveStatusQuery cognitiveStatusQuery;
     @Mock ReportParticipationRepository participationRepository;
     @Mock WeeklyHighlightWriter weeklyHighlightWriter;
+    @Mock WeeklyHighlightOverrideRepository overrideRepository;
     @Mock HaemiClock clock;
 
     private GetWeeklyHighlightUseCase useCase;
@@ -53,6 +55,7 @@ class GetWeeklyHighlightUseCaseTest {
                 cognitiveStatusQuery,
                 new WeeklyParticipationDaysCounter(participationRepository, reportProperties),
                 weeklyHighlightWriter,
+                overrideRepository,
                 clock
         );
     }
