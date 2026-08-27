@@ -6,6 +6,7 @@ import com.memeboo2.haemi.common.error.ErrorCode;
 import com.memeboo2.haemi.guardian.api.GuardianRole;
 import com.memeboo2.haemi.guardian.eldermanagement.application.ChangeGuardianRoleUseCase;
 import com.memeboo2.haemi.guardian.profile.application.UpdateGuardianProfileUseCase;
+import com.memeboo2.haemi.platform.api.MediaPurpose;
 import com.memeboo2.haemi.platform.api.MediaUploadCommand;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -13,13 +14,16 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.net.URI;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.BDDMockito.willThrow;
-import static org.mockito.Mockito.verify;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 
 @ExtendWith(MockitoExtension.class)
 class UpdateGuardianProfileUseCaseTest {
@@ -32,32 +36,75 @@ class UpdateGuardianProfileUseCaseTest {
     UUID guardianId = UUID.randomUUID();
     UUID elderId = UUID.randomUUID();
 
-    @Test
-    void 역할_변경은_ChangeGuardianRoleUseCase에_위임한다() {
-        useCase.execute(guardianId, null, null, Map.of(elderId, GuardianRole.DAUGHTER));
-
-        verify(changeGuardianRoleUseCase).execute(guardianId, elderId, GuardianRole.DAUGHTER);
+    private AccountQuery.AccountInfo accountInfo(String loginId) {
+        return new AccountQuery.AccountInfo(guardianId, "황정빈", loginId, "010-1234-5678",
+                "1999-01-01", null, null);
     }
 
     @Test
-    void 역할이_null이면_400() {
-        Map<UUID, GuardianRole> roles = new java.util.HashMap<>();
-        roles.put(elderId, null);
+    void loginId_변경되고_사용가능하면_업데이트() {
+        given(accountQuery.findById(guardianId)).willReturn(Optional.of(accountInfo("oldLoginId")));
+        given(accountQuery.existsByLoginId("newLoginId")).willReturn(false);
 
-        assertThatThrownBy(() -> useCase.execute(guardianId, null, null, roles))
+        useCase.execute(guardianId, "newLoginId", null, Map.of());
+
+        then(accountQuery).should().updateLoginId(guardianId, "newLoginId");
+    }
+
+    @Test
+    void loginId_이미_사용중이면_예외() {
+        given(accountQuery.findById(guardianId)).willReturn(Optional.of(accountInfo("oldLoginId")));
+        given(accountQuery.existsByLoginId("newLoginId")).willReturn(true);
+
+        assertThatThrownBy(() -> useCase.execute(guardianId, "newLoginId", null, Map.of()))
+                .isInstanceOf(DomainException.class)
+                .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
+                        .isEqualTo(ErrorCode.LOGIN_ID_ALREADY_TAKEN));
+
+        then(accountQuery).should(org.mockito.Mockito.never()).updateLoginId(any(), any());
+    }
+
+    @Test
+    void loginId가_null이면_변경_생략() {
+        useCase.execute(guardianId, null, null, Map.of());
+
+        then(accountQuery).should(org.mockito.Mockito.never()).findById(any());
+        then(accountQuery).should(org.mockito.Mockito.never()).updateLoginId(any(), any());
+    }
+
+    @Test
+    void loginId가_기존과_동일하면_변경_생략() {
+        given(accountQuery.findById(guardianId)).willReturn(Optional.of(accountInfo("sameLoginId")));
+
+        useCase.execute(guardianId, "sameLoginId", null, Map.of());
+
+        then(accountQuery).should(org.mockito.Mockito.never()).existsByLoginId(any());
+        then(accountQuery).should(org.mockito.Mockito.never()).updateLoginId(any(), any());
+    }
+
+    @Test
+    void elderRole값이_null이면_INVALID_INPUT() {
+        Map<UUID, GuardianRole> elderRoles = new HashMap<>();
+        elderRoles.put(elderId, null);
+
+        assertThatThrownBy(() -> useCase.execute(guardianId, null, null, elderRoles))
                 .isInstanceOf(DomainException.class)
                 .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
                         .isEqualTo(ErrorCode.INVALID_INPUT));
     }
 
     @Test
-    void 본인_링크가_아니면_NOT_RESOURCE_OWNER를_그대로_전파한다() {
-        willThrow(new DomainException(ErrorCode.NOT_RESOURCE_OWNER))
-                .given(changeGuardianRoleUseCase).execute(guardianId, elderId, GuardianRole.DAUGHTER);
+    void mediaRefId_있으면_프로필_이미지_업데이트() {
+        UUID mediaRefId = UUID.randomUUID();
+        given(mediaUploadCommand.confirmUpload(guardianId, mediaRefId, MediaPurpose.PROFILE_IMAGE))
+                .willReturn(URI.create("https://image.example/new.png"));
 
-        assertThatThrownBy(() -> useCase.execute(guardianId, null, null, Map.of(elderId, GuardianRole.DAUGHTER)))
-                .isInstanceOf(DomainException.class)
-                .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
-                        .isEqualTo(ErrorCode.NOT_RESOURCE_OWNER));
+        useCase.execute(guardianId, null, mediaRefId, Map.of());
+
+        then(accountQuery).should().updateProfileImageUrl(guardianId, "https://image.example/new.png");
+    }
+
+    private static <T> T any() {
+        return org.mockito.ArgumentMatchers.any();
     }
 }

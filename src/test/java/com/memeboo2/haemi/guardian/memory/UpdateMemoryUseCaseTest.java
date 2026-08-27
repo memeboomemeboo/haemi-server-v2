@@ -3,10 +3,11 @@ package com.memeboo2.haemi.guardian.memory;
 import com.memeboo2.haemi.common.error.DomainException;
 import com.memeboo2.haemi.common.error.ErrorCode;
 import com.memeboo2.haemi.common.persistence.BaseEntity;
-import com.memeboo2.haemi.common.time.HaemiClock;
-import com.memeboo2.haemi.guardian.memory.application.DeleteMemoryUseCase;
+import com.memeboo2.haemi.guardian.memory.application.UpdateMemoryUseCase;
 import com.memeboo2.haemi.guardian.memory.domain.Memory;
 import com.memeboo2.haemi.guardian.memory.infrastructure.MemoryRepository;
+import com.memeboo2.haemi.platform.api.MediaPurpose;
+import com.memeboo2.haemi.platform.api.MediaUploadCommand;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -14,7 +15,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.lang.reflect.Field;
-import java.time.Instant;
+import java.net.URI;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -23,11 +25,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 
 @ExtendWith(MockitoExtension.class)
-class DeleteMemoryUseCaseTest {
+class UpdateMemoryUseCaseTest {
 
     @Mock MemoryRepository memoryRepository;
-    @Mock HaemiClock clock;
-    @InjectMocks DeleteMemoryUseCase useCase;
+    @Mock MediaUploadCommand mediaUploadCommand;
+    @InjectMocks UpdateMemoryUseCase useCase;
 
     UUID guardianId = UUID.randomUUID();
     UUID elderId = UUID.randomUUID();
@@ -40,23 +42,29 @@ class DeleteMemoryUseCaseTest {
     }
 
     @Test
-    void 정상_경로_소프트_삭제() throws Exception {
+    void 정상_경로_수정() throws Exception {
         Memory memory = Memory.create(elderId, "제목", "메모", "한마디", 2020);
         setCreatedBy(memory, guardianId);
-        given(memoryRepository.findById(memoryId)).willReturn(Optional.of(memory));
-        Instant now = Instant.parse("2026-08-25T00:00:00Z");
-        given(clock.now()).willReturn(now);
+        given(memoryRepository.findByIdWithImages(memoryId)).willReturn(Optional.of(memory));
 
-        useCase.execute(guardianId, memoryId);
+        UUID mediaRefId = UUID.randomUUID();
+        given(mediaUploadCommand.memoryImageMaxCount()).willReturn(4);
+        given(mediaUploadCommand.confirmUpload(guardianId, mediaRefId, MediaPurpose.MEMORY_IMAGE))
+                .willReturn(URI.create("https://image.example/new.png"));
 
-        assertThat(memory.isDeleted()).isTrue();
+        useCase.execute(guardianId, memoryId, "새제목", "새메모", "새한마디", 2021, List.of(mediaRefId));
+
+        assertThat(memory.getTitle()).isEqualTo("새제목");
+        assertThat(memory.getMemo()).isEqualTo("새메모");
+        assertThat(memory.getMessage()).isEqualTo("새한마디");
+        assertThat(memory.getMemoryYear()).isEqualTo(2021);
     }
 
     @Test
     void 없으면_RESOURCE_NOT_FOUND() {
-        given(memoryRepository.findById(memoryId)).willReturn(Optional.empty());
+        given(memoryRepository.findByIdWithImages(memoryId)).willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> useCase.execute(guardianId, memoryId))
+        assertThatThrownBy(() -> useCase.execute(guardianId, memoryId, "제목", "메모", "한마디", 2020, List.of()))
                 .isInstanceOf(DomainException.class)
                 .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
                         .isEqualTo(ErrorCode.RESOURCE_NOT_FOUND));
@@ -65,9 +73,10 @@ class DeleteMemoryUseCaseTest {
     @Test
     void 생성자가_아니면_NOT_RESOURCE_OWNER() {
         Memory memory = Memory.create(elderId, "제목", "메모", "한마디", 2020);
-        given(memoryRepository.findById(memoryId)).willReturn(Optional.of(memory));
+        // createdBy is null (unset by JPA auditing in unit test context) — guardianId.equals(null) is false
+        given(memoryRepository.findByIdWithImages(memoryId)).willReturn(Optional.of(memory));
 
-        assertThatThrownBy(() -> useCase.execute(guardianId, memoryId))
+        assertThatThrownBy(() -> useCase.execute(guardianId, memoryId, "제목", "메모", "한마디", 2020, List.of()))
                 .isInstanceOf(DomainException.class)
                 .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
                         .isEqualTo(ErrorCode.NOT_RESOURCE_OWNER));
