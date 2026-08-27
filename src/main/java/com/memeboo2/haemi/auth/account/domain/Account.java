@@ -73,14 +73,20 @@ public class Account extends BaseEntity {
         return a;
     }
 
-    public static Account elder(String name, String loginId, String passwordHash, String pinHash,
+    /**
+     * 확정 디자인(#100 X2): 어르신은 6자리 단일 크리덴셜만 갖는다.
+     * 같은 해시를 passwordHash·pinHash 양쪽에 두고 PIN 로그인을 즉시 활성화해,
+     * 프론트가 6자리를 password/pin 어느 필드로 보내든 로그인되게 한다.
+     */
+    public static Account elder(String name, String loginId, String credentialHash,
                                 String birthDate, String phone, String gender) {
         Account a = new Account();
         a.role = AccountRole.ELDER;
         a.name = name;
         a.loginId = loginId;
-        a.passwordHash = passwordHash;
-        a.pinHash = pinHash;
+        a.passwordHash = credentialHash;
+        a.pinHash = credentialHash;
+        a.pinLoginEnabled = true;
         a.birthDate = birthDate;
         a.phone = phone;
         a.gender = gender;
