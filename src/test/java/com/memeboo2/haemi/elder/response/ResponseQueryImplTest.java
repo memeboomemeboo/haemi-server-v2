@@ -57,7 +57,8 @@ class ResponseQueryImplTest {
         UUID elderId = UUID.randomUUID();
         UUID memoryId = UUID.randomUUID();
         Response emotionResponse = Response.emotion(memoryId, elderId, List.of(Emotion.LOVE));
-        Response voiceResponse = Response.voice(memoryId, elderId, "media-key");
+        Response voiceResponse = Response.voice(memoryId, elderId, "https://media.example/voice.aac", 42);
+        voiceResponse.recordTranscript("그 냇가 참 좋았지");
         when(responseRepository.findByMemoryId(memoryId)).thenReturn(List.of(emotionResponse, voiceResponse));
 
         List<ResponseItem> items = responseQuery.findByMemoryId(memoryId);
@@ -72,6 +73,9 @@ class ResponseQueryImplTest {
         ResponseItem second = items.get(1);
         assertThat(second.responseType()).isEqualTo("VOICE");
         assertThat(second.emotions()).isEmpty();
-        assertThat(second.mediaKey()).isEqualTo("media-key");
+        assertThat(second.mediaKey()).isEqualTo("https://media.example/voice.aac");
+        assertThat(second.mediaUrl()).isEqualTo("https://media.example/voice.aac");
+        assertThat(second.durationSeconds()).isEqualTo(42);
+        assertThat(second.text()).isEqualTo("그 냇가 참 좋았지");
     }
 }

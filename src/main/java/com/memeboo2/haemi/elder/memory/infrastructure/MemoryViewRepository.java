@@ -7,9 +7,13 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 public interface MemoryViewRepository extends JpaRepository<MemoryView, UUID> {
+
+    List<MemoryView> findByElderIdAndFirstViewedAtGreaterThanEqualAndFirstViewedAtLessThan(
+            UUID elderId, Instant from, Instant to);
 
     /**
      * 존재하면 아무것도 하지 않는 원자적 삽입.

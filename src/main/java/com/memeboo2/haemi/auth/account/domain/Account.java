@@ -40,7 +40,7 @@ public class Account extends BaseEntity {
     @Column(length = 20)
     private String phone;
 
-    /** 보호자 가입 시 인증된 이메일. 어르신 계정은 없다. */
+    /** 보호자 가입 시 선택적으로 저장하는 이메일. 어르신 계정은 없다. */
     @Column(length = 255)
     private String email;
 
@@ -73,19 +73,20 @@ public class Account extends BaseEntity {
         return a;
     }
 
-    /**
-     * 확정 디자인(#100 X2): 어르신은 6자리 단일 크리덴셜만 갖는다.
-     * 같은 해시를 passwordHash·pinHash 양쪽에 두고 PIN 로그인을 즉시 활성화해,
-     * 프론트가 6자리를 password/pin 어느 필드로 보내든 로그인되게 한다.
-     */
+    /** 디자인의 6자리 PIN은 필수이고, 보조 비밀번호는 제공된 경우에만 별도 해시로 보관한다. */
     public static Account elder(String name, String loginId, String credentialHash,
+                                String birthDate, String phone, String gender) {
+        return elder(name, loginId, credentialHash, credentialHash, birthDate, phone, gender);
+    }
+
+    public static Account elder(String name, String loginId, String passwordHash, String pinHash,
                                 String birthDate, String phone, String gender) {
         Account a = new Account();
         a.role = AccountRole.ELDER;
         a.name = name;
         a.loginId = loginId;
-        a.passwordHash = credentialHash;
-        a.pinHash = credentialHash;
+        a.passwordHash = passwordHash;
+        a.pinHash = pinHash;
         a.pinLoginEnabled = true;
         a.birthDate = birthDate;
         a.phone = phone;

@@ -52,12 +52,15 @@ class UpdateMemoryUseCaseTest {
         given(mediaUploadCommand.confirmUpload(guardianId, mediaRefId, MediaPurpose.MEMORY_IMAGE))
                 .willReturn(URI.create("https://image.example/new.png"));
 
-        useCase.execute(guardianId, memoryId, "새제목", "새메모", "새한마디", 2021, List.of(mediaRefId));
+        useCase.execute(guardianId, memoryId, "새제목", "새메모", "새한마디", 2021, 5, "대구",
+                List.of(mediaRefId));
 
         assertThat(memory.getTitle()).isEqualTo("새제목");
         assertThat(memory.getMemo()).isEqualTo("새메모");
         assertThat(memory.getMessage()).isEqualTo("새한마디");
         assertThat(memory.getMemoryYear()).isEqualTo(2021);
+        assertThat(memory.getMemoryMonth()).isEqualTo(5);
+        assertThat(memory.getPlace()).isEqualTo("대구");
     }
 
     @Test
@@ -80,5 +83,19 @@ class UpdateMemoryUseCaseTest {
                 .isInstanceOf(DomainException.class)
                 .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
                         .isEqualTo(ErrorCode.NOT_RESOURCE_OWNER));
+    }
+
+    @Test
+    void 미디어목록이_null이어도_이미지를_비우며_수정한다() throws Exception {
+        Memory memory = Memory.create(elderId, "제목", "메모", "한마디", 2020);
+        setCreatedBy(memory, guardianId);
+        given(memoryRepository.findByIdWithImages(memoryId)).willReturn(Optional.of(memory));
+        given(mediaUploadCommand.memoryImageMaxCount()).willReturn(4);
+
+        useCase.execute(guardianId, memoryId, "새제목", "새메모", "새한마디", 2021,
+                null, null, null);
+
+        assertThat(memory.getTitle()).isEqualTo("새제목");
+        assertThat(memory.getImages()).isEmpty();
     }
 }

@@ -5,7 +5,6 @@ import com.memeboo2.haemi.common.time.HaemiClock;
 import com.memeboo2.haemi.guardian.api.CareAccessQuery;
 import com.memeboo2.haemi.guardian.api.GuardianRole;
 import com.memeboo2.haemi.guardian.api.AttendanceQuery;
-import com.memeboo2.haemi.guardian.report.api.CognitiveStatus;
 import com.memeboo2.haemi.guardian.report.api.CognitiveStatusQuery;
 import com.memeboo2.haemi.guardian.dailycare.infrastructure.DailyCareRepository;
 import com.memeboo2.haemi.guardian.eldermanagement.domain.Elder;
@@ -50,12 +49,12 @@ public class GetGuardianHomeUseCase {
             Integer age = elder.getBirthDate() == null ? null : Period.between(elder.getBirthDate(), today).getYears();
             Instant lastLoginAt = accountQuery.findById(elder.getUserId())
                     .map(AccountQuery.AccountInfo::lastLoginAt).orElse(null);
-            CognitiveStatus todayCondition = overallCondition(
+            GuardianCondition condition = overallCondition(
                     cognitiveStatusQuery.cognitiveStatus(guardianId, elderId));
             return new ElderCard(
                     elderId, elder.getName(), age, role,
                     attendanceQuery.daysTogether(elderId), attendanceQuery.completedToday(elderId),
-                    greetingSentToday, lastLoginAt, todayCondition,
+                    greetingSentToday, lastLoginAt, condition,
                     attendanceQuery.weeklyActivities(elderId));
         }).filter(c -> c != null).toList();
 
@@ -70,22 +69,24 @@ public class GetGuardianHomeUseCase {
     }
 
     /**
-     * "오늘 컨디션" 링(#100 M3): 최근 인지 상태(RPT-ATT-004) 영역들의 가장 낮은 상태로 요약한다.
-     * 일 단위 별도 컨디션 데이터가 없어 가장 근접한 신호인 인지 상태를 사용한다.
-     * 판정 가능한 영역이 하나도 없으면 NOT_AVAILABLE.
+     * 디자인 기준 "오늘 컨디션"은 인지 영역 가운데 가장 낮은 상태로 요약한다.
+     * 판정 데이터가 전혀 없으면 임의의 3색 상태를 만들지 않고 null을 반환한다.
      */
-    private CognitiveStatus overallCondition(CognitiveStatusQuery.CognitiveStatusView view) {
-        CognitiveStatus worst = CognitiveStatus.NOT_AVAILABLE;
+    private GuardianCondition overallCondition(CognitiveStatusQuery.CognitiveStatusView view) {
+        GuardianCondition worst = null;
         for (var area : view.areas()) {
             worst = switch (area.status()) {
-                case WATCH -> CognitiveStatus.WATCH;
-                case NORMAL -> worst == CognitiveStatus.WATCH ? worst : CognitiveStatus.NORMAL;
-                case GOOD -> worst == CognitiveStatus.NOT_AVAILABLE ? CognitiveStatus.GOOD : worst;
+                case WATCH -> GuardianCondition.OBSERVE;
+                case NORMAL -> worst == GuardianCondition.OBSERVE ? worst : GuardianCondition.CAUTION;
+                case GOOD -> worst == null ? GuardianCondition.GOOD : worst;
                 case NOT_AVAILABLE -> worst;
             };
         }
         return worst;
     }
+
+    /** 디자인 홈 카드의 3색 컨디션. 리포트의 NORMAL/WATCH와 구별해 노출한다. */
+    public enum GuardianCondition { GOOD, CAUTION, OBSERVE }
 
     public record ElderCard(
             UUID elderId,
@@ -96,9 +97,10 @@ public class GetGuardianHomeUseCase {
             boolean attendedToday,
             boolean greetingSentToday,
             Instant lastLoginAt,
-            CognitiveStatus todayCondition,
+            GuardianCondition condition,
             List<AttendanceQuery.DayActivity> weeklyActivities
-    ) {}
+    ) {
+    }
 
     public record Challenge(boolean greetingCompleted, boolean memoryCompleted) {}
 

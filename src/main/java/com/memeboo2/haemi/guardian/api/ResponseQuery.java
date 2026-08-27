@@ -26,8 +26,10 @@ public interface ResponseQuery {
             List<String> emotions,
             String text,
             String mediaKey,
-            /** 음성 답변 전사(STT). 미전사·비음성이면 null (#100 X3) */
-            String transcript,
+            /** 음성 재생용 서빙 URL. 현 저장 구조에서는 mediaKey와 동일하게 보관한다. */
+            String mediaUrl,
+            /** 음성 답변 재생 시간(초). 비음성이면 null. */
+            Integer durationSeconds,
             /** 답변 작성 시각 — 상세 화면의 "2일전·오후 3:20" 표시용 (#100 X3) */
             Instant createdAt
     ) {}

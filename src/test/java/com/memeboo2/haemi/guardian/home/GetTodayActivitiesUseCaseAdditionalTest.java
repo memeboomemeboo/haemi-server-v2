@@ -2,11 +2,13 @@ package com.memeboo2.haemi.guardian.home;
 
 import com.memeboo2.haemi.common.time.HaemiClock;
 import com.memeboo2.haemi.guardian.api.CareAccessQuery;
+import com.memeboo2.haemi.guardian.api.MemoryViewActivityQuery;
 import com.memeboo2.haemi.guardian.api.ResponseQuery;
 import com.memeboo2.haemi.guardian.api.TrainingActivityQuery;
 import com.memeboo2.haemi.guardian.dailycare.domain.DailyCare;
 import com.memeboo2.haemi.guardian.dailycare.infrastructure.DailyCareRepository;
 import com.memeboo2.haemi.guardian.home.application.GetTodayActivitiesUseCase;
+import com.memeboo2.haemi.guardian.memory.infrastructure.MemoryRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -37,7 +39,9 @@ class GetTodayActivitiesUseCaseAdditionalTest {
     @Mock CareAccessQuery careAccessQuery;
     @Mock TrainingActivityQuery trainingActivityQuery;
     @Mock ResponseQuery responseQuery;
+    @Mock MemoryViewActivityQuery memoryViewActivityQuery;
     @Mock DailyCareRepository dailyCareRepository;
+    @Mock MemoryRepository memoryRepository;
     @Mock HaemiClock clock;
     @InjectMocks GetTodayActivitiesUseCase useCase;
 
@@ -52,6 +56,8 @@ class GetTodayActivitiesUseCaseAdditionalTest {
         lenient().when(trainingActivityQuery.completedOn(elderId, DATE)).thenReturn(List.of());
         lenient().when(responseQuery.findByElderIdBetween(elderId, from, to)).thenReturn(List.of());
         lenient().when(dailyCareRepository.findByElderIdAndDate(eq(elderId), eq(DATE), any())).thenReturn(List.of());
+        lenient().when(memoryViewActivityQuery.firstViewedBetween(eq(elderId), eq(from), eq(to))).thenReturn(List.of());
+        lenient().when(memoryRepository.findAllById(any())).thenReturn(List.of());
     }
 
     @Test
@@ -63,12 +69,12 @@ class GetTodayActivitiesUseCaseAdditionalTest {
         List<GetTodayActivitiesUseCase.ActivityEntry> entries = useCase.execute(guardianId, elderId, DATE);
 
         assertThat(entries).hasSize(1);
-        assertThat(entries.get(0).kind()).isEqualTo(GetTodayActivitiesUseCase.ActivityKind.COGNITIVE_TRAINING);
-        assertThat(entries.get(0).summary()).isEqualTo("인지 활동 완료");
+        assertThat(entries.get(0).type()).isEqualTo(GetTodayActivitiesUseCase.ActivityType.TRAINING_COMPLETED);
+        assertThat(entries.get(0).title()).isEqualTo("인지 활동 완료");
     }
 
     @Test
-    void 음성_답변은_전사문을_요약으로_사용한다() {
+    void 음성_답변은_응답유형과_추억ID를_상세에_담는다() {
         UUID memoryId = UUID.randomUUID();
         given(responseQuery.findByElderIdBetween(elderId, from, to)).willReturn(List.of(
                 new ResponseQuery.ElderResponseActivity(memoryId, "VOICE", null, "안녕하세요", from.plusSeconds(10))));
@@ -76,23 +82,24 @@ class GetTodayActivitiesUseCaseAdditionalTest {
         List<GetTodayActivitiesUseCase.ActivityEntry> entries = useCase.execute(guardianId, elderId, DATE);
 
         assertThat(entries).hasSize(1);
-        assertThat(entries.get(0).kind()).isEqualTo(GetTodayActivitiesUseCase.ActivityKind.MEMORY_RESPONSE);
-        assertThat(entries.get(0).summary()).isEqualTo("음성 메시지 도착 · 안녕하세요");
-        assertThat(entries.get(0).memoryId()).isEqualTo(memoryId);
+        assertThat(entries.get(0).type()).isEqualTo(GetTodayActivitiesUseCase.ActivityType.RESPONSE_SENT);
+        assertThat(entries.get(0).detail()).containsEntry("memoryId", memoryId)
+                .containsEntry("responseType", "VOICE");
     }
 
     @Test
-    void 텍스트_답변은_텍스트를_요약으로_사용한다() {
+    void 텍스트_답변도_응답완료_타임라인으로_표시한다() {
         given(responseQuery.findByElderIdBetween(elderId, from, to)).willReturn(List.of(
                 new ResponseQuery.ElderResponseActivity(UUID.randomUUID(), "TEXT", "고마워요", null, from.plusSeconds(10))));
 
         List<GetTodayActivitiesUseCase.ActivityEntry> entries = useCase.execute(guardianId, elderId, DATE);
 
-        assertThat(entries.get(0).summary()).isEqualTo("메시지 도착 · 고마워요");
+        assertThat(entries.get(0).type()).isEqualTo(GetTodayActivitiesUseCase.ActivityType.RESPONSE_SENT);
+        assertThat(entries.get(0).detail()).containsEntry("responseType", "TEXT");
     }
 
     @Test
-    void 전사문도_텍스트도_없으면_타입별_기본_문구를_사용한다() {
+    void 여러_답변은_각각_RESPONSE_SENT로_기록한다() {
         given(responseQuery.findByElderIdBetween(elderId, from, to)).willReturn(List.of(
                 new ResponseQuery.ElderResponseActivity(UUID.randomUUID(), "EMOTION", null, null, from.plusSeconds(10)),
                 new ResponseQuery.ElderResponseActivity(UUID.randomUUID(), "IMAGE", null, null, from.plusSeconds(20)),
@@ -100,8 +107,8 @@ class GetTodayActivitiesUseCaseAdditionalTest {
 
         List<GetTodayActivitiesUseCase.ActivityEntry> entries = useCase.execute(guardianId, elderId, DATE);
 
-        assertThat(entries).extracting(GetTodayActivitiesUseCase.ActivityEntry::summary)
-                .containsExactly("마음 전하기 도착", "사진 답변 도착", "답변 도착");
+        assertThat(entries).extracting(GetTodayActivitiesUseCase.ActivityEntry::type)
+                .containsOnly(GetTodayActivitiesUseCase.ActivityType.RESPONSE_SENT);
     }
 
     @Test
@@ -117,8 +124,8 @@ class GetTodayActivitiesUseCaseAdditionalTest {
         List<GetTodayActivitiesUseCase.ActivityEntry> entries = useCase.execute(guardianId, elderId, DATE);
 
         assertThat(entries).hasSize(1);
-        assertThat(entries.get(0).kind()).isEqualTo(GetTodayActivitiesUseCase.ActivityKind.DAILY_CARE_READ);
-        assertThat(entries.get(0).summary()).isEqualTo("하루 한마디 열람");
+        assertThat(entries.get(0).type()).isEqualTo(GetTodayActivitiesUseCase.ActivityType.GREETING_READ);
+        assertThat(entries.get(0).title()).isEqualTo("하루 한마디 열람");
     }
 
     @Test
@@ -133,11 +140,11 @@ class GetTodayActivitiesUseCaseAdditionalTest {
 
         List<GetTodayActivitiesUseCase.ActivityEntry> entries = useCase.execute(guardianId, elderId, DATE);
 
-        assertThat(entries).extracting(GetTodayActivitiesUseCase.ActivityEntry::kind)
+        assertThat(entries).extracting(GetTodayActivitiesUseCase.ActivityEntry::type)
                 .containsExactly(
-                        GetTodayActivitiesUseCase.ActivityKind.MEMORY_RESPONSE,
-                        GetTodayActivitiesUseCase.ActivityKind.DAILY_CARE_READ,
-                        GetTodayActivitiesUseCase.ActivityKind.COGNITIVE_TRAINING);
+                        GetTodayActivitiesUseCase.ActivityType.RESPONSE_SENT,
+                        GetTodayActivitiesUseCase.ActivityType.GREETING_READ,
+                        GetTodayActivitiesUseCase.ActivityType.TRAINING_COMPLETED);
     }
 
     @Test

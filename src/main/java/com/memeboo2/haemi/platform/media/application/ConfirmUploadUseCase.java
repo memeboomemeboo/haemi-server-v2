@@ -41,6 +41,14 @@ public class ConfirmUploadUseCase implements MediaUploadCommand {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public Integer declaredDurationSeconds(UUID mediaRefId) {
+        return repository.findById(mediaRefId)
+                .map(MediaRef::getDeclaredDurationSeconds)
+                .orElse(null);
+    }
+
+    @Override
     @Transactional(noRollbackFor = DomainException.class)
     public URI confirmUpload(UUID actorId, UUID mediaRefId, MediaPurpose expectedPurpose) {
         return confirmUpload(actorId, mediaRefId, expectedPurpose, null);

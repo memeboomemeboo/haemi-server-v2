@@ -42,7 +42,7 @@ public class MemoryController {
 
         UUID memoryId = registerMemoryUseCase.execute(
                 guardianId, req.elderId(), req.title(), req.memo(),
-                req.message(), req.memoryYear(), req.mediaRefIds());
+                req.message(), req.memoryYear(), req.memoryMonth(), req.place(), req.mediaRefIds());
 
         return ResponseEntity.created(URI.create("/api/v1/guardian/memories/" + memoryId))
                 .body(ApiResponse.ok(memoryId));
@@ -103,7 +103,7 @@ public class MemoryController {
             @Valid @RequestBody UpdateMemoryRequest req) {
 
         updateMemoryUseCase.execute(guardianId, memoryId,
-                req.title(), req.memo(), req.message(), req.memoryYear(), req.mediaRefIds());
+                req.title(), req.memo(), req.message(), req.memoryYear(), req.memoryMonth(), req.place(), req.mediaRefIds());
 
         return ResponseEntity.noContent().build();
     }

@@ -17,7 +17,7 @@ class MemorySummaryResponseTest {
     @DisplayName("MemoryWithCreator로부터 썸네일, 생성자, 내 것 여부를 매핑한다")
     void from_전체_필드를_매핑한다() {
         UUID elderId = UUID.randomUUID();
-        Memory memory = Memory.create(elderId, "제목", "메모", "메시지", 2020);
+        Memory memory = Memory.create(elderId, "제목", "메모", "메시지", 2020, 4, "구지면");
         memory.addImages(java.util.List.of("thumb1", "thumb2"));
 
         MemoryWithCreator withCreator = new MemoryWithCreator(memory, "이보호자", GuardianRole.DAUGHTER, true);
@@ -29,6 +29,9 @@ class MemorySummaryResponseTest {
         assertThat(response.title()).isEqualTo("제목");
         assertThat(response.thumbnailKey()).isEqualTo("thumb1");
         assertThat(response.responded()).isFalse();
+        assertThat(response.place()).isEqualTo("구지면");
+        assertThat(response.memoryYear()).isEqualTo(2020);
+        assertThat(response.memoryMonth()).isEqualTo(4);
         assertThat(response.creatorName()).isEqualTo("이보호자");
         assertThat(response.creatorRole()).isEqualTo(GuardianRole.DAUGHTER);
         assertThat(response.creatorRoleLabel()).isEqualTo("딸");

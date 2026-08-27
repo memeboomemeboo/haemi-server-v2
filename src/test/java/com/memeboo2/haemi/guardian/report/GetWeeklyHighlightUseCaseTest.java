@@ -60,7 +60,8 @@ class GetWeeklyHighlightUseCaseTest {
 
         GetWeeklyHighlightUseCase.WeeklyHighlight result = useCase.execute(guardianId, elderId);
 
-        assertThat(result.lines()).containsExactly("직접 쓴 첫줄", "직접 쓴 둘째줄");
+        assertThat(result.items()).extracting(item -> item.body())
+                .containsExactly("직접 쓴 첫줄", "직접 쓴 둘째줄");
         verifyNoInteractions(weeklyHighlightWriter, weeklyParticipationDaysCounter, cognitiveStatusQuery);
         verify(careAccessQuery).requireGuardianOf(guardianId, elderId);
     }
@@ -84,7 +85,8 @@ class GetWeeklyHighlightUseCaseTest {
         GetWeeklyHighlightUseCase.WeeklyHighlight result = useCase.execute(guardianId, elderId);
 
         assertThat(result.elderId()).isEqualTo(elderId);
-        assertThat(result.lines()).containsExactly("잘하고 계세요", "이 부분은 지켜봐 주세요");
+        assertThat(result.items()).extracting(item -> item.body())
+                .containsExactly("잘하고 계세요", "이 부분은 지켜봐 주세요");
 
         org.mockito.ArgumentCaptor<WeeklyHighlightPrompt> captor =
                 org.mockito.ArgumentCaptor.forClass(WeeklyHighlightPrompt.class);

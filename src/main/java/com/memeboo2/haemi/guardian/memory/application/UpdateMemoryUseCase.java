@@ -20,9 +20,18 @@ public class UpdateMemoryUseCase {
     private final MemoryRepository memoryRepository;
     private final MediaUploadCommand mediaUploadCommand;
 
+    /** 장소·월이 없던 기존 호출부 호환용. */
     @Transactional
     public void execute(UUID guardianId, UUID memoryId,
                         String title, String memo, String message, Integer memoryYear,
+                        List<UUID> mediaRefIds) {
+        execute(guardianId, memoryId, title, memo, message, memoryYear, null, null, mediaRefIds);
+    }
+
+    @Transactional
+    public void execute(UUID guardianId, UUID memoryId,
+                        String title, String memo, String message, Integer memoryYear,
+                        Integer memoryMonth, String place,
                         List<UUID> mediaRefIds) {
         Memory memory = memoryRepository.findByIdWithImages(memoryId)
                 .orElseThrow(() -> new DomainException(ErrorCode.RESOURCE_NOT_FOUND));
@@ -32,8 +41,11 @@ public class UpdateMemoryUseCase {
             throw new DomainException(ErrorCode.NOT_RESOURCE_OWNER);
         }
 
+        if (mediaRefIds == null) {
+            mediaRefIds = List.of();
+        }
         int maxCount = mediaUploadCommand.memoryImageMaxCount();
-        if (mediaRefIds != null && mediaRefIds.size() > maxCount) {
+        if (mediaRefIds.size() > maxCount) {
             throw new DomainException(ErrorCode.INVALID_INPUT,
                     "추억 이미지는 최대 " + maxCount + "장까지 등록할 수 있습니다.");
         }
@@ -42,6 +54,6 @@ public class UpdateMemoryUseCase {
                 .map(refId -> mediaUploadCommand.confirmUpload(guardianId, refId, MediaPurpose.MEMORY_IMAGE).toString())
                 .toList();
 
-        memory.update(title, memo, message, memoryYear, storageKeys);
+        memory.update(title, memo, message, memoryYear, memoryMonth, place, storageKeys);
     }
 }

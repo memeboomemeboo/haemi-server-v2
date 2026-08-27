@@ -29,9 +29,9 @@ public class GetWeeklyHighlightUseCase {
     private final WeeklyHighlightOverrideRepository overrideRepository;
     private final HaemiClock clock;
 
-    public record WeeklyHighlight(UUID elderId, List<String> lines) {
+    public record WeeklyHighlight(UUID elderId, List<WeeklyHighlightItem> items) {
         public WeeklyHighlight {
-            lines = List.copyOf(lines);
+            items = List.copyOf(items);
         }
     }
 
@@ -45,7 +45,7 @@ public class GetWeeklyHighlightUseCase {
         LocalDate weekStart = WeekAnchor.of(today);
         var override = overrideRepository.findByElderIdAndWeekStart(elderId, weekStart);
         if (override.isPresent()) {
-            return new WeeklyHighlight(elderId, WeekAnchor.splitLines(override.get().getContent()));
+            return new WeeklyHighlight(elderId, WeeklyHighlightItemCodec.decode(override.get().getContent()));
         }
 
         int weeklyParticipationDays = weeklyParticipationDaysCounter.count(elderId, today);
@@ -63,7 +63,10 @@ public class GetWeeklyHighlightUseCase {
                         .toList()
         );
 
-        return new WeeklyHighlight(elderId, weeklyHighlightWriter.write(prompt));
+        List<WeeklyHighlightItem> items = weeklyHighlightWriter.write(prompt).stream()
+                .map(line -> new WeeklyHighlightItem(UUID.randomUUID(), "이번 주 하이라이트", line))
+                .toList();
+        return new WeeklyHighlight(elderId, items);
     }
 
     private WeeklyHighlightFact strengthFor(CognitiveArea area) {

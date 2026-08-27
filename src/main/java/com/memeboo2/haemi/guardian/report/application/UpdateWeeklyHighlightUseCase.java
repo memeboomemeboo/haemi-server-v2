@@ -27,13 +27,18 @@ public class UpdateWeeklyHighlightUseCase {
     private final HaemiClock clock;
 
     @Transactional
-    public WeeklyHighlight execute(UUID guardianId, UUID elderId, List<String> lines) {
+    public WeeklyHighlight executeItems(UUID guardianId, UUID elderId, List<WeeklyHighlightItem> items) {
         careAccessQuery.requireGuardianOf(guardianId, elderId);
 
-        if (lines == null || lines.isEmpty() || lines.stream().allMatch(l -> l == null || l.isBlank())) {
+        if (items == null || items.isEmpty() || items.stream().anyMatch(item -> item == null
+                || item.title() == null || item.title().isBlank() || item.body() == null || item.body().isBlank()
+                || containsSeparator(item.title()) || containsSeparator(item.body()))) {
             throw new DomainException(ErrorCode.INVALID_INPUT, "하이라이트 문구를 한 줄 이상 입력해주세요.");
         }
-        String content = WeekAnchor.joinLines(lines);
+        items = items.stream().map(item -> item.id() == null
+                ? new WeeklyHighlightItem(UUID.randomUUID(), item.title(), item.body())
+                : item).toList();
+        String content = WeeklyHighlightItemCodec.encode(items);
         if (content.length() > MAX_CONTENT_LENGTH) {
             throw new DomainException(ErrorCode.INVALID_INPUT, "하이라이트 문구가 너무 깁니다.");
         }
@@ -48,6 +53,10 @@ public class UpdateWeeklyHighlightUseCase {
                 .orElseGet(() -> overrideRepository.save(
                         WeeklyHighlightOverride.of(elderId, weekStart, content)));
 
-        return new WeeklyHighlight(elderId, WeekAnchor.splitLines(override.getContent()));
+        return new WeeklyHighlight(elderId, WeeklyHighlightItemCodec.decode(override.getContent()));
+    }
+
+    private boolean containsSeparator(String value) {
+        return value.indexOf('\u001e') >= 0 || value.indexOf('\u001f') >= 0;
     }
 }

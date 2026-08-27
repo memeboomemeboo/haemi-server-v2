@@ -2,10 +2,13 @@ package com.memeboo2.haemi.guardian.home.application;
 
 import com.memeboo2.haemi.common.time.HaemiClock;
 import com.memeboo2.haemi.guardian.api.CareAccessQuery;
+import com.memeboo2.haemi.guardian.api.MemoryViewActivityQuery;
 import com.memeboo2.haemi.guardian.api.ResponseQuery;
 import com.memeboo2.haemi.guardian.api.TrainingActivityQuery;
 import com.memeboo2.haemi.guardian.dailycare.domain.DailyCare;
 import com.memeboo2.haemi.guardian.dailycare.infrastructure.DailyCareRepository;
+import com.memeboo2.haemi.guardian.memory.domain.Memory;
+import com.memeboo2.haemi.guardian.memory.infrastructure.MemoryRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,12 +19,13 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * 보호자 홈 "오늘의 기록" 타임라인(#100 M2).
- * 어르신의 하루 활동(인지 훈련 완료·추억 답변 도착·하루 한마디 열람)을 시각순으로 모은다.
- * 여러 모듈의 읽기 계약을 조합하되 수치 점수는 노출하지 않는다.
+ * 어르신의 하루 활동을 디자인 계약의 유형·상세 정보와 함께 시각순으로 모은다.
  */
 @Service
 @RequiredArgsConstructor
@@ -32,12 +36,18 @@ public class GetTodayActivitiesUseCase {
     private final CareAccessQuery careAccessQuery;
     private final TrainingActivityQuery trainingActivityQuery;
     private final ResponseQuery responseQuery;
+    private final MemoryViewActivityQuery memoryViewActivityQuery;
     private final DailyCareRepository dailyCareRepository;
+    private final MemoryRepository memoryRepository;
     private final HaemiClock clock;
 
-    public enum ActivityKind { COGNITIVE_TRAINING, MEMORY_RESPONSE, DAILY_CARE_READ }
+    public enum ActivityType { TRAINING_COMPLETED, GREETING_ARRIVED, GREETING_READ, MEMORY_VIEWED, RESPONSE_SENT }
 
-    public record ActivityEntry(Instant at, ActivityKind kind, String summary, UUID memoryId) {}
+    public record ActivityEntry(Instant occurredAt, ActivityType type, String title, Map<String, Object> detail) {}
+
+    public LocalDate today() {
+        return clock.today();
+    }
 
     /** date 미지정("오늘") 요청용. */
     @Transactional(readOnly = true)
@@ -56,35 +66,52 @@ public class GetTodayActivitiesUseCase {
         List<ActivityEntry> entries = new ArrayList<>();
 
         trainingActivityQuery.completedOn(elderId, date).forEach(s ->
-                entries.add(new ActivityEntry(s.completedAt(), ActivityKind.COGNITIVE_TRAINING,
-                        "인지 활동 완료", null)));
+                entries.add(new ActivityEntry(s.completedAt(), ActivityType.TRAINING_COMPLETED,
+                        "인지 활동 완료", Map.of(
+                                "activityName", "인지 훈련",
+                                "durationMinutes", s.durationMinutes(),
+                                "accuracy", s.accuracy()))));
 
         responseQuery.findByElderIdBetween(elderId, from, to).forEach(r ->
-                entries.add(new ActivityEntry(r.createdAt(), ActivityKind.MEMORY_RESPONSE,
-                        responseSummary(r), r.memoryId())));
+                entries.add(new ActivityEntry(r.createdAt(), ActivityType.RESPONSE_SENT,
+                        "추억 답변 완료", Map.of(
+                                "memoryId", r.memoryId(),
+                                "responseType", r.responseType()))));
 
-        dailyCareRepository.findByElderIdAndDate(elderId, date, now).stream()
-                .filter(c -> c.getViewedAt() != null
-                        && !c.getViewedAt().isBefore(from) && c.getViewedAt().isBefore(to))
-                .forEach(c -> entries.add(new ActivityEntry(c.getViewedAt(), ActivityKind.DAILY_CARE_READ,
-                        "하루 한마디 열람", null)));
+        dailyCareRepository.findByElderIdAndDate(elderId, date, now).forEach(c -> {
+            if (c.getCreatedAt() != null) {
+                entries.add(new ActivityEntry(c.getCreatedAt(), ActivityType.GREETING_ARRIVED,
+                        "하루 한마디 도착", greetingDetail(c)));
+            }
+            if (c.getViewedAt() != null && !c.getViewedAt().isBefore(from) && c.getViewedAt().isBefore(to)) {
+                entries.add(new ActivityEntry(c.getViewedAt(), ActivityType.GREETING_READ,
+                        "하루 한마디 열람", Map.of()));
+            }
+        });
 
-        entries.sort(Comparator.comparing(ActivityEntry::at));
+        List<MemoryViewActivityQuery.MemoryViewActivity> memoryViews =
+                memoryViewActivityQuery.firstViewedBetween(elderId, from, to);
+        Map<UUID, String> titles = memoryRepository.findAllById(memoryViews.stream()
+                        .map(MemoryViewActivityQuery.MemoryViewActivity::memoryId).toList())
+                .stream()
+                .collect(Collectors.toMap(Memory::getId, Memory::getTitle));
+        memoryViews.forEach(view -> {
+            Map<String, Object> detail = new java.util.HashMap<>();
+            detail.put("memoryId", view.memoryId());
+            if (titles.containsKey(view.memoryId())) detail.put("memoryTitle", titles.get(view.memoryId()));
+            entries.add(new ActivityEntry(view.firstViewedAt(), ActivityType.MEMORY_VIEWED,
+                    "추억 열람", detail));
+        });
+
+        entries.sort(Comparator.comparing(ActivityEntry::occurredAt));
         return entries;
     }
 
-    private String responseSummary(ResponseQuery.ElderResponseActivity r) {
-        if (r.transcript() != null && !r.transcript().isBlank()) {
-            return "음성 메시지 도착 · " + r.transcript();
-        }
-        if (r.text() != null && !r.text().isBlank()) {
-            return "메시지 도착 · " + r.text();
-        }
-        return switch (r.responseType()) {
-            case "VOICE" -> "음성 메시지 도착";
-            case "EMOTION" -> "마음 전하기 도착";
-            case "IMAGE" -> "사진 답변 도착";
-            default -> "답변 도착";
-        };
+    private Map<String, Object> greetingDetail(DailyCare care) {
+        Map<String, Object> detail = new java.util.HashMap<>();
+        detail.put("medium", care.getCareType().name());
+        if (care.getText() != null && !care.getText().isBlank()) detail.put("preview", care.getText());
+        if (care.getDurationSeconds() != null) detail.put("durationSeconds", care.getDurationSeconds());
+        return detail;
     }
 }

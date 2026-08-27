@@ -8,6 +8,7 @@ import com.memeboo2.haemi.guardian.report.application.GetElderReportSummaryUseCa
 import com.memeboo2.haemi.guardian.report.application.GetSupportGuideUseCase;
 import com.memeboo2.haemi.guardian.report.application.GetWeeklyHighlightUseCase;
 import com.memeboo2.haemi.guardian.report.application.UpdateWeeklyHighlightUseCase;
+import com.memeboo2.haemi.guardian.report.application.WeeklyHighlightItem;
 import com.memeboo2.haemi.guardian.report.presentation.dto.AttendanceDetailResponse;
 import com.memeboo2.haemi.guardian.report.presentation.dto.CognitiveStatusResponse;
 import com.memeboo2.haemi.guardian.report.presentation.dto.ElderReportCardResponse;
@@ -107,7 +108,12 @@ public class ReportController {
     }
 
     public record UpdateHighlightRequest(
-            @jakarta.validation.constraints.NotEmpty List<@jakarta.validation.constraints.NotBlank String> lines) {}
+            @jakarta.validation.constraints.NotEmpty List<@jakarta.validation.Valid UpdateHighlightItem> items) {}
+
+    public record UpdateHighlightItem(
+            UUID id,
+            @jakarta.validation.constraints.NotBlank String title,
+            @jakarta.validation.constraints.NotBlank String body) {}
 
     @Operation(summary = "이번 주 하이라이트 편집 (#100 M5)",
             description = "보호자가 이번 주 하이라이트 문구를 직접 수정한다. 이후 조회는 편집된 문구를 반환한다.")
@@ -121,7 +127,11 @@ public class ReportController {
             @RequestAttribute UUID guardianId,
             @PathVariable UUID elderId,
             @org.springframework.web.bind.annotation.RequestBody @jakarta.validation.Valid UpdateHighlightRequest req) {
-        var highlight = updateWeeklyHighlightUseCase.execute(guardianId, elderId, req.lines());
+        var items = req.items().stream()
+                .map(item -> new WeeklyHighlightItem(
+                        item.id() == null ? UUID.randomUUID() : item.id(), item.title(), item.body()))
+                .toList();
+        var highlight = updateWeeklyHighlightUseCase.executeItems(guardianId, elderId, items);
         return ResponseEntity.ok(ApiResponse.ok(WeeklyHighlightResponse.from(highlight)));
     }
 

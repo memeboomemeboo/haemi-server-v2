@@ -45,10 +45,14 @@ public class AuthController {
             @NotBlank @Size(min = 4, max = 50) String loginId,
             @NotBlank @Size(min = 8, max = 50) String password,
             @NotBlank @Pattern(regexp = "\\d{4}-\\d{2}-\\d{2}") String birthDate,
-            @NotBlank @Pattern(regexp = "\\d{6}") String pin
+            @NotBlank @Pattern(regexp = "\\d{6}") String pin,
+            @Size(max = 20) String phone,
+            @Email @Size(max = 255) String email,
+            UUID emailVerificationId
     ) {}
 
     public record LoginIdAvailabilityResponse(
+            @Schema(description = "확인한 loginId") String loginId,
             @Schema(description = "해당 loginId가 아직 사용 가능하면 true") boolean available) {}
 
     public record EmailVerificationRequest(@NotBlank @Email @Size(max = 255) String email) {}
@@ -78,7 +82,8 @@ public class AuthController {
     public ResponseEntity<ApiResponse<RegisterResponse>> registerGuardian(
             @RequestBody @Valid GuardianRegisterRequest req) {
         UUID userId = registerGuardianUseCase.execute(
-                req.name(), req.loginId(), req.password(), req.birthDate(), req.pin());
+                req.name(), req.loginId(), req.password(), req.birthDate(), req.pin(),
+                req.phone(), req.email(), req.emailVerificationId());
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.ok(new RegisterResponse(userId)));
     }
@@ -89,7 +94,7 @@ public class AuthController {
     public ResponseEntity<ApiResponse<LoginIdAvailabilityResponse>> checkLoginIdAvailability(
             @RequestParam @NotBlank @Size(min = 4, max = 50) String loginId) {
         boolean available = checkLoginIdAvailabilityUseCase.isAvailable(loginId);
-        return ResponseEntity.ok(ApiResponse.ok(new LoginIdAvailabilityResponse(available)));
+        return ResponseEntity.ok(ApiResponse.ok(new LoginIdAvailabilityResponse(loginId, available)));
     }
 
     @Operation(summary = "이메일 인증번호 발송")

@@ -109,6 +109,7 @@ class CreateResponseUseCaseTest {
         UUID refId = UUID.randomUUID();
         given(mediaUploadCommand.confirmUpload(elderUserId, refId, MediaPurpose.RESPONSE_VOICE))
                 .willReturn(URI.create("http://localhost/serve?key=voice.aac"));
+        given(mediaUploadCommand.declaredDurationSeconds(refId)).willReturn(42);
         given(responseRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
 
         useCase.voice(elderUserId, memoryId, refId);
@@ -117,6 +118,7 @@ class CreateResponseUseCaseTest {
         verify(responseRepository).save(captor.capture());
         assertThat(captor.getValue().getResponseType()).isEqualTo(ResponseType.VOICE);
         assertThat(captor.getValue().getMediaKey()).contains("voice.aac");
+        assertThat(captor.getValue().getDurationSeconds()).isEqualTo(42);
     }
 
     @Test

@@ -54,7 +54,47 @@ class AuthHttpTest {
 
         assertThat(response.statusCode()).isEqualTo(200);
         JsonNode data = objectMapper.readTree(response.body()).path("data");
+        assertThat(data.path("loginId").asText()).isEqualTo(loginId);
         assertThat(data.path("available").asBoolean()).isTrue();
+    }
+
+    @Test
+    void 아이디_중복_확인은_인증없이_호출할_수_있다() throws Exception {
+        HttpRequest request = HttpRequest.newBuilder(URI.create(
+                        "http://localhost:" + port + "/api/v1/auth/login-id/availability?loginId=" + loginId))
+                .GET()
+                .build();
+
+        HttpResponse<String> response = HttpClient.newHttpClient()
+                .send(request, HttpResponse.BodyHandlers.ofString());
+
+        assertThat(response.statusCode()).isEqualTo(200);
+        JsonNode data = objectMapper.readTree(response.body()).path("data");
+        assertThat(data.path("loginId").asText()).isEqualTo(loginId);
+        assertThat(data.path("available").asBoolean()).isTrue();
+    }
+
+    @Test
+    void 보호자_회원가입은_선택_이메일과_전화번호도_받는다() throws Exception {
+        Map<String, Object> body = registerPayloadMap(loginId);
+        body.put("phone", "01012345678");
+        body.put("email", "optional-" + UUID.randomUUID() + "@example.com");
+
+        HttpResponse<String> response = post("/api/v1/auth/guardians/register", objectMapper.writeValueAsString(body));
+
+        assertThat(response.statusCode()).isEqualTo(201);
+    }
+
+    @Test
+    void 이메일_없이_인증ID만_제출하면_400을_반환한다() throws Exception {
+        Map<String, Object> body = registerPayloadMap(loginId);
+        body.put("emailVerificationId", UUID.randomUUID());
+
+        HttpResponse<String> response = post("/api/v1/auth/guardians/register", objectMapper.writeValueAsString(body));
+
+        assertThat(response.statusCode()).isEqualTo(400);
+        assertThat(objectMapper.readTree(response.body()).path("error").path("code").asText())
+                .isEqualTo("INVALID_INPUT");
     }
 
     @Test
