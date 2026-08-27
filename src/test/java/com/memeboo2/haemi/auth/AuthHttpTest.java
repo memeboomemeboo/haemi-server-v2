@@ -1,0 +1,200 @@
+package com.memeboo2.haemi.auth;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.memeboo2.haemi.auth.account.domain.AccountRole;
+import com.memeboo2.haemi.auth.api.JwtTokenProvider;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.test.context.ActiveProfiles;
+
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.UUID;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+/** AuthController의 회원가입·로그인·토큰재발급·로그아웃·이메일인증 흐름에 대한 HTTP 인수 테스트다. */
+@ActiveProfiles("test")
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+class AuthHttpTest {
+
+    @LocalServerPort int port;
+    @Autowired JwtTokenProvider jwtTokenProvider;
+    private final ObjectMapper objectMapper = new ObjectMapper();
+    private String loginId;
+    private String authToken;
+    private final String password = "password123";
+
+    @BeforeEach
+    void setUp() {
+        loginId = "test_user_" + UUID.randomUUID().toString().substring(0, 8);
+        authToken = jwtTokenProvider.createAccessToken(UUID.randomUUID(), AccountRole.GUARDIAN);
+    }
+
+    @Test
+    void 보호자_회원가입은_201을_반환한다() throws Exception {
+        HttpResponse<String> response = post("/api/v1/auth/guardians/register", registerPayload(loginId));
+
+        assertThat(response.statusCode()).isEqualTo(201);
+        JsonNode data = objectMapper.readTree(response.body()).path("data");
+        assertThat(data.path("userId").asText()).isNotBlank();
+    }
+
+    @Test
+    void 아이디_중복_확인은_사용가능여부를_반환한다() throws Exception {
+        HttpResponse<String> response = get("/api/v1/auth/login-id/availability?loginId=" + loginId);
+
+        assertThat(response.statusCode()).isEqualTo(200);
+        JsonNode data = objectMapper.readTree(response.body()).path("data");
+        assertThat(data.path("available").asBoolean()).isTrue();
+    }
+
+    @Test
+    void 등록후_아이디_중복_확인은_사용불가를_반환한다() throws Exception {
+        assertThat(post("/api/v1/auth/guardians/register", registerPayload(loginId)).statusCode()).isEqualTo(201);
+
+        HttpResponse<String> response = get("/api/v1/auth/login-id/availability?loginId=" + loginId);
+
+        JsonNode data = objectMapper.readTree(response.body()).path("data");
+        assertThat(data.path("available").asBoolean()).isFalse();
+    }
+
+    @Test
+    void 잘못된_비밀번호로_로그인하면_401을_반환한다() throws Exception {
+        assertThat(post("/api/v1/auth/guardians/register", registerPayload(loginId)).statusCode()).isEqualTo(201);
+
+        HttpResponse<String> response = post("/api/v1/auth/login", loginPayload(loginId, "wrong-password"));
+
+        assertThat(response.statusCode()).isEqualTo(401);
+    }
+
+    @Test
+    void 올바른_자격증명으로_로그인하면_토큰을_반환한다() throws Exception {
+        assertThat(post("/api/v1/auth/guardians/register", registerPayload(loginId)).statusCode()).isEqualTo(201);
+
+        HttpResponse<String> response = post("/api/v1/auth/login", loginPayload(loginId, password));
+
+        assertThat(response.statusCode()).isEqualTo(200);
+        JsonNode data = objectMapper.readTree(response.body()).path("data");
+        assertThat(data.path("accessToken").asText()).isNotBlank();
+        assertThat(data.path("refreshToken").asText()).isNotBlank();
+    }
+
+    @Test
+    void 리프레시_토큰으로_새_토큰을_재발급한다() throws Exception {
+        assertThat(post("/api/v1/auth/guardians/register", registerPayload(loginId)).statusCode()).isEqualTo(201);
+        JsonNode loginData = objectMapper.readTree(
+                post("/api/v1/auth/login", loginPayload(loginId, password)).body()).path("data");
+        String refreshToken = loginData.path("refreshToken").asText();
+
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("refreshToken", refreshToken);
+        body.put("deviceId", "test-device");
+        HttpResponse<String> response = post("/api/v1/auth/refresh", objectMapper.writeValueAsString(body));
+
+        assertThat(response.statusCode()).isEqualTo(200);
+        JsonNode data = objectMapper.readTree(response.body()).path("data");
+        assertThat(data.path("accessToken").asText()).isNotBlank();
+        assertThat(data.path("refreshToken").asText()).isNotBlank();
+    }
+
+    @Test
+    void 유효한_토큰으로_로그아웃하면_200을_반환한다() throws Exception {
+        assertThat(post("/api/v1/auth/guardians/register", registerPayload(loginId)).statusCode()).isEqualTo(201);
+        JsonNode loginData = objectMapper.readTree(
+                post("/api/v1/auth/login", loginPayload(loginId, password)).body()).path("data");
+        String accessToken = loginData.path("accessToken").asText();
+
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("deviceId", "test-device");
+        HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/v1/auth/logout"))
+                .header("Content-Type", "application/json")
+                .header("Authorization", "Bearer " + accessToken)
+                .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(body)))
+                .build();
+        HttpResponse<String> response = HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.ofString());
+
+        assertThat(response.statusCode()).isEqualTo(200);
+    }
+
+    @Test
+    void 유효한_이메일로_인증번호_발송을_요청하면_201을_반환한다() throws Exception {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("email", "test-" + UUID.randomUUID() + "@example.com");
+
+        HttpResponse<String> response = post("/api/v1/auth/email-verifications", objectMapper.writeValueAsString(body));
+
+        assertThat(response.statusCode()).isEqualTo(201);
+    }
+
+    @Test
+    void 잘못된_인증번호로_확인하면_400을_반환한다() throws Exception {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("email", "test-" + UUID.randomUUID() + "@example.com");
+        JsonNode verificationId = objectMapper.readTree(
+                post("/api/v1/auth/email-verifications", objectMapper.writeValueAsString(body)).body()).path("data");
+
+        Map<String, Object> confirmBody = new LinkedHashMap<>();
+        confirmBody.put("code", "000000");
+        HttpResponse<String> response = post(
+                "/api/v1/auth/email-verifications/" + verificationId.asText() + "/confirm",
+                objectMapper.writeValueAsString(confirmBody));
+
+        assertThat(response.statusCode()).isEqualTo(400);
+    }
+
+    @Test
+    void 짧은_비밀번호로_회원가입하면_400을_반환한다() throws Exception {
+        Map<String, Object> body = registerPayloadMap(loginId);
+        body.put("password", "short");
+
+        HttpResponse<String> response = post("/api/v1/auth/guardians/register", objectMapper.writeValueAsString(body));
+
+        assertThat(response.statusCode()).isEqualTo(400);
+    }
+
+    private String registerPayload(String loginId) throws Exception {
+        return objectMapper.writeValueAsString(registerPayloadMap(loginId));
+    }
+
+    private Map<String, Object> registerPayloadMap(String loginId) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("name", "테스트");
+        body.put("loginId", loginId);
+        body.put("password", password);
+        body.put("birthDate", "1990-01-01");
+        body.put("pin", "123456");
+        return body;
+    }
+
+    private String loginPayload(String loginId, String password) throws Exception {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("loginId", loginId);
+        body.put("password", password);
+        body.put("deviceId", "test-device");
+        return objectMapper.writeValueAsString(body);
+    }
+
+    private HttpResponse<String> post(String path, String body) throws Exception {
+        HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(body))
+                .build();
+        return HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.ofString());
+    }
+
+    private HttpResponse<String> get(String path) throws Exception {
+        HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
+                .header("Authorization", "Bearer " + authToken)
+                .GET().build();
+        return HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.ofString());
+    }
+}
