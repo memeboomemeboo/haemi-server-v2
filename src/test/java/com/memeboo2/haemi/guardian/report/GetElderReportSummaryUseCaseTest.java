@@ -78,6 +78,32 @@ class GetElderReportSummaryUseCaseTest {
     }
 
     @Test
+    void 존재하지_않는_어르신은_404() {
+        given(elderRepository.findById(elderId)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> useCase.execute(guardianId, elderId))
+                .isInstanceOf(DomainException.class)
+                .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
+                        .isEqualTo(ErrorCode.RESOURCE_NOT_FOUND));
+    }
+
+    @Test
+    void 생년월일이_없으면_나이와_세대가_null이다() {
+        given(clock.today()).willReturn(today);
+        Elder elder = Elder.create(UUID.randomUUID(), UUID.randomUUID(), "무명", null); // birthDate null
+        ReflectionTestUtils.setField(elder, "createdAt",
+                today.minusDays(10).atStartOfDay(ZoneId.of("Asia/Seoul")).toInstant());
+        given(elderRepository.findById(elderId)).willReturn(Optional.of(elder));
+        given(participationRepository.findByElderId(elderId)).willReturn(List.of());
+
+        var summary = useCase.execute(guardianId, elderId);
+
+        assertThat(summary.age()).isNull();
+        assertThat(summary.generation()).isNull();
+        assertThat(summary.attendedToday()).isFalse();
+    }
+
+    @Test
     void 링크없는_보호자는_403() {
         willThrow(new DomainException(ErrorCode.CARE_ACCESS_DENIED))
                 .given(careAccessQuery).requireGuardianOf(guardianId, elderId);

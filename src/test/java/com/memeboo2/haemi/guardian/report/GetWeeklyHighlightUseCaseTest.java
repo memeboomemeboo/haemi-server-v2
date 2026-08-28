@@ -132,6 +132,52 @@ class GetWeeklyHighlightUseCaseTest {
     }
 
     @Test
+    void 모든_영역이_GOOD이면_영역별_강점_문구가_생성된다() {
+        given(overrideRepository.findByElderIdAndWeekStart(any(), any())).willReturn(Optional.empty());
+        given(weeklyParticipationDaysCounter.count(elderId, TODAY)).willReturn(7);
+        given(cognitiveStatusQuery.cognitiveStatus(guardianId, elderId)).willReturn(
+                new CognitiveStatusQuery.CognitiveStatusView(elderId, List.of(
+                        new CognitiveStatusQuery.AreaStatus(CognitiveArea.ORIENTATION, CognitiveStatus.GOOD, false),
+                        new CognitiveStatusQuery.AreaStatus(CognitiveArea.RECALL, CognitiveStatus.GOOD, false),
+                        new CognitiveStatusQuery.AreaStatus(CognitiveArea.LANGUAGE, CognitiveStatus.GOOD, false),
+                        new CognitiveStatusQuery.AreaStatus(CognitiveArea.DELAYED_RECALL, CognitiveStatus.GOOD, false))));
+        given(weeklyHighlightWriter.write(any(WeeklyHighlightPrompt.class))).willReturn(List.of("좋아요"));
+
+        useCase.execute(guardianId, elderId);
+
+        org.mockito.ArgumentCaptor<WeeklyHighlightPrompt> captor =
+                org.mockito.ArgumentCaptor.forClass(WeeklyHighlightPrompt.class);
+        verify(weeklyHighlightWriter).write(captor.capture());
+        // strengthFor의 4개 case 모두 통과
+        assertThat(captor.getValue().strengths()).containsExactlyInAnyOrder(
+                WeeklyHighlightFact.ORIENTATION_STRENGTH, WeeklyHighlightFact.RECALL_STRENGTH,
+                WeeklyHighlightFact.LANGUAGE_STRENGTH, WeeklyHighlightFact.DELAYED_RECALL_STRENGTH);
+    }
+
+    @Test
+    void 모든_영역이_WATCH이면_영역별_관찰_문구가_생성된다() {
+        given(overrideRepository.findByElderIdAndWeekStart(any(), any())).willReturn(Optional.empty());
+        given(weeklyParticipationDaysCounter.count(elderId, TODAY)).willReturn(1);
+        given(cognitiveStatusQuery.cognitiveStatus(guardianId, elderId)).willReturn(
+                new CognitiveStatusQuery.CognitiveStatusView(elderId, List.of(
+                        new CognitiveStatusQuery.AreaStatus(CognitiveArea.ORIENTATION, CognitiveStatus.WATCH, false),
+                        new CognitiveStatusQuery.AreaStatus(CognitiveArea.RECALL, CognitiveStatus.WATCH, false),
+                        new CognitiveStatusQuery.AreaStatus(CognitiveArea.LANGUAGE, CognitiveStatus.WATCH, false),
+                        new CognitiveStatusQuery.AreaStatus(CognitiveArea.DELAYED_RECALL, CognitiveStatus.WATCH, false))));
+        given(weeklyHighlightWriter.write(any(WeeklyHighlightPrompt.class))).willReturn(List.of("지켜봐요"));
+
+        useCase.execute(guardianId, elderId);
+
+        org.mockito.ArgumentCaptor<WeeklyHighlightPrompt> captor =
+                org.mockito.ArgumentCaptor.forClass(WeeklyHighlightPrompt.class);
+        verify(weeklyHighlightWriter).write(captor.capture());
+        // supportFor의 4개 case 모두 통과
+        assertThat(captor.getValue().observations()).containsExactlyInAnyOrder(
+                WeeklyHighlightFact.ORIENTATION_SUPPORT, WeeklyHighlightFact.RECALL_SUPPORT,
+                WeeklyHighlightFact.LANGUAGE_SUPPORT, WeeklyHighlightFact.DELAYED_RECALL_SUPPORT);
+    }
+
+    @Test
     void 인가되지_않은_접근은_예외를_전파한다() {
         org.mockito.Mockito.doThrow(new RuntimeException("접근 거부"))
                 .when(careAccessQuery).requireGuardianOf(guardianId, elderId);

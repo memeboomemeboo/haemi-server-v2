@@ -125,6 +125,38 @@ class LoginUseCaseTest {
     }
 
     @Test
+    void PIN이_활성화된_계정은_PIN만으로_로그인된다() {
+        Account account = guardian();
+        UUID accountId = UUID.randomUUID();
+        setId(account, accountId);
+        account.enablePinLogin(); // 이미 PIN 로그인 활성화 상태
+        given(accountRepository.findByLoginId("guardian01")).willReturn(Optional.of(account));
+        // passwordMatches=false (비밀번호 미입력), pinMatches=true 경로
+        given(passwordService.matches("123456", "pin-hash")).willReturn(true);
+        given(jwtTokenProvider.createAccessToken(accountId, AccountRole.GUARDIAN)).willReturn("access");
+        given(jwtTokenProvider.createRefreshToken(accountId)).willReturn("refresh");
+        given(jwtProperties.refreshTokenValidity()).willReturn(Duration.ofDays(14));
+
+        LoginUseCase.TokenPair pair = useCase.execute("guardian01", null, "123456", "device-a");
+
+        assertThat(pair.accessToken()).isEqualTo("access");
+        // 이미 활성화되어 있으므로 enablePinLogin은 호출되지 않는다.
+        verify(accountRepository, org.mockito.Mockito.never()).enablePinLogin(any());
+    }
+
+    @Test
+    void 빈_비밀번호와_빈_PIN은_INVALID_CREDENTIALS() {
+        Account account = guardian();
+        given(accountRepository.findByLoginId("guardian01")).willReturn(Optional.of(account));
+
+        // password="" → isBlank true 분기, pin="" → isBlank true 분기
+        assertThatThrownBy(() -> useCase.execute("guardian01", "", "", "device-a"))
+                .isInstanceOf(DomainException.class)
+                .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
+                        .isEqualTo(ErrorCode.INVALID_CREDENTIALS));
+    }
+
+    @Test
     void 잠긴_계정은_비밀번호가_맞아도_거부된다() {
         Account account = guardian();
         lockUntil(account, NOW.plusSeconds(900L));

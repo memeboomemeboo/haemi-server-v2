@@ -77,24 +77,48 @@ tasks.named('test') {
 	finalizedBy jacocoTestReport
 }
 
+// 커버리지 측정에서 제외: 실행 로직이 없는 부트스트랩·프로파일 한정 설정(config) 클래스.
+// 이들은 단위 테스트 대상이 아니라 스프링 컨텍스트 배선이므로 분기 커버리지 지표를 왜곡한다.
+def jacocoExcludes = [
+	'**/HaemiApplication.class',
+	'**/*Config.class',            // @Configuration 배선 (예: S3StorageConfig — @Profile("prod") AWS SDK 빈)
+	'**/*Properties.class',        // @ConfigurationProperties 레코드
+]
+
 jacocoTestReport {
 	dependsOn test
 	reports {
 		xml.required = true
 		csv.required = true
 	}
+	afterEvaluate {
+		classDirectories.setFrom(files(classDirectories.files.collect {
+			fileTree(dir: it, exclude: jacocoExcludes)
+		}))
+	}
 }
 
 jacocoTestCoverageVerification {
 	dependsOn jacocoTestReport
 
+	afterEvaluate {
+		classDirectories.setFrom(files(classDirectories.files.collect {
+			fileTree(dir: it, exclude: jacocoExcludes)
+		}))
+	}
+
 	// 완성형 목표: domain 95%, application 90%, presentation 80%, infrastructure 75%, 전체 85%
-	// 현재 실측 floor → 단계적 상향 (회귀 방지)
+	// LINE·BRANCH 모두 85% 이상을 게이트로 강제한다 (회귀 방지).
 	violationRules {
 		rule {
 			element = 'BUNDLE'
 			limit {
 				counter = 'LINE'
+				value = 'COVEREDRATIO'
+				minimum = 0.85
+			}
+			limit {
+				counter = 'BRANCH'
 				value = 'COVEREDRATIO'
 				minimum = 0.85
 			}

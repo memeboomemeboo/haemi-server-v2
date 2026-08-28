@@ -90,6 +90,35 @@ class MemoryCreatorResolverTest {
         assertThat(result.get(0).isMine()).isTrue();
     }
 
+    @Test
+    void 생성자가_null인_추억은_이름과_역할이_null이다() {
+        Memory memory = createMemoryWithCreator(elderId, null); // createdBy == null 분기
+
+        MemoryWithCreator result = resolver.resolve(memory, UUID.randomUUID());
+
+        assertThat(result.creatorName()).isNull();
+        assertThat(result.creatorRole()).isNull();
+        assertThat(result.isMine()).isFalse();
+    }
+
+    @Test
+    void 목록_조회에서_생성자가_null인_추억도_처리한다() {
+        Memory withCreator = createMemoryWithCreator(elderId, UUID.randomUUID());
+        Memory noCreator = createMemoryWithCreator(elderId, null); // resolveAll createdBy == null 분기
+        UUID createdBy = withCreator.getCreatedBy();
+        given(accountQuery.findAllById(List.of(createdBy)))
+                .willReturn(List.of(new AccountQuery.AccountInfo(createdBy, "황정빈", "id", "010", null, null, null)));
+        given(linkRepository.findAllByGuardianIdInAndElderId(List.of(createdBy), elderId)).willReturn(List.of());
+
+        List<MemoryWithCreator> result = resolver.resolveAll(List.of(withCreator, noCreator), elderId, createdBy);
+
+        assertThat(result).hasSize(2);
+        assertThat(result.get(0).creatorName()).isEqualTo("황정빈");
+        assertThat(result.get(0).creatorRole()).isNull(); // 링크 없음
+        assertThat(result.get(1).creatorName()).isNull(); // createdBy null
+        assertThat(result.get(1).isMine()).isFalse();
+    }
+
     /** createdBy는 JPA Auditing(@CreatedBy)이 채우므로 리플렉션으로 세팅한다. */
     private Memory createMemoryWithCreator(UUID elderId, UUID createdBy) {
         Memory memory = Memory.create(elderId, "제목", null, "한마디", 2020);
