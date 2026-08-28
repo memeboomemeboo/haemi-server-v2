@@ -172,6 +172,217 @@ class ConfirmUploadUseCaseTest {
     }
 
     @Test
+    void expectedPurpose_일치하면_정상_확정된다() {
+        UUID actorId = UUID.randomUUID();
+        UUID refId   = UUID.randomUUID();
+        MediaRef ref = pendingRef(actorId); // MEMORY_IMAGE
+
+        given(repository.findById(refId)).willReturn(Optional.of(ref));
+        given(clock.now()).willReturn(NOW);
+        given(storage.headObject(ref.getStorageKey())).willReturn(Optional.of(
+                new StoragePort.ObjectMetadata("image/jpeg", 1_000_000L)));
+        given(storage.generateServingUrl(any())).willReturn(URI.create("http://localhost/serve"));
+
+        URI url = useCase.confirmUpload(actorId, refId,
+                com.memeboo2.haemi.platform.api.MediaPurpose.MEMORY_IMAGE);
+
+        assertThat(url).isNotNull();
+        assertThat(ref.getStatus()).isEqualTo(UploadStatus.CONFIRMED);
+    }
+
+    @Test
+    void expectedPurpose_불일치하면_INVALID_INPUT() {
+        UUID actorId = UUID.randomUUID();
+        UUID refId   = UUID.randomUUID();
+        MediaRef ref = pendingRef(actorId); // MEMORY_IMAGE
+
+        given(repository.findById(refId)).willReturn(Optional.of(ref));
+
+        assertThatThrownBy(() -> useCase.confirmUpload(actorId, refId,
+                com.memeboo2.haemi.platform.api.MediaPurpose.PROFILE_IMAGE))
+                .isInstanceOf(DomainException.class)
+                .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
+                        .isEqualTo(ErrorCode.INVALID_INPUT));
+    }
+
+    @Test
+    void 스토리지_contentType이_요청과_다르면_INVALID_INPUT() {
+        UUID actorId = UUID.randomUUID();
+        UUID refId   = UUID.randomUUID();
+        MediaRef ref = pendingRef(actorId);
+
+        given(repository.findById(refId)).willReturn(Optional.of(ref));
+        given(storage.headObject(ref.getStorageKey())).willReturn(Optional.of(
+                new StoragePort.ObjectMetadata("image/png", 1_000_000L)));
+
+        assertThatThrownBy(() -> useCase.confirmUpload(actorId, refId))
+                .isInstanceOf(DomainException.class)
+                .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
+                        .isEqualTo(ErrorCode.INVALID_INPUT));
+    }
+
+    @Test
+    void 스토리지_사이즈가_요청과_다르면_INVALID_INPUT() {
+        UUID actorId = UUID.randomUUID();
+        UUID refId   = UUID.randomUUID();
+        MediaRef ref = pendingRef(actorId);
+
+        given(repository.findById(refId)).willReturn(Optional.of(ref));
+        given(storage.headObject(ref.getStorageKey())).willReturn(Optional.of(
+                new StoragePort.ObjectMetadata("image/jpeg", 999L)));
+
+        assertThatThrownBy(() -> useCase.confirmUpload(actorId, refId))
+                .isInstanceOf(DomainException.class)
+                .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
+                        .isEqualTo(ErrorCode.INVALID_INPUT));
+    }
+
+    @Test
+    void 음성_길이_메타데이터가_없으면_INVALID_INPUT() {
+        UUID actorId = UUID.randomUUID();
+        UUID refId   = UUID.randomUUID();
+        MediaRef ref = MediaRef.pending(MediaType.RESPONSE_VOICE, "response_voice/key.aac", "reply.aac",
+                "audio/aac", 1_000_000L, 30, actorId, EXPIRY, NOW.plusSeconds(86400L), null);
+        given(repository.findById(refId)).willReturn(Optional.of(ref));
+        given(storage.headObject(ref.getStorageKey())).willReturn(Optional.of(
+                new StoragePort.ObjectMetadata("audio/aac", 1_000_000L, null)));
+
+        assertThatThrownBy(() -> useCase.confirmUpload(actorId, refId))
+                .isInstanceOf(DomainException.class)
+                .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
+                        .isEqualTo(ErrorCode.INVALID_INPUT));
+    }
+
+    @Test
+    void 기대하는_음성길이와_실제가_다르면_INVALID_INPUT() {
+        UUID actorId = UUID.randomUUID();
+        UUID refId   = UUID.randomUUID();
+        MediaRef ref = MediaRef.pending(MediaType.RESPONSE_VOICE, "response_voice/key.aac", "reply.aac",
+                "audio/aac", 1_000_000L, 30, actorId, EXPIRY, NOW.plusSeconds(86400L), null);
+        given(repository.findById(refId)).willReturn(Optional.of(ref));
+        given(storage.headObject(ref.getStorageKey())).willReturn(Optional.of(
+                new StoragePort.ObjectMetadata("audio/aac", 1_000_000L, 30)));
+        given(policy.voice()).willReturn(new UploadPolicyProperties.Voice(
+                12_582_912L, 60, List.of("audio/aac")));
+
+        // expectedDurationSeconds=40 이지만 실제=30 → 불일치
+        assertThatThrownBy(() -> useCase.confirmUpload(actorId, refId, null, 40))
+                .isInstanceOf(DomainException.class)
+                .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
+                        .isEqualTo(ErrorCode.INVALID_INPUT));
+    }
+
+    @Test
+    void HEIC_원본정리_실패해도_확정은_성공한다() {
+        UUID actorId = UUID.randomUUID();
+        UUID refId = UUID.randomUUID();
+        MediaRef ref = MediaRef.pending(MediaType.MEMORY_IMAGE, "memory_image/key.heic", "photo.heic",
+                "image/heic", 2_000L, null, actorId, EXPIRY, NOW.plusSeconds(86400L * 365), null);
+
+        given(repository.findById(refId)).willReturn(Optional.of(ref));
+        given(clock.now()).willReturn(NOW);
+        given(storage.headObject("memory_image/key.heic")).willReturn(Optional.of(
+                new StoragePort.ObjectMetadata("image/heic", 2_000L)));
+        given(storage.getObject("memory_image/key.heic")).willReturn(Optional.of(
+                new StoragePort.StoredContent("image/heic", new byte[]{1, 2, 3})));
+        given(heicConverter.toJpeg(any())).willReturn(new byte[]{10, 20, 30, 40});
+        given(storage.generateServingUrl("memory_image/key.jpg"))
+                .willReturn(URI.create("http://localhost/serve/key.jpg"));
+        org.mockito.Mockito.doThrow(new RuntimeException("s3 down"))
+                .when(storage).deleteObject("memory_image/key.heic");
+
+        URI url = useCase.confirmUpload(actorId, refId);
+
+        // best-effort 정리 실패는 확정 결과를 막지 않는다.
+        assertThat(url).isEqualTo(URI.create("http://localhost/serve/key.jpg"));
+        assertThat(ref.getStatus()).isEqualTo(UploadStatus.CONFIRMED);
+    }
+
+    @Test
+    void HEIC_확장자없는_키는_jpg가_덧붙는다() {
+        UUID actorId = UUID.randomUUID();
+        UUID refId = UUID.randomUUID();
+        // 확장자 dot이 slash보다 앞 → toJpegKey else 분기(원본키 + ".jpg")
+        MediaRef ref = MediaRef.pending(MediaType.MEMORY_IMAGE, "memory_image/keynoext", "photo.heic",
+                "image/heic", 2_000L, null, actorId, EXPIRY, NOW.plusSeconds(86400L * 365), null);
+
+        given(repository.findById(refId)).willReturn(Optional.of(ref));
+        given(clock.now()).willReturn(NOW);
+        given(storage.headObject("memory_image/keynoext")).willReturn(Optional.of(
+                new StoragePort.ObjectMetadata("image/heic", 2_000L)));
+        given(storage.getObject("memory_image/keynoext")).willReturn(Optional.of(
+                new StoragePort.StoredContent("image/heic", new byte[]{1, 2, 3})));
+        given(heicConverter.toJpeg(any())).willReturn(new byte[]{10, 20, 30, 40});
+        given(storage.generateServingUrl("memory_image/keynoext.jpg"))
+                .willReturn(URI.create("http://localhost/serve/keynoext.jpg"));
+
+        URI url = useCase.confirmUpload(actorId, refId);
+
+        assertThat(url).isEqualTo(URI.create("http://localhost/serve/keynoext.jpg"));
+        assertThat(ref.getStorageKey()).isEqualTo("memory_image/keynoext.jpg");
+    }
+
+    @Test
+    void 정상_음성_확정_GREETING_VOICE() {
+        UUID actorId = UUID.randomUUID();
+        UUID refId = UUID.randomUUID();
+        // isVoice의 GREETING_VOICE 분기 + 음성 검증 통과 경로(모든 조건 false)
+        MediaRef ref = MediaRef.pending(MediaType.GREETING_VOICE, "greeting_voice/key.aac", "hi.aac",
+                "audio/aac", 1_000_000L, 30, actorId, EXPIRY, NOW.plusSeconds(86400L), null);
+        given(repository.findById(refId)).willReturn(Optional.of(ref));
+        given(clock.now()).willReturn(NOW);
+        given(storage.headObject(ref.getStorageKey())).willReturn(Optional.of(
+                new StoragePort.ObjectMetadata("audio/aac", 1_000_000L, 30)));
+        given(policy.voice()).willReturn(new UploadPolicyProperties.Voice(
+                12_582_912L, 60, List.of("audio/aac")));
+        given(storage.generateServingUrl(any())).willReturn(URI.create("http://localhost/serve"));
+
+        URI url = useCase.confirmUpload(actorId, refId, null, 30); // expectedDuration 일치
+
+        assertThat(url).isNotNull();
+        assertThat(ref.getStatus()).isEqualTo(UploadStatus.CONFIRMED);
+    }
+
+    @Test
+    void 선언한_음성길이와_실제_저장길이가_다르면_INVALID_INPUT() {
+        UUID actorId = UUID.randomUUID();
+        UUID refId = UUID.randomUUID();
+        MediaRef ref = MediaRef.pending(MediaType.RESPONSE_VOICE, "response_voice/key.aac", "r.aac",
+                "audio/aac", 1_000_000L, 30, actorId, EXPIRY, NOW.plusSeconds(86400L), null);
+        given(repository.findById(refId)).willReturn(Optional.of(ref));
+        given(storage.headObject(ref.getStorageKey())).willReturn(Optional.of(
+                new StoragePort.ObjectMetadata("audio/aac", 1_000_000L, 25))); // 선언 30 ≠ 실제 25
+
+        assertThatThrownBy(() -> useCase.confirmUpload(actorId, refId))
+                .isInstanceOf(DomainException.class)
+                .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
+                        .isEqualTo(ErrorCode.INVALID_INPUT));
+    }
+
+    @Test
+    void RESPONSE_IMAGE_HEIC도_JPEG로_변환된다() {
+        UUID actorId = UUID.randomUUID();
+        UUID refId = UUID.randomUUID();
+        // isHeicImage의 RESPONSE_IMAGE 분기
+        MediaRef ref = MediaRef.pending(MediaType.RESPONSE_IMAGE, "response_image/key.heic", "r.heic",
+                "image/heif", 2_000L, null, actorId, EXPIRY, NOW.plusSeconds(86400L * 365), null);
+        given(repository.findById(refId)).willReturn(Optional.of(ref));
+        given(clock.now()).willReturn(NOW);
+        given(storage.headObject("response_image/key.heic")).willReturn(Optional.of(
+                new StoragePort.ObjectMetadata("image/heif", 2_000L)));
+        given(storage.getObject("response_image/key.heic")).willReturn(Optional.of(
+                new StoragePort.StoredContent("image/heif", new byte[]{1, 2, 3})));
+        given(heicConverter.toJpeg(any())).willReturn(new byte[]{9, 9});
+        given(storage.generateServingUrl("response_image/key.jpg"))
+                .willReturn(URI.create("http://localhost/serve/r.jpg"));
+
+        URI url = useCase.confirmUpload(actorId, refId);
+
+        assertThat(url).isNotNull();
+        assertThat(ref.getContentType()).isEqualTo("image/jpeg");
+    }
+
+    @Test
     void HEIC_변환_실패시_확정되지_않고_PENDING으로_남는다() {
         UUID actorId = UUID.randomUUID();
         UUID refId = UUID.randomUUID();

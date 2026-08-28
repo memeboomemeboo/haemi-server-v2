@@ -10,6 +10,8 @@ import com.memeboo2.haemi.guardian.eldermanagement.domain.Elder;
 import com.memeboo2.haemi.guardian.eldermanagement.domain.ElderRepository;
 import com.memeboo2.haemi.guardian.home.application.GetGuardianHomeUseCase;
 import com.memeboo2.haemi.guardian.memory.infrastructure.MemoryRepository;
+import com.memeboo2.haemi.guardian.report.api.CognitiveArea;
+import com.memeboo2.haemi.guardian.report.api.CognitiveStatus;
 import com.memeboo2.haemi.guardian.report.api.CognitiveStatusQuery;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -90,5 +92,110 @@ class GetGuardianHomeUseCaseTest {
         var result = useCase.execute(guardianId);
 
         assertThat(result.elders().get(0).lastLoginAt()).isNull();
+    }
+
+    @Test
+    void 조회된_어르신이_없으면_카드에서_제외된다() {
+        UUID guardianId = UUID.randomUUID();
+        UUID elderId = UUID.randomUUID();
+        LocalDate today = LocalDate.of(2026, 8, 25);
+
+        given(careAccessQuery.accessibleElders(guardianId)).willReturn(List.of(elderId));
+        given(clock.today()).willReturn(today);
+        given(elderRepository.findById(elderId)).willReturn(Optional.empty()); // elder == null 분기
+        lenient().when(memoryRepository.existsByCreatedByAndCreatedAtAfter(any(), any())).thenReturn(false);
+
+        var result = useCase.execute(guardianId);
+
+        assertThat(result.elders()).isEmpty();
+        // cards.isEmpty() → allGreetingsSent false 분기
+        assertThat(result.challenge().greetingCompleted()).isFalse();
+    }
+
+    @Test
+    void 생년월일이_없으면_나이는_null이다() {
+        UUID guardianId = UUID.randomUUID();
+        UUID elderId = UUID.randomUUID();
+        UUID elderUserId = UUID.randomUUID();
+        LocalDate today = LocalDate.of(2026, 8, 25);
+
+        given(careAccessQuery.accessibleElders(guardianId)).willReturn(List.of(elderId));
+        given(clock.today()).willReturn(today);
+        Elder elder = Elder.create(elderUserId, UUID.randomUUID(), "무명", null); // birthDate == null 분기
+        given(elderRepository.findById(elderId)).willReturn(Optional.of(elder));
+        given(careAccessQuery.roleOf(guardianId, elderId)).willReturn(GuardianRole.SON);
+        given(dailyCareRepository.existsByGuardianIdAndElderIdAndCareDate(guardianId, elderId, today))
+                .willReturn(true); // greetingSentToday=true → allMatch true 분기
+        given(accountQuery.findById(elderUserId)).willReturn(Optional.empty());
+        given(memoryRepository.existsByCreatedByAndCreatedAtAfter(any(), any())).willReturn(true);
+        lenient().when(cognitiveStatusQuery.cognitiveStatus(any(), any())).thenReturn(
+                new CognitiveStatusQuery.CognitiveStatusView(elderId, List.of()));
+
+        var result = useCase.execute(guardianId);
+
+        assertThat(result.elders().get(0).age()).isNull();
+        // 모든 카드가 인사 완료 → allGreetingsSent true 분기
+        assertThat(result.challenge().greetingCompleted()).isTrue();
+        assertThat(result.challenge().memoryCompleted()).isTrue();
+    }
+
+    @Test
+    void 인지영역_상태들의_최저값으로_오늘_컨디션을_요약한다() {
+        UUID guardianId = UUID.randomUUID();
+        UUID elderId = UUID.randomUUID();
+        UUID elderUserId = UUID.randomUUID();
+        LocalDate today = LocalDate.of(2026, 8, 25);
+
+        given(careAccessQuery.accessibleElders(guardianId)).willReturn(List.of(elderId));
+        given(clock.today()).willReturn(today);
+        Elder elder = Elder.create(elderUserId, UUID.randomUUID(), "황정빈", LocalDate.of(1950, 1, 1));
+        given(elderRepository.findById(elderId)).willReturn(Optional.of(elder));
+        given(careAccessQuery.roleOf(guardianId, elderId)).willReturn(GuardianRole.DAUGHTER);
+        given(dailyCareRepository.existsByGuardianIdAndElderIdAndCareDate(guardianId, elderId, today))
+                .willReturn(false);
+        given(accountQuery.findById(elderUserId)).willReturn(Optional.empty());
+        lenient().when(memoryRepository.existsByCreatedByAndCreatedAtAfter(any(), any())).thenReturn(false);
+        // GOOD→WATCH→NORMAL→NOT_AVAILABLE 순: switch 4개 case + 삼항 분기 모두 통과, 최저=WATCH
+        given(cognitiveStatusQuery.cognitiveStatus(guardianId, elderId)).willReturn(
+                new CognitiveStatusQuery.CognitiveStatusView(elderId, List.of(
+                        new CognitiveStatusQuery.AreaStatus(CognitiveArea.ORIENTATION, CognitiveStatus.GOOD, false),
+                        new CognitiveStatusQuery.AreaStatus(CognitiveArea.RECALL, CognitiveStatus.WATCH, false),
+                        new CognitiveStatusQuery.AreaStatus(CognitiveArea.LANGUAGE, CognitiveStatus.NORMAL, false),
+                        new CognitiveStatusQuery.AreaStatus(CognitiveArea.DELAYED_RECALL, CognitiveStatus.NOT_AVAILABLE, false))));
+
+        var result = useCase.execute(guardianId);
+
+        // WATCH→OBSERVE로 요약(가장 낮은 컨디션)
+        assertThat(result.elders().get(0).condition())
+                .isEqualTo(GetGuardianHomeUseCase.GuardianCondition.OBSERVE);
+    }
+
+    @Test
+    void WATCH가_없으면_NORMAL이_GOOD보다_우선한다() {
+        UUID guardianId = UUID.randomUUID();
+        UUID elderId = UUID.randomUUID();
+        UUID elderUserId = UUID.randomUUID();
+        LocalDate today = LocalDate.of(2026, 8, 25);
+
+        given(careAccessQuery.accessibleElders(guardianId)).willReturn(List.of(elderId));
+        given(clock.today()).willReturn(today);
+        Elder elder = Elder.create(elderUserId, UUID.randomUUID(), "황정빈", LocalDate.of(1950, 1, 1));
+        given(elderRepository.findById(elderId)).willReturn(Optional.of(elder));
+        given(careAccessQuery.roleOf(guardianId, elderId)).willReturn(GuardianRole.DAUGHTER);
+        given(dailyCareRepository.existsByGuardianIdAndElderIdAndCareDate(guardianId, elderId, today))
+                .willReturn(false);
+        given(accountQuery.findById(elderUserId)).willReturn(Optional.empty());
+        lenient().when(memoryRepository.existsByCreatedByAndCreatedAtAfter(any(), any())).thenReturn(false);
+        // NORMAL 먼저(worst!=WATCH 분기) → GOOD(worst!=NOT_AVAILABLE 이므로 worst 유지 분기)
+        given(cognitiveStatusQuery.cognitiveStatus(guardianId, elderId)).willReturn(
+                new CognitiveStatusQuery.CognitiveStatusView(elderId, List.of(
+                        new CognitiveStatusQuery.AreaStatus(CognitiveArea.ORIENTATION, CognitiveStatus.NORMAL, false),
+                        new CognitiveStatusQuery.AreaStatus(CognitiveArea.RECALL, CognitiveStatus.GOOD, false))));
+
+        var result = useCase.execute(guardianId);
+
+        // NORMAL(→CAUTION) 먼저 → GOOD은 worst 유지 → CAUTION
+        assertThat(result.elders().get(0).condition())
+                .isEqualTo(GetGuardianHomeUseCase.GuardianCondition.CAUTION);
     }
 }

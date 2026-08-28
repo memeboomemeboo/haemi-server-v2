@@ -6,6 +6,7 @@ import com.memeboo2.haemi.guardian.report.application.ReportProperties;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class CognitiveStatusCalculatorTest {
 
@@ -37,5 +38,17 @@ class CognitiveStatusCalculatorTest {
                 new int[]{10, 10, 10, 10}, new int[]{9, 7, 7, 3})).isFalse();
         assertThat(calculator.strictlyDeclines(
                 new int[]{10, 10, 0, 10}, new int[]{9, 7, 0, 3})).isFalse();
+    }
+
+    @Test
+    void 집계_주_수가_설정과_다르면_예외() {
+        // scoredCounts.length != 4 분기
+        assertThatThrownBy(() -> calculator.strictlyDeclines(
+                new int[]{10, 10, 10}, new int[]{9, 7, 5}))
+                .isInstanceOf(IllegalArgumentException.class);
+        // correctCounts.length != 4 분기 (scored는 4, correct만 3)
+        assertThatThrownBy(() -> calculator.strictlyDeclines(
+                new int[]{10, 10, 10, 10}, new int[]{9, 7, 5}))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 }

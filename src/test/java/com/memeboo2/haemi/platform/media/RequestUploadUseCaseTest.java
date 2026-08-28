@@ -168,4 +168,81 @@ class RequestUploadUseCaseTest {
         verify(repository).save(captor.capture());
         assertThat(captor.getValue().getContentHash()).isEqualTo(hash);
     }
+
+    @Test
+    void 공백_해시는_무시하고_정상_발급한다() {
+        UUID uploaderId = UUID.randomUUID();
+        // contentHash.isBlank() true 분기 → normalizedHash=null, 중복조회 스킵
+        RequestUploadUseCase.Result result = useCase.request(
+                uploaderId, MediaType.MEMORY_IMAGE, "new.jpg", "image/jpeg", 1_000_000L, null, "   ");
+
+        assertThat(result.duplicate()).isFalse();
+        assertThat(result.presignedUrl()).isNotNull();
+        ArgumentCaptor<MediaRef> captor = ArgumentCaptor.forClass(MediaRef.class);
+        verify(repository).save(captor.capture());
+        assertThat(captor.getValue().getContentHash()).isNull();
+    }
+
+    @Test
+    void 응답_이미지도_정상_발급된다() {
+        RequestUploadUseCase.Result result = useCase.request(
+                UUID.randomUUID(), MediaType.RESPONSE_IMAGE, "answer.png", "image/png", 500_000L, null);
+
+        assertThat(result.presignedUrl()).isNotNull();
+    }
+
+    @Test
+    void 이미지에_음성길이를_주면_400() {
+        // mediaType이 음성이 아닌데 declaredDurationSeconds != null → INVALID_INPUT 분기
+        assertThatThrownBy(() -> useCase.request(
+                UUID.randomUUID(), MediaType.MEMORY_IMAGE, "photo.jpg", "image/jpeg", 1_000_000L, 10))
+                .isInstanceOf(DomainException.class)
+                .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
+                        .isEqualTo(ErrorCode.INVALID_INPUT));
+    }
+
+    @Test
+    void 프로필_허용되지않는_타입은_400() {
+        assertThatThrownBy(() -> useCase.request(
+                UUID.randomUUID(), MediaType.PROFILE_IMAGE, "p.gif", "image/gif", 500_000L, null))
+                .isInstanceOf(DomainException.class)
+                .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
+                        .isEqualTo(ErrorCode.INVALID_INPUT));
+    }
+
+    @Test
+    void 음성_허용되지않는_타입은_400() {
+        assertThatThrownBy(() -> useCase.request(
+                UUID.randomUUID(), MediaType.RESPONSE_VOICE, "a.mp3", "audio/mpeg", 500_000L, 30))
+                .isInstanceOf(DomainException.class)
+                .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
+                        .isEqualTo(ErrorCode.INVALID_INPUT));
+    }
+
+    @Test
+    void 음성_크기_초과는_400() {
+        assertThatThrownBy(() -> useCase.request(
+                UUID.randomUUID(), MediaType.RESPONSE_VOICE, "a.aac", "audio/aac", 12_582_913L, 30))
+                .isInstanceOf(DomainException.class)
+                .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
+                        .isEqualTo(ErrorCode.INVALID_INPUT));
+    }
+
+    @Test
+    void 음성_길이가_0이하면_400() {
+        assertThatThrownBy(() -> useCase.request(
+                UUID.randomUUID(), MediaType.RESPONSE_VOICE, "a.aac", "audio/aac", 500_000L, 0))
+                .isInstanceOf(DomainException.class)
+                .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
+                        .isEqualTo(ErrorCode.INVALID_INPUT));
+    }
+
+    @Test
+    void 프로필_크기_초과는_400() {
+        assertThatThrownBy(() -> useCase.request(
+                UUID.randomUUID(), MediaType.PROFILE_IMAGE, "p.jpg", "image/jpeg", 5_242_881L, null))
+                .isInstanceOf(DomainException.class)
+                .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
+                        .isEqualTo(ErrorCode.INVALID_INPUT));
+    }
 }
