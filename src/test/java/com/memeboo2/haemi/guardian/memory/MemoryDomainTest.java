@@ -85,6 +85,16 @@ class MemoryDomainTest {
     }
 
     @Test
+    void 이전_update_시그니처도_기존_장소와_월을_지우지_않는다() {
+        Memory memory = Memory.create(elderId, "제목", "메모", "메시지", 2020, 4, "구지면");
+
+        memory.update("새 제목", "새 메모", "새 메시지", 2021, List.of());
+
+        assertThat(memory.getMemoryMonth()).isEqualTo(4);
+        assertThat(memory.getPlace()).isEqualTo("구지면");
+    }
+
+    @Test
     void markResponded는_responded_플래그를_true로_설정한다() {
         Memory memory = Memory.create(elderId, "제목", "메모", "메시지", 2020);
 

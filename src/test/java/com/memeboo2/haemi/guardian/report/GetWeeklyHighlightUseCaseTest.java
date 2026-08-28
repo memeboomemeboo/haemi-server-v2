@@ -101,6 +101,37 @@ class GetWeeklyHighlightUseCaseTest {
     }
 
     @Test
+    void 자동_생성_하이라이트의_항목_ID는_같은_주에_안정적이다() {
+        given(overrideRepository.findByElderIdAndWeekStart(any(), any())).willReturn(Optional.empty());
+        given(weeklyParticipationDaysCounter.count(elderId, TODAY)).willReturn(4);
+        given(cognitiveStatusQuery.cognitiveStatus(guardianId, elderId))
+                .willReturn(new CognitiveStatusQuery.CognitiveStatusView(elderId, List.of()));
+        given(weeklyHighlightWriter.write(any(WeeklyHighlightPrompt.class)))
+                .willReturn(List.of("잘하고 계세요", "이 부분은 지켜봐 주세요"));
+
+        List<UUID> firstIds = useCase.execute(guardianId, elderId).items().stream()
+                .map(item -> item.id()).toList();
+        List<UUID> secondIds = useCase.execute(guardianId, elderId).items().stream()
+                .map(item -> item.id()).toList();
+
+        assertThat(secondIds).containsExactlyElementsOf(firstIds);
+    }
+
+    @Test
+    void 레거시_줄단위_하이라이트의_항목_ID도_같은_주에_안정적이다() {
+        LocalDate weekStart = TODAY.with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY));
+        WeeklyHighlightOverride override = WeeklyHighlightOverride.of(elderId, weekStart, "첫줄\n둘째줄");
+        given(overrideRepository.findByElderIdAndWeekStart(any(), any())).willReturn(Optional.of(override));
+
+        List<UUID> firstIds = useCase.execute(guardianId, elderId).items().stream()
+                .map(item -> item.id()).toList();
+        List<UUID> secondIds = useCase.execute(guardianId, elderId).items().stream()
+                .map(item -> item.id()).toList();
+
+        assertThat(secondIds).containsExactlyElementsOf(firstIds);
+    }
+
+    @Test
     void 인가되지_않은_접근은_예외를_전파한다() {
         org.mockito.Mockito.doThrow(new RuntimeException("접근 거부"))
                 .when(careAccessQuery).requireGuardianOf(guardianId, elderId);

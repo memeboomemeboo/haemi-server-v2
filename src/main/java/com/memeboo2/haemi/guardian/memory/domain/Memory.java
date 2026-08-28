@@ -84,7 +84,8 @@ public class Memory extends BaseEntity {
     }
 
     public void update(String title, String memo, String message, Integer memoryYear, List<String> storageKeys) {
-        update(title, memo, message, memoryYear, null, null, storageKeys);
+        // 이전 시그니처에는 장소·월이 없었다. 호환 호출이 기존 메타데이터를 지우지 않도록 보존한다.
+        update(title, memo, message, memoryYear, this.memoryMonth, this.place, storageKeys);
     }
 
     public void update(String title, String memo, String message, Integer memoryYear,

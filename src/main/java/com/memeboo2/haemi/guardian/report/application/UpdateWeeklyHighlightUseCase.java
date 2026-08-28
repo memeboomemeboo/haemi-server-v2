@@ -31,9 +31,11 @@ public class UpdateWeeklyHighlightUseCase {
         careAccessQuery.requireGuardianOf(guardianId, elderId);
 
         if (items == null || items.isEmpty() || items.stream().anyMatch(item -> item == null
-                || item.title() == null || item.title().isBlank() || item.body() == null || item.body().isBlank()
-                || containsSeparator(item.title()) || containsSeparator(item.body()))) {
+                || item.title() == null || item.title().isBlank() || item.body() == null || item.body().isBlank())) {
             throw new DomainException(ErrorCode.INVALID_INPUT, "하이라이트 문구를 한 줄 이상 입력해주세요.");
+        }
+        if (items.stream().anyMatch(item -> containsSeparator(item.title()) || containsSeparator(item.body()))) {
+            throw new DomainException(ErrorCode.INVALID_INPUT, "하이라이트 문구에는 제어문자를 포함할 수 없습니다.");
         }
         items = items.stream().map(item -> item.id() == null
                 ? new WeeklyHighlightItem(UUID.randomUUID(), item.title(), item.body())
@@ -53,7 +55,7 @@ public class UpdateWeeklyHighlightUseCase {
                 .orElseGet(() -> overrideRepository.save(
                         WeeklyHighlightOverride.of(elderId, weekStart, content)));
 
-        return new WeeklyHighlight(elderId, WeeklyHighlightItemCodec.decode(override.getContent()));
+        return new WeeklyHighlight(elderId, WeeklyHighlightItemCodec.decode(override.getContent(), elderId, weekStart));
     }
 
     private boolean containsSeparator(String value) {

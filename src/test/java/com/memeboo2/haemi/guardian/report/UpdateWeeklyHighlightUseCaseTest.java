@@ -77,4 +77,13 @@ class UpdateWeeklyHighlightUseCaseTest {
                 .extracting(e -> ((DomainException) e).getErrorCode())
                 .isEqualTo(ErrorCode.INVALID_INPUT);
     }
+
+    @Test
+    void 제어문자가_포함된_문구는_원인을_알려준다() {
+        var items = List.of(new WeeklyHighlightItem(UUID.randomUUID(), "제목\u001f", "본문"));
+
+        assertThatThrownBy(() -> useCase.executeItems(guardianId, elderId, items))
+                .isInstanceOf(DomainException.class)
+                .hasMessage("하이라이트 문구에는 제어문자를 포함할 수 없습니다.");
+    }
 }

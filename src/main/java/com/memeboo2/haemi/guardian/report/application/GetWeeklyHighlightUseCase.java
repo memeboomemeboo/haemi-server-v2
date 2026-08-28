@@ -45,7 +45,8 @@ public class GetWeeklyHighlightUseCase {
         LocalDate weekStart = WeekAnchor.of(today);
         var override = overrideRepository.findByElderIdAndWeekStart(elderId, weekStart);
         if (override.isPresent()) {
-            return new WeeklyHighlight(elderId, WeeklyHighlightItemCodec.decode(override.get().getContent()));
+            return new WeeklyHighlight(elderId,
+                    WeeklyHighlightItemCodec.decode(override.get().getContent(), elderId, weekStart));
         }
 
         int weeklyParticipationDays = weeklyParticipationDaysCounter.count(elderId, today);
@@ -63,9 +64,10 @@ public class GetWeeklyHighlightUseCase {
                         .toList()
         );
 
-        List<WeeklyHighlightItem> items = weeklyHighlightWriter.write(prompt).stream()
-                .map(line -> new WeeklyHighlightItem(UUID.randomUUID(), "이번 주 하이라이트", line))
-                .toList();
+        // 아직 덮어쓰기 행이 없는 자동 문구도 PATCH의 item.id로 다시 보낼 수 있어야 한다.
+        // 따라서 조회마다 새 UUID를 만들지 않고 (elder, week, item index)로 안정적인 ID를 만든다.
+        List<WeeklyHighlightItem> items = WeeklyHighlightItemCodec.generatedItems(
+                elderId, weekStart, weeklyHighlightWriter.write(prompt));
         return new WeeklyHighlight(elderId, items);
     }
 

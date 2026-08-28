@@ -79,11 +79,11 @@ public class GetTodayActivitiesUseCase {
                                 "responseType", r.responseType()))));
 
         dailyCareRepository.findByElderIdAndDate(elderId, date, now).forEach(c -> {
-            if (c.getCreatedAt() != null) {
+            if (isWithin(c.getCreatedAt(), from, to)) {
                 entries.add(new ActivityEntry(c.getCreatedAt(), ActivityType.GREETING_ARRIVED,
                         "하루 한마디 도착", greetingDetail(c)));
             }
-            if (c.getViewedAt() != null && !c.getViewedAt().isBefore(from) && c.getViewedAt().isBefore(to)) {
+            if (isWithin(c.getViewedAt(), from, to)) {
                 entries.add(new ActivityEntry(c.getViewedAt(), ActivityType.GREETING_READ,
                         "하루 한마디 열람", Map.of()));
             }
@@ -113,5 +113,9 @@ public class GetTodayActivitiesUseCase {
         if (care.getText() != null && !care.getText().isBlank()) detail.put("preview", care.getText());
         if (care.getDurationSeconds() != null) detail.put("durationSeconds", care.getDurationSeconds());
         return detail;
+    }
+
+    private boolean isWithin(Instant occurredAt, Instant from, Instant to) {
+        return occurredAt != null && !occurredAt.isBefore(from) && occurredAt.isBefore(to);
     }
 }

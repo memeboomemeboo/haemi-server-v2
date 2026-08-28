@@ -3,12 +3,14 @@ package com.memeboo2.haemi.auth;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.memeboo2.haemi.auth.account.domain.AccountRole;
+import com.memeboo2.haemi.auth.account.infrastructure.AccountRepository;
 import com.memeboo2.haemi.auth.api.JwtTokenProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.net.URI;
@@ -28,6 +30,8 @@ class AuthHttpTest {
 
     @LocalServerPort int port;
     @Autowired JwtTokenProvider jwtTokenProvider;
+    @Autowired AccountRepository accountRepository;
+    @Autowired JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private String loginId;
     private String authToken;
@@ -76,13 +80,38 @@ class AuthHttpTest {
 
     @Test
     void 보호자_회원가입은_선택_이메일과_전화번호도_받는다() throws Exception {
+        String phone = "01012345678";
+        String email = "optional-" + UUID.randomUUID() + "@example.com";
         Map<String, Object> body = registerPayloadMap(loginId);
-        body.put("phone", "01012345678");
-        body.put("email", "optional-" + UUID.randomUUID() + "@example.com");
+        body.put("phone", phone);
+        body.put("email", email);
 
         HttpResponse<String> response = post("/api/v1/auth/guardians/register", objectMapper.writeValueAsString(body));
 
         assertThat(response.statusCode()).isEqualTo(201);
+        UUID userId = UUID.fromString(objectMapper.readTree(response.body()).path("data").path("userId").asText());
+        var account = accountRepository.findById(userId).orElseThrow();
+        assertThat(account.getPhone()).isEqualTo(phone);
+        assertThat(account.getEmail()).isEqualTo(email);
+    }
+
+    @Test
+    void 중복_이메일로_회원가입하면_409_EMAIL_ALREADY_TAKEN을_반환한다() throws Exception {
+        // 테스트 프로필은 Flyway를 끄므로, 운영 V117의 partial unique index를 H2에서 재현한다.
+        jdbcTemplate.execute("CREATE UNIQUE INDEX IF NOT EXISTS uk_accounts_email ON accounts(email)");
+        String email = "duplicate-" + UUID.randomUUID() + "@example.com";
+        Map<String, Object> first = registerPayloadMap(loginId);
+        first.put("email", email);
+        Map<String, Object> second = registerPayloadMap("other_" + UUID.randomUUID().toString().substring(0, 8));
+        second.put("email", email);
+
+        assertThat(post("/api/v1/auth/guardians/register", objectMapper.writeValueAsString(first)).statusCode())
+                .isEqualTo(201);
+        HttpResponse<String> response = post("/api/v1/auth/guardians/register", objectMapper.writeValueAsString(second));
+
+        assertThat(response.statusCode()).isEqualTo(409);
+        assertThat(objectMapper.readTree(response.body()).path("error").path("code").asText())
+                .isEqualTo("EMAIL_ALREADY_TAKEN");
     }
 
     @Test

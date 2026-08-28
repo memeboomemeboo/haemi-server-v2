@@ -129,6 +129,22 @@ class GetTodayActivitiesUseCaseAdditionalTest {
     }
 
     @Test
+    void 도착_시각도_요청한_KST_하루_구간_내에서만_포함된다() throws Exception {
+        DailyCare arrivedBeforeRequestedDate = DailyCare.text(guardianId, elderId, DATE, "어제 도착", 30);
+        setCreatedAt(arrivedBeforeRequestedDate, from.minusSeconds(1));
+        DailyCare arrivedInRequestedDate = DailyCare.text(guardianId, elderId, DATE, "오늘 도착", 30);
+        setCreatedAt(arrivedInRequestedDate, from.plusSeconds(1));
+        given(dailyCareRepository.findByElderIdAndDate(eq(elderId), eq(DATE), any()))
+                .willReturn(List.of(arrivedBeforeRequestedDate, arrivedInRequestedDate));
+
+        List<GetTodayActivitiesUseCase.ActivityEntry> entries = useCase.execute(guardianId, elderId, DATE);
+
+        assertThat(entries).extracting(GetTodayActivitiesUseCase.ActivityEntry::type)
+                .containsExactly(GetTodayActivitiesUseCase.ActivityType.GREETING_ARRIVED);
+        assertThat(entries.get(0).occurredAt()).isEqualTo(from.plusSeconds(1));
+    }
+
+    @Test
     void 모든_활동이_시각순으로_정렬된다() {
         given(trainingActivityQuery.completedOn(elderId, DATE))
                 .willReturn(List.of(new TrainingActivityQuery.CompletedSession(from.plusSeconds(3000))));
@@ -158,5 +174,11 @@ class GetTodayActivitiesUseCaseAdditionalTest {
 
         assertThat(entries).isEmpty();
         verify(careAccessQuery).requireGuardianOf(guardianId, elderId);
+    }
+
+    private static void setCreatedAt(DailyCare care, Instant createdAt) throws Exception {
+        java.lang.reflect.Field createdAtField = care.getClass().getSuperclass().getDeclaredField("createdAt");
+        createdAtField.setAccessible(true);
+        createdAtField.set(care, createdAt);
     }
 }

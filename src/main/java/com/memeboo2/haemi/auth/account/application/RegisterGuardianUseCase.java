@@ -53,6 +53,11 @@ public class RegisterGuardianUseCase {
             if (ConstraintViolations.isViolationOf(e, "uk_accounts_login_id")) {
                 throw new DomainException(ErrorCode.LOGIN_ID_ALREADY_TAKEN);
             }
+            // email은 선택값이지만, 활성 계정끼리는 DB의 partial unique index가 보장한다.
+            // 선검사만으로는 동시 가입 경합을 막을 수 없으므로 DB 위반도 409로 변환한다.
+            if (ConstraintViolations.isViolationOf(e, "uk_accounts_email")) {
+                throw new DomainException(ErrorCode.EMAIL_ALREADY_TAKEN);
+            }
             throw e;
         }
         return account.getId();

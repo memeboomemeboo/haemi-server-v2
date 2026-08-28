@@ -95,6 +95,21 @@ class RegisterGuardianUseCaseTest {
     }
 
     @Test
+    void 동시_가입으로_이메일_유니크_위반이_나면_409로_변환된다() {
+        given(accountRepository.existsByLoginId("user01")).willReturn(false);
+        given(accountRepository.saveAndFlush(any(Account.class))).willThrow(
+                new org.springframework.dao.DataIntegrityViolationException("insert 실패",
+                        new org.hibernate.exception.ConstraintViolationException(
+                                "duplicate key", new java.sql.SQLException("duplicate key"), "uk_accounts_email")));
+
+        assertThatThrownBy(() -> sut.execute("홍길동", "user01", "pass1234", "1970-01-01", "123456",
+                "01012345678", "user@example.com", null))
+                .isInstanceOf(DomainException.class)
+                .extracting(e -> ((DomainException) e).getErrorCode())
+                .isEqualTo(ErrorCode.EMAIL_ALREADY_TAKEN);
+    }
+
+    @Test
     void 어르신_계정생성_단일_6자리_크리덴셜() throws Exception {
         // #100 X2: 어르신은 6자리 단일 크리덴셜. 같은 해시가 password/pin 양쪽에 들어가고 PIN 로그인 활성화.
         var cmd = new CreateElderAccountUseCase(accountRepository, passwordService);

@@ -61,7 +61,7 @@
 **응답** `{ "userId": "uuid" }`
 디자인 화면에는 이메일·전화번호 입력이 없으므로 둘 다 선택 값으로 유지한다. `emailVerificationId`가 없는 가입은 이메일 인증을 소비하지 않는다.
 
-**에러** `409 LOGIN_ID_ALREADY_TAKEN`, `400 INVALID_INPUT`, `400 EMAIL_VERIFICATION_REQUIRED`
+**에러** `409 LOGIN_ID_ALREADY_TAKEN`, `409 EMAIL_ALREADY_TAKEN`, `400 INVALID_INPUT`, `400 EMAIL_VERIFICATION_REQUIRED`
 
 ## 1.3 이메일 인증번호 발송
 `POST /auth/email-verifications` · **201** · body `{ "email": "user@ex.com" }` → `data: <verificationId>`
@@ -76,7 +76,9 @@
 ```jsonc
 { "loginId": "jeongeun", "password": "pw12345678", "pin": "123456", "deviceId": "device-abc" }
 ```
-- `password` 또는 `pin` 중 **하나 이상 필수**. 보호자·어르신 모두 PIN 로그인 가능.
+- `password` 또는 `pin` 중 **하나 이상 필수**.
+- 보호자는 **최초 로그인에서 `password`가 필수**이며, 비밀번호 로그인에 성공하면 PIN 로그인이 활성화된다. 그 이후에는 `password` 또는 `pin`으로 로그인할 수 있다.
+- 어르신은 계정 생성 시부터 PIN 로그인이 활성화되어 `loginId + pin`으로 로그인할 수 있다. 선택 `password`가 등록된 경우 비밀번호 로그인도 가능하다.
 **응답** `{ "accessToken": "...", "refreshToken": "..." }`
 **에러** `401 INVALID_CREDENTIALS`, `423 AUTH_ACCOUNT_LOCKED`, `400 INVALID_INPUT`
 
@@ -320,6 +322,7 @@
 ```jsonc
 { "elderId": "uuid", "items": [ { "id":"uuid", "title":"이번 주 하이라이트", "body":"…" } ] }
 ```
+자동 생성 문구의 `item.id`는 같은 어르신·같은 주·같은 카드 순서에서 안정적으로 유지된다.
 
 ## 6.6 이번 주 하이라이트 편집
 `PATCH /guardian/elders/{elderId}/report/highlight` · **200**
