@@ -1,6 +1,8 @@
 package com.memeboo2.haemi.guardian.home.presentation;
 
 import com.memeboo2.haemi.common.web.ApiResponse;
+import com.memeboo2.haemi.common.error.DomainException;
+import com.memeboo2.haemi.common.error.ErrorCode;
 import com.memeboo2.haemi.guardian.home.application.GetTodayActivitiesUseCase;
 import com.memeboo2.haemi.guardian.home.presentation.dto.TodayActivitiesResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -11,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.UUID;
 
 @Tag(name = "오늘의 기록 (보호자)", description = "보호자 홈 어르신 활동 타임라인")
@@ -34,9 +37,19 @@ public class GuardianActivityController {
             @PathVariable UUID elderId,
             @RequestParam(required = false) String date) {
 
-        var entries = (date == null || date.isBlank() || date.equalsIgnoreCase("today"))
-                ? getTodayActivitiesUseCase.executeToday(guardianId, elderId)
-                : getTodayActivitiesUseCase.execute(guardianId, elderId, LocalDate.parse(date));
-        return ResponseEntity.ok(ApiResponse.ok(TodayActivitiesResponse.from(entries)));
+        LocalDate selectedDate = parseDate(date);
+        var entries = getTodayActivitiesUseCase.execute(guardianId, elderId, selectedDate);
+        return ResponseEntity.ok(ApiResponse.ok(TodayActivitiesResponse.from(selectedDate, entries)));
+    }
+
+    private LocalDate parseDate(String date) {
+        if (date == null || date.isBlank() || date.equalsIgnoreCase("today")) {
+            return getTodayActivitiesUseCase.today();
+        }
+        try {
+            return LocalDate.parse(date);
+        } catch (DateTimeParseException e) {
+            throw new DomainException(ErrorCode.INVALID_INPUT, "date는 YYYY-MM-DD 형식이어야 합니다.");
+        }
     }
 }

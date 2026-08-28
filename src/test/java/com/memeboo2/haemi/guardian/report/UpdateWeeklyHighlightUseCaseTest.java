@@ -5,6 +5,7 @@ import com.memeboo2.haemi.common.error.ErrorCode;
 import com.memeboo2.haemi.common.time.HaemiClock;
 import com.memeboo2.haemi.guardian.api.CareAccessQuery;
 import com.memeboo2.haemi.guardian.report.application.UpdateWeeklyHighlightUseCase;
+import com.memeboo2.haemi.guardian.report.application.WeeklyHighlightItem;
 import com.memeboo2.haemi.guardian.report.domain.WeeklyHighlightOverride;
 import com.memeboo2.haemi.guardian.report.infrastructure.WeeklyHighlightOverrideRepository;
 import org.junit.jupiter.api.Test;
@@ -43,10 +44,15 @@ class UpdateWeeklyHighlightUseCaseTest {
         given(overrideRepository.save(any(WeeklyHighlightOverride.class)))
                 .willAnswer(inv -> inv.getArgument(0));
 
-        var result = useCase.execute(guardianId, elderId, List.of("이번 주 참 잘하셨어요", "산책도 자주 하셨어요"));
+        UUID firstId = UUID.randomUUID();
+        var result = useCase.executeItems(guardianId, elderId, List.of(
+                new WeeklyHighlightItem(firstId, "참여", "이번 주 참 잘하셨어요"),
+                new WeeklyHighlightItem(UUID.randomUUID(), "활동", "산책도 자주 하셨어요")));
 
         assertThat(result.elderId()).isEqualTo(elderId);
-        assertThat(result.lines()).containsExactly("이번 주 참 잘하셨어요", "산책도 자주 하셨어요");
+        assertThat(result.items()).extracting(WeeklyHighlightItem::id).containsExactly(firstId, result.items().get(1).id());
+        assertThat(result.items()).extracting(WeeklyHighlightItem::body)
+                .containsExactly("이번 주 참 잘하셨어요", "산책도 자주 하셨어요");
     }
 
     @Test
@@ -54,7 +60,8 @@ class UpdateWeeklyHighlightUseCaseTest {
         willThrow(new DomainException(ErrorCode.CARE_ACCESS_DENIED))
                 .given(careAccessQuery).requireGuardianOf(guardianId, elderId);
 
-        assertThatThrownBy(() -> useCase.execute(guardianId, elderId, List.of("문구")))
+        assertThatThrownBy(() -> useCase.executeItems(guardianId, elderId,
+                List.of(new WeeklyHighlightItem(UUID.randomUUID(), "제목", "문구"))))
                 .isInstanceOf(DomainException.class)
                 .extracting(e -> ((DomainException) e).getErrorCode())
                 .isEqualTo(ErrorCode.CARE_ACCESS_DENIED);
@@ -62,10 +69,21 @@ class UpdateWeeklyHighlightUseCaseTest {
 
     @Test
     void 빈_문구는_400() {
-        var result = List.of(" ", "");
-        assertThatThrownBy(() -> useCase.execute(guardianId, elderId, result))
+        var result = List.of(
+                new WeeklyHighlightItem(UUID.randomUUID(), " ", "본문"),
+                new WeeklyHighlightItem(UUID.randomUUID(), "제목", ""));
+        assertThatThrownBy(() -> useCase.executeItems(guardianId, elderId, result))
                 .isInstanceOf(DomainException.class)
                 .extracting(e -> ((DomainException) e).getErrorCode())
                 .isEqualTo(ErrorCode.INVALID_INPUT);
+    }
+
+    @Test
+    void 제어문자가_포함된_문구는_원인을_알려준다() {
+        var items = List.of(new WeeklyHighlightItem(UUID.randomUUID(), "제목\u001f", "본문"));
+
+        assertThatThrownBy(() -> useCase.executeItems(guardianId, elderId, items))
+                .isInstanceOf(DomainException.class)
+                .hasMessage("하이라이트 문구에는 제어문자를 포함할 수 없습니다.");
     }
 }

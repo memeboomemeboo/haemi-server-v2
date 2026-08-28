@@ -22,6 +22,7 @@
 | `ReportStatus` | GOOD(양호), NORMAL(주의), WATCH(관찰) |
 | `CognitiveArea` | ORIENTATION(상황 파악), RECALL(기억 회상), LANGUAGE(언어), DELAYED_RECALL(지연 회상) |
 | `CognitiveStatus` | GOOD, NORMAL, WATCH, NOT_AVAILABLE |
+| `GuardianCondition` | GOOD(양호), CAUTION(주의), OBSERVE(관찰) |
 | `SupportGuideAction` | SEND_DAILY_CARE, REGISTER_MEMORY, CALL_ELDER, PRAISE_ELDER |
 | `CareType` | TEXT, VOICE |
 | `SessionStatus` | IN_PROGRESS, COMPLETED |
@@ -52,13 +53,15 @@
   "loginId": "jeongeun",       // 필수 4~50
   "password": "pw12345678",    // 필수 8~50
   "pin": "123456",             // 필수 6자리 숫자
-  "phone": "01012345678",      // 선택
-  "email": "user@ex.com",      // 선택 — 제공 시 형식 검증
-  "emailVerificationId": null   // 선택 — 이메일 인증을 거친 경우만 전달
+  "phone": "01012345678",      // 선택 ≤20
+  "email": "user@ex.com",      // 선택, 이메일 형식
+  "emailVerificationId": "uuid" // 선택. 제공 시 email도 필수이며 인증 완료된 1회용 ID여야 함
 }
 ```
 **응답** `{ "userId": "uuid" }`
-**에러** `409 LOGIN_ID_ALREADY_TAKEN`, `409 EMAIL_ALREADY_TAKEN`, `400 INVALID_INPUT`
+디자인 화면에는 이메일·전화번호 입력이 없으므로 둘 다 선택 값으로 유지한다. `emailVerificationId`가 없는 가입은 이메일 인증을 소비하지 않는다.
+
+**에러** `409 LOGIN_ID_ALREADY_TAKEN`, `409 EMAIL_ALREADY_TAKEN`, `400 INVALID_INPUT`, `400 EMAIL_VERIFICATION_REQUIRED`
 
 ## 1.3 이메일 인증번호 발송
 `POST /auth/email-verifications` · **201** · body `{ "email": "user@ex.com" }` → `data: <verificationId>`
@@ -73,7 +76,9 @@
 ```jsonc
 { "loginId": "jeongeun", "password": "pw12345678", "pin": "123456", "deviceId": "device-abc" }
 ```
-- `password` 또는 `pin` 중 **하나 이상 필수**. 보호자·어르신 모두 PIN 로그인 가능.
+- `password` 또는 `pin` 중 **하나 이상 필수**.
+- 보호자는 **최초 로그인에서 `password`가 필수**이며, 비밀번호 로그인에 성공하면 PIN 로그인이 활성화된다. 그 이후에는 `password` 또는 `pin`으로 로그인할 수 있다.
+- 어르신은 계정 생성 시부터 PIN 로그인이 활성화되어 `loginId + pin`으로 로그인할 수 있다. 선택 `password`가 등록된 경우 비밀번호 로그인도 가능하다.
 **응답** `{ "accessToken": "...", "refreshToken": "..." }`
 **에러** `401 INVALID_CREDENTIALS`, `423 AUTH_ACCOUNT_LOCKED`, `400 INVALID_INPUT`
 
@@ -135,14 +140,15 @@
   "familyId": "uuid",       // 필수
   "name": "김순자",          // 필수 1~30
   "phone": "01012345678",   // 필수 ≤20
-  "gender": "F",            // 필수 (남/여)
+  "gender": "F",            // 필수 문자열 ≤20
   "loginId": "sunja",       // 필수 4~50
-  "pin": "123456",          // 필수 6자리 = 어르신 로그인 비밀번호
-  "password": null,          // 선택 — 보조 로그인용
+  "pin": "123456",          // 필수 6자리 숫자. 어르신 로그인 크리덴셜
+  "password": "pw12345678", // 선택 8~50. PIN과 별도로 저장하며 PIN 로그인을 기본으로 사용
   "birthDate": null          // 선택 (nullable)
 }
 ```
-**에러** `409 FAMILY_CAPACITY_EXCEEDED`
+**응답** `"uuid"`
+**에러** `409 FAMILY_CAPACITY_EXCEEDED`, `409 LOGIN_ID_ALREADY_TAKEN`, `400 INVALID_INPUT`
 
 ## 2.7 링크 해제(본인 이탈)
 `DELETE /guardian/elders/{elderId}/link` · **204**
@@ -167,7 +173,7 @@
       "attendedToday": true,
       "greetingSentToday": false,
       "lastLoginAt": "2026-09-08T00:41:00Z",
-      "condition": "GOOD",              // GOOD(양호) | CAUTION(주의) | OBSERVE(관찰)
+      "condition": "GOOD",              // GOOD | CAUTION | OBSERVE | null(판정 데이터 없음)
       "weeklyActivities": [
         { "date","dayOfWeek","training","greetingRead","memoryViewed","replied" }
       ]
@@ -182,17 +188,26 @@
 `GET /guardian/elders/{elderId}/activities?date={optional}` · **200**
 ```jsonc
 {
-  "date": "2026-09-08",
+  "date": "2026-08-27",
   "items": [
-    { "type":"TRAINING_COMPLETED","occurredAt":"...T00:20:00Z","title":"인지 활동 완료",
-      "detail":{ "activityName":"기억력 게임","durationMinutes":5,"accuracy":80 } },
-    { "type":"GREETING_ARRIVED","occurredAt":"...T02:05:00Z","title":"음성 메시지 도착",
-      "detail":{ "medium":"VOICE","preview":"밥 잘 먹었다","durationSeconds":24 } }
+    { "occurredAt":"...T00:20:00Z", "type":"TRAINING_COMPLETED", "title":"인지 활동 완료",
+      "detail": { "activityName":"인지 훈련", "durationMinutes":5, "accuracy":80 } },
+    { "occurredAt":"...T02:05:00Z", "type":"RESPONSE_SENT", "title":"추억 답변 완료",
+      "detail": { "memoryId":"uuid", "responseType":"VOICE" } }
   ]
 }
 ```
-`type`: `TRAINING_COMPLETED | GREETING_ARRIVED | GREETING_READ | MEMORY_VIEWED | RESPONSE_SENT` (occurredAt 오름차순)
-**에러** `403 CARE_ACCESS_DENIED`
+`date`는 생략 또는 `today`면 KST 오늘, 그 외 `YYYY-MM-DD`이다. `items`는 `occurredAt` 오름차순이다.
+
+| type | detail |
+| --- | --- |
+| `TRAINING_COMPLETED` | `activityName`, `durationMinutes`, `accuracy` |
+| `GREETING_ARRIVED` | `medium`(TEXT/VOICE), `preview?`, `durationSeconds?` |
+| `GREETING_READ` | `{}` |
+| `MEMORY_VIEWED` | `memoryId`, `memoryTitle?` |
+| `RESPONSE_SENT` | `memoryId`, `responseType` |
+
+**에러** `403 CARE_ACCESS_DENIED`, `400 INVALID_INPUT`(잘못된 date)
 
 ---
 
@@ -208,7 +223,7 @@
   "memo": "가족끼리 나들이…",       // 선택 ≤300 (보호자 메모)
   "memoryYear": 1975,             // 선택
   "memoryMonth": 4,               // 선택 1~12
-  "place": "구지면",               // 선택 ≤50
+  "place": "구지면",              // 선택 ≤50
   "mediaRefIds": ["uuid", …]       // 선택 최대 4장
 }
 ```
@@ -218,8 +233,8 @@
 `GET /guardian/memories?elderId={optional}` · **200**
 `elderId` 생략 시 접근 가능한 전 어르신 통합("전체" 탭).
 ```jsonc
-[ { "id","title","thumbnailKey","responded","creatorName","creatorRole","creatorRoleLabel","isMine",
-    "elderId","elderName","place","memoryYear","memoryMonth" } ]
+[ { "id","elderId","title","thumbnailKey","responded","place","memoryYear","memoryMonth",
+    "creatorName","creatorRole","creatorRoleLabel","isMine" } ]
 ```
 **에러**(특정 elderId) `403 CARE_ACCESS_DENIED`
 
@@ -236,12 +251,11 @@
 ```jsonc
 [ {
   "id","responseType":"VOICE","emotions":["LONGING","HAPPY"],
-  "text":"그 냇가 참 좋았지…",       // 텍스트 또는 음성 전사
-  "mediaKey","mediaUrl","durationSeconds",
+  "text":"그 냇가 참 좋았지…", "mediaKey","mediaUrl","durationSeconds",
   "createdAt":"2026-09-06T06:20:00Z"
 } ]
 ```
-응답은 타입별 레코드. 감정+음성 한 카드는 프론트가 `createdAt`·작성자로 병합.
+음성 응답의 `text`는 STT 전사 결과이며, 전사 전이면 null이다. `mediaUrl`은 재생용 서빙 URL, `durationSeconds`는 음성에서만 제공된다. 응답은 타입별 레코드이고 감정+음성 한 카드는 프론트가 `createdAt`·작성자로 병합한다.
 
 ## 4.5 추억 수정 (생성자 본인)
 `PUT /guardian/memories/{memoryId}` · **204** · body: 4.1과 동일(elderId 제외)
@@ -304,13 +318,20 @@
 4영역(ORIENTATION/RECALL/LANGUAGE/DELAYED_RECALL), 상태 3색 + NOT_AVAILABLE.
 
 ## 6.5 이번 주 하이라이트 조회
-`GET /guardian/elders/{elderId}/report/highlight` · **200** `{ "elderId", "lines": ["…","…"] }`
+`GET /guardian/elders/{elderId}/report/highlight` · **200**
+```jsonc
+{ "elderId": "uuid", "items": [ { "id":"uuid", "title":"이번 주 하이라이트", "body":"…" } ] }
+```
+자동 생성 문구의 `item.id`는 같은 어르신·같은 주·같은 카드 순서에서 안정적으로 유지된다.
 
 ## 6.6 이번 주 하이라이트 편집
 `PATCH /guardian/elders/{elderId}/report/highlight` · **200**
 ```jsonc
-// 요청
-{ "lines": ["추억 회상에 좋은 반응 …", "지연 회상 어려움 …"] }
+// 요청. item.id를 생략하면 서버가 생성한다.
+{ "items": [
+  { "id":"uuid", "title":"추억 회상", "body":"추억 회상에 좋은 반응 …" },
+  { "title":"함께 해보기", "body":"지연 회상을 함께 도와주세요." }
+] }
 // 응답: 6.5와 동일 스키마
 ```
 **에러** `403 CARE_ACCESS_DENIED`, `400 INVALID_INPUT`
@@ -394,8 +415,8 @@ body `{ "emotions": ["LONGING","HAPPY"] }` (최소 1, **최대 2개**)
 ```jsonc
 {
   "id","status":"IN_PROGRESS","currentStep":"ORIENTATION",
-  "currentQuestionNumber":1,"totalQuestionCount":5,
-  "startedAt","completedAt":null,"inactivityReminderSeconds":30,"feedback":null,
+  "currentQuestionNumber":1,"totalQuestionCount":10,
+  "startedAt","completedAt":null,"inactivityReminderSeconds":90,"feedback":null,
   "currentQuestion": { "id","questionNumber","questionType","answerMode","prompt","imageKey","options":[…],"hint" },
   "result": null
 }

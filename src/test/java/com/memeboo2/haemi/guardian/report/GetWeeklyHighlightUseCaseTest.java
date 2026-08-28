@@ -60,7 +60,8 @@ class GetWeeklyHighlightUseCaseTest {
 
         GetWeeklyHighlightUseCase.WeeklyHighlight result = useCase.execute(guardianId, elderId);
 
-        assertThat(result.lines()).containsExactly("직접 쓴 첫줄", "직접 쓴 둘째줄");
+        assertThat(result.items()).extracting(item -> item.body())
+                .containsExactly("직접 쓴 첫줄", "직접 쓴 둘째줄");
         verifyNoInteractions(weeklyHighlightWriter, weeklyParticipationDaysCounter, cognitiveStatusQuery);
         verify(careAccessQuery).requireGuardianOf(guardianId, elderId);
     }
@@ -84,7 +85,8 @@ class GetWeeklyHighlightUseCaseTest {
         GetWeeklyHighlightUseCase.WeeklyHighlight result = useCase.execute(guardianId, elderId);
 
         assertThat(result.elderId()).isEqualTo(elderId);
-        assertThat(result.lines()).containsExactly("잘하고 계세요", "이 부분은 지켜봐 주세요");
+        assertThat(result.items()).extracting(item -> item.body())
+                .containsExactly("잘하고 계세요", "이 부분은 지켜봐 주세요");
 
         org.mockito.ArgumentCaptor<WeeklyHighlightPrompt> captor =
                 org.mockito.ArgumentCaptor.forClass(WeeklyHighlightPrompt.class);
@@ -96,6 +98,37 @@ class GetWeeklyHighlightUseCaseTest {
         // RECALL은 WATCH라서, LANGUAGE는 4주간_하락이라서 둘 다 관찰 대상에 포함된다.
         assertThat(prompt.observations()).containsExactlyInAnyOrder(
                 WeeklyHighlightFact.RECALL_SUPPORT, WeeklyHighlightFact.LANGUAGE_SUPPORT);
+    }
+
+    @Test
+    void 자동_생성_하이라이트의_항목_ID는_같은_주에_안정적이다() {
+        given(overrideRepository.findByElderIdAndWeekStart(any(), any())).willReturn(Optional.empty());
+        given(weeklyParticipationDaysCounter.count(elderId, TODAY)).willReturn(4);
+        given(cognitiveStatusQuery.cognitiveStatus(guardianId, elderId))
+                .willReturn(new CognitiveStatusQuery.CognitiveStatusView(elderId, List.of()));
+        given(weeklyHighlightWriter.write(any(WeeklyHighlightPrompt.class)))
+                .willReturn(List.of("잘하고 계세요", "이 부분은 지켜봐 주세요"));
+
+        List<UUID> firstIds = useCase.execute(guardianId, elderId).items().stream()
+                .map(item -> item.id()).toList();
+        List<UUID> secondIds = useCase.execute(guardianId, elderId).items().stream()
+                .map(item -> item.id()).toList();
+
+        assertThat(secondIds).containsExactlyElementsOf(firstIds);
+    }
+
+    @Test
+    void 레거시_줄단위_하이라이트의_항목_ID도_같은_주에_안정적이다() {
+        LocalDate weekStart = TODAY.with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY));
+        WeeklyHighlightOverride override = WeeklyHighlightOverride.of(elderId, weekStart, "첫줄\n둘째줄");
+        given(overrideRepository.findByElderIdAndWeekStart(any(), any())).willReturn(Optional.of(override));
+
+        List<UUID> firstIds = useCase.execute(guardianId, elderId).items().stream()
+                .map(item -> item.id()).toList();
+        List<UUID> secondIds = useCase.execute(guardianId, elderId).items().stream()
+                .map(item -> item.id()).toList();
+
+        assertThat(secondIds).containsExactlyElementsOf(firstIds);
     }
 
     @Test

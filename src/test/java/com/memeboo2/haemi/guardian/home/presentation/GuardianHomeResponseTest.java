@@ -5,8 +5,8 @@ import com.memeboo2.haemi.guardian.api.GuardianRole;
 import com.memeboo2.haemi.guardian.home.application.GetGuardianHomeUseCase.Challenge;
 import com.memeboo2.haemi.guardian.home.application.GetGuardianHomeUseCase.ElderCard;
 import com.memeboo2.haemi.guardian.home.application.GetGuardianHomeUseCase.GuardianHomeData;
+import com.memeboo2.haemi.guardian.home.application.GetGuardianHomeUseCase.GuardianCondition;
 import com.memeboo2.haemi.guardian.home.presentation.dto.GuardianHomeResponse;
-import com.memeboo2.haemi.guardian.report.api.CognitiveStatus;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -32,7 +32,7 @@ class GuardianHomeResponseTest {
 
         ElderCard card = new ElderCard(
                 elderId, "김할머니", 82, GuardianRole.DAUGHTER, 100L, true, false,
-                lastLoginAt, CognitiveStatus.GOOD, List.of(dayActivity));
+                lastLoginAt, GuardianCondition.GOOD, List.of(dayActivity));
 
         Challenge challenge = new Challenge(true, false);
         GuardianHomeData data = new GuardianHomeData(List.of(card), challenge);
@@ -50,7 +50,7 @@ class GuardianHomeResponseTest {
         assertThat(elderResponse.attendedToday()).isTrue();
         assertThat(elderResponse.greetingSentToday()).isFalse();
         assertThat(elderResponse.lastLoginAt()).isEqualTo(lastLoginAt);
-        assertThat(elderResponse.todayCondition()).isEqualTo(CognitiveStatus.GOOD);
+        assertThat(elderResponse.condition()).isEqualTo(GuardianCondition.GOOD);
 
         assertThat(elderResponse.weeklyActivities()).hasSize(1);
         GuardianHomeResponse.DayActivityResponse dayResponse = elderResponse.weeklyActivities().get(0);
@@ -70,14 +70,14 @@ class GuardianHomeResponseTest {
     void from_접속기록_없으면_lastLoginAt_null이다() {
         ElderCard card = new ElderCard(
                 UUID.randomUUID(), "박할아버지", 75, GuardianRole.SON, 10L, false, false,
-                null, CognitiveStatus.NOT_AVAILABLE, List.of());
+                null, null, List.of());
 
         GuardianHomeData data = new GuardianHomeData(List.of(card), new Challenge(false, false));
 
         GuardianHomeResponse response = GuardianHomeResponse.from(data);
 
         assertThat(response.elders().get(0).lastLoginAt()).isNull();
-        assertThat(response.elders().get(0).todayCondition()).isEqualTo(CognitiveStatus.NOT_AVAILABLE);
+        assertThat(response.elders().get(0).condition()).isNull();
         assertThat(response.elders().get(0).weeklyActivities()).isEmpty();
     }
 
@@ -86,10 +86,10 @@ class GuardianHomeResponseTest {
     void from_다중_어르신_순서를_유지한다() {
         ElderCard card1 = new ElderCard(
                 UUID.randomUUID(), "A", 70, GuardianRole.SON, 1L, false, false, null,
-                CognitiveStatus.NOT_AVAILABLE, List.of());
+                null, List.of());
         ElderCard card2 = new ElderCard(
                 UUID.randomUUID(), "B", 80, GuardianRole.DAUGHTER, 2L, true, true, null,
-                CognitiveStatus.NORMAL, List.of());
+                GuardianCondition.CAUTION, List.of());
 
         GuardianHomeData data = new GuardianHomeData(List.of(card1, card2), new Challenge(true, true));
 

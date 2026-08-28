@@ -49,6 +49,10 @@ public class Response extends BaseEntity {
     @Column(length = 500)
     private String mediaKey;
 
+    /** 음성 답변 재생 시간(초). VOICE 타입 외에는 null. */
+    @Column(name = "duration_seconds")
+    private Integer durationSeconds;
+
     /** 음성 답변 전사(STT) 텍스트. 아직 전사되지 않았거나 음성 타입이 아니면 null (#100 X3) */
     @Column(name = "transcript", length = 1000)
     private String transcript;
@@ -87,12 +91,28 @@ public class Response extends BaseEntity {
     }
 
     public static Response voice(UUID memoryId, UUID elderId, String mediaKey) {
+        return voice(memoryId, elderId, mediaKey, null);
+    }
+
+    public static Response voice(UUID memoryId, UUID elderId, String mediaKey, Integer durationSeconds) {
         Response r = new Response();
         r.memoryId = memoryId;
         r.elderId = elderId;
         r.responseType = ResponseType.VOICE;
         r.mediaKey = mediaKey;
+        r.durationSeconds = durationSeconds;
         return r;
+    }
+
+    /** 비동기 STT 작업이 확정한 음성 전사를 저장한다. 전사 전에는 null을 유지한다. */
+    public void recordTranscript(String transcript) {
+        if (responseType != ResponseType.VOICE) {
+            throw new DomainException(ErrorCode.INVALID_INPUT, "음성 답변에만 전사를 저장할 수 있습니다.");
+        }
+        if (transcript == null || transcript.isBlank() || transcript.length() > 1000) {
+            throw new DomainException(ErrorCode.INVALID_INPUT, "음성 전사는 1~1000자여야 합니다.");
+        }
+        this.transcript = transcript;
     }
 
     public List<Emotion> getEmotions() {

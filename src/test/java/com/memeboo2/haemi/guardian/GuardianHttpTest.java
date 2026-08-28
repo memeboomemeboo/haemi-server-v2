@@ -144,7 +144,7 @@ class GuardianHttpTest {
         body.put("name", "김어르신");
         body.put("birthDate", "1945-05-05");
         body.put("loginId", "elder_" + UUID.randomUUID().toString().substring(0, 8));
-        body.put("credential", "123456");
+        body.put("pin", "123456");
         body.put("phone", "010-1111-2222");
         body.put("gender", "남");
 
@@ -152,6 +152,13 @@ class GuardianHttpTest {
 
         assertThat(response.statusCode()).isEqualTo(201);
         assertThat(data(response, 201).asText()).isNotBlank();
+
+        Map<String, Object> login = new LinkedHashMap<>();
+        login.put("loginId", body.get("loginId"));
+        login.put("pin", "123456");
+        login.put("deviceId", "elder-registration-test");
+        HttpResponse<String> loginResponse = post("/api/v1/auth/login", objectMapper.writeValueAsString(login));
+        assertThat(loginResponse.statusCode()).isEqualTo(200);
     }
 
     @Test
@@ -245,6 +252,8 @@ class GuardianHttpTest {
         registerBody.put("memo", null);
         registerBody.put("message", "한마디");
         registerBody.put("memoryYear", 2020);
+        registerBody.put("memoryMonth", 4);
+        registerBody.put("place", "구지면");
         registerBody.put("mediaRefIds", List.of());
 
         HttpResponse<String> registerResponse = post("/api/v1/guardian/memories",
@@ -256,16 +265,28 @@ class GuardianHttpTest {
         assertThat(listResponse.statusCode()).isEqualTo(200);
         assertThat(data(listResponse, 200).isArray()).isTrue();
         assertThat(data(listResponse, 200)).hasSize(1);
+        assertThat(data(listResponse, 200).get(0).path("place").asText()).isEqualTo("구지면");
+        assertThat(data(listResponse, 200).get(0).path("memoryYear").asInt()).isEqualTo(2020);
+        assertThat(data(listResponse, 200).get(0).path("memoryMonth").asInt()).isEqualTo(4);
+
+        HttpResponse<String> allListResponse = get("/api/v1/guardian/memories");
+        assertThat(allListResponse.statusCode()).isEqualTo(200);
+        assertThat(data(allListResponse, 200)).hasSize(1);
+        assertThat(data(allListResponse, 200).get(0).path("elderId").asText()).isEqualTo(elderId.toString());
 
         HttpResponse<String> detailResponse = get("/api/v1/guardian/memories/" + memoryId);
         assertThat(detailResponse.statusCode()).isEqualTo(200);
         assertThat(data(detailResponse, 200).path("title").asText()).isEqualTo("제목");
+        assertThat(data(detailResponse, 200).path("place").asText()).isEqualTo("구지면");
+        assertThat(data(detailResponse, 200).path("memoryMonth").asInt()).isEqualTo(4);
 
         Map<String, Object> updateBody = new LinkedHashMap<>();
         updateBody.put("title", "수정된제목");
         updateBody.put("memo", null);
         updateBody.put("message", "수정된한마디");
         updateBody.put("memoryYear", 2021);
+        updateBody.put("memoryMonth", 5);
+        updateBody.put("place", "대구");
         updateBody.put("mediaRefIds", List.of());
         HttpResponse<String> updateResponse = put("/api/v1/guardian/memories/" + memoryId,
                 objectMapper.writeValueAsString(updateBody));
@@ -273,6 +294,8 @@ class GuardianHttpTest {
 
         HttpResponse<String> afterUpdate = get("/api/v1/guardian/memories/" + memoryId);
         assertThat(data(afterUpdate, 200).path("title").asText()).isEqualTo("수정된제목");
+        assertThat(data(afterUpdate, 200).path("place").asText()).isEqualTo("대구");
+        assertThat(data(afterUpdate, 200).path("memoryMonth").asInt()).isEqualTo(5);
 
         HttpResponse<String> deleteResponse = delete("/api/v1/guardian/memories/" + memoryId);
         assertThat(deleteResponse.statusCode()).isEqualTo(204);
@@ -364,9 +387,14 @@ class GuardianHttpTest {
 
     @Test
     void 보호자_홈_화면을_조회한다() throws Exception {
+        createLinkedElder();
+
         HttpResponse<String> response = get("/api/v1/guardian/home");
 
         assertThat(response.statusCode()).isEqualTo(200);
+        JsonNode elder = data(response, 200).path("elders").get(0);
+        assertThat(elder.has("condition")).isTrue();
+        assertThat(elder.has("todayCondition")).isFalse();
     }
 
     // ---------- ReportController ----------
@@ -422,6 +450,7 @@ class GuardianHttpTest {
         HttpResponse<String> response = get("/api/v1/guardian/elders/" + elderId + "/report/highlight");
 
         assertThat(response.statusCode()).isEqualTo(200);
+        assertThat(data(response, 200).path("items").isArray()).isTrue();
     }
 
     @Test
@@ -429,9 +458,33 @@ class GuardianHttpTest {
         UUID elderId = createLinkedElder();
 
         HttpResponse<String> response = patch("/api/v1/guardian/elders/" + elderId + "/report/highlight",
-                objectMapper.writeValueAsString(Map.of("lines", List.of("좋은 하루"))));
+                objectMapper.writeValueAsString(Map.of("items", List.of(Map.of(
+                        "title", "이번 주 하이라이트", "body", "좋은 하루")))));
 
         assertThat(response.statusCode()).isEqualTo(200);
+        assertThat(response.body()).contains("items", "이번 주 하이라이트", "좋은 하루");
+    }
+
+    @Test
+    void 오늘의_기록은_날짜와_디자인_타임라인_형태를_반환한다() throws Exception {
+        UUID elderId = createLinkedElder();
+
+        HttpResponse<String> response = get("/api/v1/guardian/elders/" + elderId + "/activities");
+
+        JsonNode timeline = data(response, 200);
+        assertThat(timeline.path("date").asText()).matches("\\d{4}-\\d{2}-\\d{2}");
+        assertThat(timeline.path("items").isArray()).isTrue();
+    }
+
+    @Test
+    void 오늘의_기록의_잘못된_날짜는_400이다() throws Exception {
+        UUID elderId = createLinkedElder();
+
+        HttpResponse<String> response = get("/api/v1/guardian/elders/" + elderId + "/activities?date=2026-99-99");
+
+        assertThat(response.statusCode()).isEqualTo(400);
+        assertThat(objectMapper.readTree(response.body()).path("error").path("code").asText())
+                .isEqualTo("INVALID_INPUT");
     }
 
     @Test
@@ -477,7 +530,7 @@ class GuardianHttpTest {
     // ---------- DailyCareController voice ----------
 
     @Test
-    void 음성_하루한마디_전송_라우팅을_확인한다() throws Exception {
+    void 존재하지_않는_음성_미디어로_하루한마디를_전송하면_404를_반환한다() throws Exception {
         UUID elderId = createLinkedElder();
 
         Map<String, Object> body = new LinkedHashMap<>();
@@ -488,7 +541,9 @@ class GuardianHttpTest {
                 "/api/v1/guardian/elders/" + elderId + "/daily-care/voice",
                 objectMapper.writeValueAsString(body));
 
-        assertThat(response.statusCode() == 201 || response.statusCode() >= 400).isTrue();
+        assertThat(response.statusCode()).isEqualTo(404);
+        assertThat(objectMapper.readTree(response.body()).path("error").path("code").asText())
+                .isEqualTo("RESOURCE_NOT_FOUND");
     }
 
     // ---------- helpers ----------

@@ -1,17 +1,25 @@
 package com.memeboo2.haemi.common.security;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.memeboo2.haemi.common.error.ErrorCode;
+import com.memeboo2.haemi.common.web.ApiResponse;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+import java.io.IOException;
+
 @Configuration
 public class SecurityConfig {
+
+    private static final ObjectMapper ERROR_RESPONSE_MAPPER = new ObjectMapper();
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http, TokenVerifier tokenVerifier,
@@ -24,7 +32,8 @@ public class SecurityConfig {
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> {
                 auth
-                .requestMatchers("/api/v1/auth/guardians/register", "/api/v1/auth/login", "/api/v1/auth/refresh",
+                .requestMatchers("/api/v1/auth/guardians/register", "/api/v1/auth/login-id/availability",
+                        "/api/v1/auth/login", "/api/v1/auth/refresh",
                         "/api/v1/auth/email-verifications/**",
                         "/actuator/health", "/swagger-ui/**", "/v3/api-docs/**").permitAll();
                 // LocalStorageAdapter가 만드는 presigned URL을 개발 환경에서만 재현한다.
@@ -36,10 +45,20 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/elder/**").hasRole("ELDER")
                 .anyRequest().authenticated();
             })
-            .exceptionHandling(ex -> ex.authenticationEntryPoint((request, response, exception) ->
-                    response.sendError(HttpStatus.UNAUTHORIZED.value())))
+            .exceptionHandling(ex -> ex
+                    .authenticationEntryPoint((request, response, exception) ->
+                            writeError(response, ErrorCode.UNAUTHENTICATED))
+                    .accessDeniedHandler((request, response, exception) ->
+                            writeError(response, ErrorCode.ROLE_NOT_ALLOWED)))
             .addFilterBefore(new JwtAuthenticationFilter(tokenVerifier),
                     UsernamePasswordAuthenticationFilter.class);
         return http.build();
+    }
+
+    private static void writeError(HttpServletResponse response, ErrorCode errorCode) throws IOException {
+        response.setStatus(errorCode.getStatus().value());
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        ERROR_RESPONSE_MAPPER.writeValue(response.getOutputStream(),
+                ApiResponse.error(errorCode.name(), errorCode.getDefaultMessage()));
     }
 }

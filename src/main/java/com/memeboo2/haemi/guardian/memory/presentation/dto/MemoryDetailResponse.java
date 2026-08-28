@@ -16,6 +16,8 @@ public record MemoryDetailResponse(
         String memo,
         String message,
         Integer memoryYear,
+        Integer memoryMonth,
+        String place,
         List<String> imageKeys,
         boolean responded,
         Instant createdAt,
@@ -31,7 +33,7 @@ public record MemoryDetailResponse(
         GuardianRole role = mc.creatorRole();
         return new MemoryDetailResponse(
                 m.getId(), m.getElderId(), m.getTitle(), m.getMemo(), m.getMessage(),
-                m.getMemoryYear(),
+                m.getMemoryYear(), m.getMemoryMonth(), m.getPlace(),
                 m.getImages().stream().map(img -> img.getStorageKey()).toList(),
                 m.isResponded(),
                 m.getCreatedAt(),

@@ -29,9 +29,9 @@ public class GetWeeklyHighlightUseCase {
     private final WeeklyHighlightOverrideRepository overrideRepository;
     private final HaemiClock clock;
 
-    public record WeeklyHighlight(UUID elderId, List<String> lines) {
+    public record WeeklyHighlight(UUID elderId, List<WeeklyHighlightItem> items) {
         public WeeklyHighlight {
-            lines = List.copyOf(lines);
+            items = List.copyOf(items);
         }
     }
 
@@ -45,7 +45,8 @@ public class GetWeeklyHighlightUseCase {
         LocalDate weekStart = WeekAnchor.of(today);
         var override = overrideRepository.findByElderIdAndWeekStart(elderId, weekStart);
         if (override.isPresent()) {
-            return new WeeklyHighlight(elderId, WeekAnchor.splitLines(override.get().getContent()));
+            return new WeeklyHighlight(elderId,
+                    WeeklyHighlightItemCodec.decode(override.get().getContent(), elderId, weekStart));
         }
 
         int weeklyParticipationDays = weeklyParticipationDaysCounter.count(elderId, today);
@@ -63,7 +64,11 @@ public class GetWeeklyHighlightUseCase {
                         .toList()
         );
 
-        return new WeeklyHighlight(elderId, weeklyHighlightWriter.write(prompt));
+        // 아직 덮어쓰기 행이 없는 자동 문구도 PATCH의 item.id로 다시 보낼 수 있어야 한다.
+        // 따라서 조회마다 새 UUID를 만들지 않고 (elder, week, item index)로 안정적인 ID를 만든다.
+        List<WeeklyHighlightItem> items = WeeklyHighlightItemCodec.generatedItems(
+                elderId, weekStart, weeklyHighlightWriter.write(prompt));
+        return new WeeklyHighlight(elderId, items);
     }
 
     private WeeklyHighlightFact strengthFor(CognitiveArea area) {

@@ -72,7 +72,8 @@ public class CreateResponseUseCase {
     public UUID voice(UUID elderUserId, UUID memoryId, UUID mediaRefId) {
         UUID elderId = requireTargetMemory(elderUserId, memoryId);
         String mediaKey = mediaUploadCommand.confirmUpload(elderUserId, mediaRefId, MediaPurpose.RESPONSE_VOICE).toString();
-        Response r = Response.voice(memoryId, elderId, mediaKey);
+        Integer durationSeconds = mediaUploadCommand.declaredDurationSeconds(mediaRefId);
+        Response r = Response.voice(memoryId, elderId, mediaKey, durationSeconds);
         r = responseRepository.save(r);
         eventPublisher.publishEvent(new ElderResponded(memoryId, elderId, clock.today()));
         return r.getId();

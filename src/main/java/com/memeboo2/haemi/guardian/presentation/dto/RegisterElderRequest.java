@@ -13,7 +13,8 @@ public record RegisterElderRequest(
         @NotBlank @Size(max = 30) String name,
         LocalDate birthDate,
         @NotBlank @Size(min = 4, max = 50) String loginId,
-        @NotBlank @Pattern(regexp = "\\d{6}") String credential,
+        @NotBlank @Pattern(regexp = "\\d{6}") String pin,
+        @Size(min = 8, max = 50) String password,
         @NotBlank @Size(max = 20) String phone,
         @NotBlank @Size(max = 20) String gender
 ) {}

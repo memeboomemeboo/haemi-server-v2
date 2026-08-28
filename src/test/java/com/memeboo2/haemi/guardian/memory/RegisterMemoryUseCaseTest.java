@@ -55,13 +55,18 @@ class RegisterMemoryUseCaseTest {
             return saved;
         });
 
-        UUID result = useCase.execute(guardianId, elderId, "제목", "메모", "한마디", 2020, List.of(mediaRefId));
+        UUID result = useCase.execute(guardianId, elderId, "제목", "메모", "한마디", 2020, 4, "구지면",
+                List.of(mediaRefId));
 
         assertThat(result).isNotNull();
         ArgumentCaptor<MemoryRegistered> eventCaptor = ArgumentCaptor.forClass(MemoryRegistered.class);
         then(eventPublisher).should().publishEvent(eventCaptor.capture());
         assertThat(eventCaptor.getValue().elderId()).isEqualTo(elderId);
         assertThat(eventCaptor.getValue().guardianId()).isEqualTo(guardianId);
+        ArgumentCaptor<Memory> memoryCaptor = ArgumentCaptor.forClass(Memory.class);
+        then(memoryRepository).should().save(memoryCaptor.capture());
+        assertThat(memoryCaptor.getValue().getMemoryMonth()).isEqualTo(4);
+        assertThat(memoryCaptor.getValue().getPlace()).isEqualTo("구지면");
     }
 
     @Test
@@ -75,6 +80,26 @@ class RegisterMemoryUseCaseTest {
                         .isEqualTo(ErrorCode.CARE_ACCESS_DENIED));
 
         then(memoryRepository).should(org.mockito.Mockito.never()).save(any());
+    }
+
+    @Test
+    void 미디어목록이_null이어도_이미지없이_등록한다() throws Exception {
+        given(mediaUploadCommand.memoryImageMaxCount()).willReturn(4);
+        given(memoryRepository.save(any(Memory.class))).willAnswer(invocation -> {
+            Memory saved = invocation.getArgument(0);
+            java.lang.reflect.Field idField =
+                    com.memeboo2.haemi.common.persistence.BaseEntity.class.getDeclaredField("id");
+            idField.setAccessible(true);
+            idField.set(saved, UUID.randomUUID());
+            return saved;
+        });
+
+        UUID result = useCase.execute(guardianId, elderId, "제목", null, "한마디", 2020,
+                null, null, null);
+
+        assertThat(result).isNotNull();
+        then(mediaUploadCommand).should(org.mockito.Mockito.never())
+                .confirmUpload(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
     }
 
     @Test

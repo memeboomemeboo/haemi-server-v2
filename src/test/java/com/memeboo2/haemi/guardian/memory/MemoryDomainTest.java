@@ -18,13 +18,16 @@ class MemoryDomainTest {
 
     @Test
     void create는_필드를_올바르게_채운다() {
-        Memory memory = Memory.create(elderId, "가족 여행", "즐거웠던 기억", "오늘도 즐거운 하루 보내세요", 2020);
+        Memory memory = Memory.create(elderId, "가족 여행", "즐거웠던 기억", "오늘도 즐거운 하루 보내세요",
+                2020, 4, "구지면");
 
         assertThat(memory.getElderId()).isEqualTo(elderId);
         assertThat(memory.getTitle()).isEqualTo("가족 여행");
         assertThat(memory.getMemo()).isEqualTo("즐거웠던 기억");
         assertThat(memory.getMessage()).isEqualTo("오늘도 즐거운 하루 보내세요");
         assertThat(memory.getMemoryYear()).isEqualTo(2020);
+        assertThat(memory.getMemoryMonth()).isEqualTo(4);
+        assertThat(memory.getPlace()).isEqualTo("구지면");
         assertThat(memory.isResponded()).isFalse();
         assertThat(memory.getImages()).isEmpty();
     }
@@ -34,6 +37,13 @@ class MemoryDomainTest {
         String longMemo = "가".repeat(301);
 
         assertThatThrownBy(() -> Memory.create(elderId, "제목", longMemo, "메시지", 2020))
+                .isInstanceOf(DomainException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_INPUT);
+    }
+
+    @Test
+    void 추억_월이_범위를_벗어나면_INVALID_INPUT을_던진다() {
+        assertThatThrownBy(() -> Memory.create(elderId, "제목", null, "메시지", 2020, 13, "구지면"))
                 .isInstanceOf(DomainException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_INPUT);
     }
@@ -62,14 +72,26 @@ class MemoryDomainTest {
         Memory memory = Memory.create(elderId, "제목", "메모", "메시지", 2020);
         memory.addImages(List.of("k1", "k2"));
 
-        memory.update("새 제목", "새 메모", "새 메시지", 2021, List.of("k3"));
+        memory.update("새 제목", "새 메모", "새 메시지", 2021, 5, "대구", List.of("k3"));
 
         assertThat(memory.getTitle()).isEqualTo("새 제목");
         assertThat(memory.getMemo()).isEqualTo("새 메모");
         assertThat(memory.getMessage()).isEqualTo("새 메시지");
         assertThat(memory.getMemoryYear()).isEqualTo(2021);
+        assertThat(memory.getMemoryMonth()).isEqualTo(5);
+        assertThat(memory.getPlace()).isEqualTo("대구");
         assertThat(memory.getImages()).hasSize(1);
         assertThat(memory.getImages().get(0).getStorageKey()).isEqualTo("k3");
+    }
+
+    @Test
+    void 이전_update_시그니처도_기존_장소와_월을_지우지_않는다() {
+        Memory memory = Memory.create(elderId, "제목", "메모", "메시지", 2020, 4, "구지면");
+
+        memory.update("새 제목", "새 메모", "새 메시지", 2021, List.of());
+
+        assertThat(memory.getMemoryMonth()).isEqualTo(4);
+        assertThat(memory.getPlace()).isEqualTo("구지면");
     }
 
     @Test

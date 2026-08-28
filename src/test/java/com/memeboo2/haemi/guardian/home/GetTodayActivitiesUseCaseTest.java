@@ -4,11 +4,13 @@ import com.memeboo2.haemi.common.error.DomainException;
 import com.memeboo2.haemi.common.error.ErrorCode;
 import com.memeboo2.haemi.common.time.HaemiClock;
 import com.memeboo2.haemi.guardian.api.CareAccessQuery;
+import com.memeboo2.haemi.guardian.api.MemoryViewActivityQuery;
 import com.memeboo2.haemi.guardian.api.ResponseQuery;
 import com.memeboo2.haemi.guardian.api.TrainingActivityQuery;
 import com.memeboo2.haemi.guardian.dailycare.infrastructure.DailyCareRepository;
 import com.memeboo2.haemi.guardian.home.application.GetTodayActivitiesUseCase;
-import com.memeboo2.haemi.guardian.home.application.GetTodayActivitiesUseCase.ActivityKind;
+import com.memeboo2.haemi.guardian.home.application.GetTodayActivitiesUseCase.ActivityType;
+import com.memeboo2.haemi.guardian.memory.infrastructure.MemoryRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -32,7 +34,9 @@ class GetTodayActivitiesUseCaseTest {
     @Mock CareAccessQuery careAccessQuery;
     @Mock TrainingActivityQuery trainingActivityQuery;
     @Mock ResponseQuery responseQuery;
+    @Mock MemoryViewActivityQuery memoryViewActivityQuery;
     @Mock DailyCareRepository dailyCareRepository;
+    @Mock MemoryRepository memoryRepository;
     @Mock HaemiClock clock;
     @InjectMocks GetTodayActivitiesUseCase useCase;
 
@@ -52,13 +56,15 @@ class GetTodayActivitiesUseCaseTest {
                 .willReturn(List.of(new ResponseQuery.ElderResponseActivity(
                         UUID.randomUUID(), "VOICE", null, "밥 잘 먹었다", response)));
         given(dailyCareRepository.findByElderIdAndDate(any(), any(), any())).willReturn(List.of());
+        given(memoryViewActivityQuery.firstViewedBetween(any(), any(), any())).willReturn(List.of());
+        given(memoryRepository.findAllById(any())).willReturn(List.of());
 
         var entries = useCase.executeToday(guardianId, elderId);
 
         assertThat(entries).hasSize(2);
-        assertThat(entries.get(0).kind()).isEqualTo(ActivityKind.COGNITIVE_TRAINING);
-        assertThat(entries.get(1).kind()).isEqualTo(ActivityKind.MEMORY_RESPONSE);
-        assertThat(entries.get(1).summary()).contains("밥 잘 먹었다");
+        assertThat(entries.get(0).type()).isEqualTo(ActivityType.TRAINING_COMPLETED);
+        assertThat(entries.get(1).type()).isEqualTo(ActivityType.RESPONSE_SENT);
+        assertThat(entries.get(1).detail()).containsEntry("responseType", "VOICE");
     }
 
     @Test

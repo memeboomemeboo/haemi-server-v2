@@ -38,9 +38,10 @@ public class ResponseQueryImpl implements ResponseQuery {
                         r.getId(),
                         r.getResponseType().name(),
                         r.getEmotions().stream().map(Enum::name).toList(),
-                        r.getText(),
+                        r.getText() != null ? r.getText() : r.getTranscript(),
                         r.getMediaKey(),
-                        r.getTranscript(),
+                        r.getMediaKey(),
+                        r.getDurationSeconds(),
                         r.getCreatedAt()
                 ))
                 .toList();
