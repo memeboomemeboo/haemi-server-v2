@@ -50,7 +50,12 @@ public class LoginUseCase {
             // PIN(6자리 = 100만 조합)은 비밀번호보다 추측이 쉬워, PIN을 제출한 시도는
             // 더 낮은 임계값으로 잠근다. 실패 카운터(failed_login_attempts)는 공유하되
             // 이번 시도가 PIN이면 더 이른 시점에 잠금이 걸리도록 임계값만 낮춘다.
-            boolean pinAttempt = pin != null && !pin.isBlank();
+            // PIN 검증이 애초에 불가능한 계정(PIN 미설정)은 제외한다. 그러지 않으면
+            // 공격자가 PIN 필드만 채워 보내는 것만으로 PIN을 쓰지 않는 계정까지
+            // 더 적은 요청으로 잠글 수 있다.
+            boolean pinAttempt = pin != null && !pin.isBlank()
+                    && account.isPinLoginEnabled()
+                    && account.getPinHash() != null;
             int maxAttempts = pinAttempt
                     ? loginProperties.maxPinFailedAttempts()
                     : loginProperties.maxFailedAttempts();

@@ -127,6 +127,19 @@ class LoginUseCaseTest {
     }
 
     @Test
+    void PIN_미설정_계정에_PIN만_보낸_시도는_기본_임계값으로_기록된다() {
+        Account account = guardian();
+        given(accountRepository.findByLoginId("guardian01")).willReturn(Optional.of(account));
+
+        // PIN 로그인이 켜지지 않은 계정. PIN 필드만 채워 보내는 것으로
+        // 임계값을 낮출 수 있으면 PIN을 쓰지 않는 계정까지 더 쉽게 잠긴다.
+        assertThatThrownBy(() -> useCase.execute("guardian01", null, "000000", "device-a"))
+                .isInstanceOf(DomainException.class);
+
+        verify(loginFailureRecorder).recordFailure("guardian01", NOW, 5, 900L);
+    }
+
+    @Test
     void 검증_도중_다른_요청이_계정을_잠그면_성공_기록이_거부된다() {
         Account account = guardian();
         setId(account, UUID.randomUUID());
