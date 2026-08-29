@@ -47,8 +47,15 @@ public class LoginUseCase {
                 && account.getPinHash() != null
                 && passwordService.matches(pin, account.getPinHash());
         if (!passwordMatches && !pinMatches) {
+            // PIN(6자리 = 100만 조합)은 비밀번호보다 추측이 쉬워, PIN을 제출한 시도는
+            // 더 낮은 임계값으로 잠근다. 실패 카운터(failed_login_attempts)는 공유하되
+            // 이번 시도가 PIN이면 더 이른 시점에 잠금이 걸리도록 임계값만 낮춘다.
+            boolean pinAttempt = pin != null && !pin.isBlank();
+            int maxAttempts = pinAttempt
+                    ? loginProperties.maxPinFailedAttempts()
+                    : loginProperties.maxFailedAttempts();
             loginFailureRecorder.recordFailure(loginId, now,
-                    loginProperties.maxFailedAttempts(), loginProperties.lockDurationSeconds());
+                    maxAttempts, loginProperties.lockDurationSeconds());
             throw new DomainException(ErrorCode.INVALID_CREDENTIALS);
         }
         // 성공 기록도 원자적 UPDATE로 한다. 엔티티를 수정해 flush하면 조회 이후 다른 요청이
