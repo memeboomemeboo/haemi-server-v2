@@ -18,6 +18,10 @@ import com.memeboo2.haemi.guardian.family.domain.Family;
 import com.memeboo2.haemi.guardian.family.domain.FamilyRepository;
 import com.memeboo2.haemi.guardian.memory.domain.Memory;
 import com.memeboo2.haemi.guardian.memory.infrastructure.MemoryRepository;
+import com.memeboo2.haemi.platform.media.domain.MediaRef;
+import com.memeboo2.haemi.platform.media.domain.MediaType;
+import com.memeboo2.haemi.platform.media.infrastructure.LocalObjectStorage;
+import com.memeboo2.haemi.platform.media.infrastructure.MediaRefRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,6 +34,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.LocalDate;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -48,6 +53,8 @@ class ElderHttpTest {
     @Autowired MemoryRepository memoryRepository;
     @Autowired DailyCareRepository dailyCareRepository;
     @Autowired ResponseRepository responseRepository;
+    @Autowired MediaRefRepository mediaRefRepository;
+    @Autowired LocalObjectStorage localObjectStorage;
     @Autowired JwtTokenProvider jwtTokenProvider;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -158,6 +165,33 @@ class ElderHttpTest {
     }
 
     @Test
+    void 음성_답변은_전사_실패_상태를_조회할_수_있다() throws Exception {
+        Memory memory = memoryRepository.saveAndFlush(Memory.create(elderId, "음성추억", null, "한마디", 2020));
+        MediaRef media = mediaRefRepository.saveAndFlush(MediaRef.pending(
+                MediaType.RESPONSE_VOICE,
+                "response_voice/" + UUID.randomUUID() + ".aac",
+                "voice.aac", "audio/aac", 3, 12, elderUserId,
+                Instant.now().plusSeconds(300), Instant.now().plusSeconds(86_400), null));
+        localObjectStorage.put(media.getStorageKey(), "audio/aac", new byte[]{1, 2, 3}, 12);
+
+        HttpResponse<String> created = post(
+                "/api/v1/elder/memories/" + memory.getId() + "/responses/voice",
+                objectMapper.writeValueAsString(Map.of("mediaRefId", media.getId())));
+
+        assertThat(created.statusCode()).as("body=%s", created.body()).isEqualTo(201);
+        UUID responseId = UUID.fromString(data(created).asText());
+        Response saved = awaitTranscriptStatus(responseId, "FAILED");
+        assertThat(saved.getTranscript()).isNull();
+        assertThat(saved.getTranscriptStatus().name()).isEqualTo("FAILED");
+
+        HttpResponse<String> listed = get("/api/v1/elder/memories/" + memory.getId() + "/responses");
+        assertThat(listed.statusCode()).isEqualTo(200);
+        JsonNode item = data(listed).get(0);
+        assertThat(item.path("transcriptionStatus").asText()).isEqualTo("FAILED");
+        assertThat(item.path("transcript").isNull()).isTrue();
+    }
+
+    @Test
     void 어르신_답변_목록_조회() throws Exception {
         Memory memory = memoryRepository.saveAndFlush(Memory.create(elderId, "답변추억", null, "한마디", 2020));
 
@@ -199,6 +233,18 @@ class ElderHttpTest {
 
     private JsonNode data(HttpResponse<String> response) throws Exception {
         return objectMapper.readTree(response.body()).path("data");
+    }
+
+    private Response awaitTranscriptStatus(UUID responseId, String expectedStatus) throws InterruptedException {
+        Response latest = null;
+        for (int attempt = 0; attempt < 40; attempt++) {
+            latest = responseRepository.findById(responseId).orElseThrow();
+            if (expectedStatus.equals(latest.getTranscriptStatus().name())) {
+                return latest;
+            }
+            Thread.sleep(50);
+        }
+        return latest;
     }
 
     private HttpResponse<String> get(String path) throws Exception {

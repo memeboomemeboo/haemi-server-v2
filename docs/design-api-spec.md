@@ -219,10 +219,11 @@
   "mediaKey": "…",
   "mediaUrl": "https://…",       // 재생용 서빙 URL (권장)
   "durationSeconds": 2,           // 음성일 때
+  "transcriptionStatus": "COMPLETED", // PENDING | COMPLETED | FAILED (비음성은 NOT_APPLICABLE)
   "createdAt": "2026-09-06T06:20:00Z"  // 추가: 디자인의 "2일전·오후 3:20"
 }
 ```
-- **추가 필드**: `createdAt`(필수), 음성 재생용 `mediaUrl`·`durationSeconds`, 음성 전사 표기용 `text`(전사) — **모두 남김**
+- **추가 필드**: `createdAt`(필수), 음성 재생용 `mediaUrl`·`durationSeconds`, 음성 전사 표기용 `text`(전사), 전사 비동기 상태 `transcriptionStatus` — **모두 남김**. `PENDING`·`FAILED`에서는 `text`가 null일 수 있다.
 - **그룹핑(둘 다 남김)**: 응답은 현행대로 **타입별 레코드로 저장**하고, 프론트가 `createdAt`·작성자로 **병합 표시**하는 것을 기본 전제로 한다(저장 구조 변경 없이 필드 추가만). 감정+음성 결합 저장이 필요해지면 이후 확장.
 
 ---

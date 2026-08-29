@@ -57,6 +57,11 @@ public class Response extends BaseEntity {
     @Column(name = "transcript", length = 1000)
     private String transcript;
 
+    /** 음성 전사 상태. 비음성 응답은 NOT_APPLICABLE이다. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "transcript_status", nullable = false, length = 20)
+    private TranscriptStatus transcriptStatus;
+
     public static Response emotion(UUID memoryId, UUID elderId, List<Emotion> emotions) {
         if (emotions == null || emotions.isEmpty() || emotions.size() > MAX_EMOTIONS) {
             throw new DomainException(ErrorCode.INVALID_INPUT, "감정은 1~" + MAX_EMOTIONS + "개 선택해야 합니다.");
@@ -65,6 +70,7 @@ public class Response extends BaseEntity {
         r.memoryId = memoryId;
         r.elderId = elderId;
         r.responseType = ResponseType.EMOTION;
+        r.transcriptStatus = TranscriptStatus.NOT_APPLICABLE;
         r.emotions.addAll(emotions);
         return r;
     }
@@ -77,6 +83,7 @@ public class Response extends BaseEntity {
         r.memoryId = memoryId;
         r.elderId = elderId;
         r.responseType = ResponseType.TEXT;
+        r.transcriptStatus = TranscriptStatus.NOT_APPLICABLE;
         r.text = text;
         return r;
     }
@@ -86,6 +93,7 @@ public class Response extends BaseEntity {
         r.memoryId = memoryId;
         r.elderId = elderId;
         r.responseType = ResponseType.IMAGE;
+        r.transcriptStatus = TranscriptStatus.NOT_APPLICABLE;
         r.mediaKey = mediaKey;
         return r;
     }
@@ -99,6 +107,7 @@ public class Response extends BaseEntity {
         r.memoryId = memoryId;
         r.elderId = elderId;
         r.responseType = ResponseType.VOICE;
+        r.transcriptStatus = TranscriptStatus.PENDING;
         r.mediaKey = mediaKey;
         r.durationSeconds = durationSeconds;
         return r;
@@ -109,10 +118,22 @@ public class Response extends BaseEntity {
         if (responseType != ResponseType.VOICE) {
             throw new DomainException(ErrorCode.INVALID_INPUT, "음성 답변에만 전사를 저장할 수 있습니다.");
         }
-        if (transcript == null || transcript.isBlank() || transcript.length() > 1000) {
+        String normalized = transcript == null ? null : transcript.strip();
+        if (normalized == null || normalized.isBlank() || normalized.length() > 1000) {
             throw new DomainException(ErrorCode.INVALID_INPUT, "음성 전사는 1~1000자여야 합니다.");
         }
-        this.transcript = transcript;
+        this.transcript = normalized;
+        this.transcriptStatus = TranscriptStatus.COMPLETED;
+    }
+
+    /** 복구 가능한 외부 STT 실패를 기록한다. 실패 원문은 개인정보·공급자 정보를 노출하지 않기 위해 저장하지 않는다. */
+    public void markTranscriptFailed() {
+        if (responseType != ResponseType.VOICE) {
+            throw new DomainException(ErrorCode.INVALID_INPUT, "음성 답변에만 전사 실패를 기록할 수 있습니다.");
+        }
+        if (transcriptStatus != TranscriptStatus.COMPLETED) {
+            this.transcriptStatus = TranscriptStatus.FAILED;
+        }
     }
 
     public List<Emotion> getEmotions() {

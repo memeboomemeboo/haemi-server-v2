@@ -1,6 +1,7 @@
 package com.memeboo2.haemi.platform.api;
 
 import java.net.URI;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -23,6 +24,20 @@ public interface MediaUploadCommand {
     /** 확정된 음성 응답의 재생 시간을 응답 레코드에 고정하기 위한 업로드 메타데이터 조회. */
     Integer declaredDurationSeconds(UUID mediaRefId);
 
+    /** 확정된 미디어 원본을 내부 후속 처리(STT 등)에만 제공한다. */
+    Optional<ConfirmedMedia> readConfirmedMedia(UUID mediaRefId, MediaPurpose expectedPurpose);
+
     /** 추억 하나에 첨부 가능한 이미지 최대 장수 (haemi.media.image.memory-max-count). */
     int memoryImageMaxCount();
+
+    record ConfirmedMedia(String contentType, byte[] content) {
+        public ConfirmedMedia {
+            content = content.clone();
+        }
+
+        @Override
+        public byte[] content() {
+            return content.clone();
+        }
+    }
 }

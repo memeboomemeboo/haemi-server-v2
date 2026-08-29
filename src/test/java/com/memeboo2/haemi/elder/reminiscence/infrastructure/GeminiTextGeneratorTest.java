@@ -33,7 +33,7 @@ class GeminiTextGeneratorTest {
     @BeforeEach
     void setUp() {
         props = new GeminiProperties("test-api-key", "gemini-2.0-flash",
-                "https://example.invalid", Duration.ofSeconds(5), Duration.ofSeconds(20));
+                "https://example.invalid", Duration.ofSeconds(5), Duration.ofSeconds(20), 12_582_912L, 2);
         generator = new GeminiTextGenerator(restClient, props);
 
         lenient().when(restClient.post()).thenReturn(requestBodyUriSpec);

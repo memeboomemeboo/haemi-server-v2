@@ -6,6 +6,7 @@ import com.memeboo2.haemi.common.time.HaemiClock;
 import com.memeboo2.haemi.platform.api.MediaUploadCommand;
 import com.memeboo2.haemi.platform.api.MediaPurpose;
 import com.memeboo2.haemi.platform.media.domain.MediaRef;
+import com.memeboo2.haemi.platform.media.domain.UploadStatus;
 import com.memeboo2.haemi.platform.media.infrastructure.MediaRefRepository;
 import com.memeboo2.haemi.platform.media.infrastructure.StoragePort;
 import com.memeboo2.haemi.platform.media.domain.MediaType;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.net.URI;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -46,6 +48,16 @@ public class ConfirmUploadUseCase implements MediaUploadCommand {
         return repository.findById(mediaRefId)
                 .map(MediaRef::getDeclaredDurationSeconds)
                 .orElse(null);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<ConfirmedMedia> readConfirmedMedia(UUID mediaRefId, MediaPurpose expectedPurpose) {
+        return repository.findById(mediaRefId)
+                .filter(ref -> ref.getStatus() == UploadStatus.CONFIRMED)
+                .filter(ref -> ref.getMediaType() == MediaType.valueOf(expectedPurpose.name()))
+                .flatMap(ref -> storage.getObject(ref.getStorageKey()))
+                .map(content -> new ConfirmedMedia(content.contentType(), content.content()));
     }
 
     @Override

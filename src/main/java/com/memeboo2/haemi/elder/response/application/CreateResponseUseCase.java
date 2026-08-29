@@ -1,6 +1,7 @@
 package com.memeboo2.haemi.elder.response.application;
 
 import com.memeboo2.haemi.common.event.ElderResponded;
+import com.memeboo2.haemi.common.event.VoiceResponseCreated;
 import com.memeboo2.haemi.common.security.ElderAccessChecked;
 import com.memeboo2.haemi.common.time.HaemiClock;
 import com.memeboo2.haemi.elder.response.domain.Emotion;
@@ -76,6 +77,7 @@ public class CreateResponseUseCase {
         Response r = Response.voice(memoryId, elderId, mediaKey, durationSeconds);
         r = responseRepository.save(r);
         eventPublisher.publishEvent(new ElderResponded(memoryId, elderId, clock.today()));
+        eventPublisher.publishEvent(new VoiceResponseCreated(r.getId(), mediaRefId));
         return r.getId();
     }
 

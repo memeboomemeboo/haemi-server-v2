@@ -10,6 +10,7 @@ import com.memeboo2.haemi.platform.media.domain.MediaType;
 import com.memeboo2.haemi.platform.media.domain.UploadStatus;
 import com.memeboo2.haemi.platform.media.infrastructure.MediaRefRepository;
 import com.memeboo2.haemi.platform.media.infrastructure.StoragePort;
+import com.memeboo2.haemi.platform.api.MediaPurpose;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -122,6 +123,38 @@ class ConfirmUploadUseCaseTest {
                 .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
                         .isEqualTo(ErrorCode.INVALID_INPUT));
         assertThat(ref.getStatus()).isEqualTo(UploadStatus.PENDING);
+    }
+
+    @Test
+    void 확정된_음성만_STT_후속처리를_위해_원본으로_읽을_수_있다() {
+        UUID actorId = UUID.randomUUID();
+        UUID refId = UUID.randomUUID();
+        MediaRef ref = MediaRef.pending(MediaType.RESPONSE_VOICE, "response_voice/key.aac", "reply.aac",
+                "audio/aac", 3L, 12, actorId, EXPIRY, NOW.plusSeconds(86400L), null);
+        ref.confirm(NOW);
+        given(repository.findById(refId)).willReturn(Optional.of(ref));
+        given(storage.getObject(ref.getStorageKey())).willReturn(Optional.of(
+                new StoragePort.StoredContent("audio/aac", new byte[]{1, 2, 3})));
+
+        var media = useCase.readConfirmedMedia(refId, MediaPurpose.RESPONSE_VOICE);
+
+        assertThat(media).isPresent();
+        assertThat(media.orElseThrow().contentType()).isEqualTo("audio/aac");
+        assertThat(media.orElseThrow().content()).containsExactly(1, 2, 3);
+    }
+
+    @Test
+    void 아직_확정되지_않은_음성은_STT_후속처리에서_읽을_수_없다() {
+        UUID actorId = UUID.randomUUID();
+        UUID refId = UUID.randomUUID();
+        MediaRef ref = MediaRef.pending(MediaType.RESPONSE_VOICE, "response_voice/key.aac", "reply.aac",
+                "audio/aac", 3L, 12, actorId, EXPIRY, NOW.plusSeconds(86400L), null);
+        given(repository.findById(refId)).willReturn(Optional.of(ref));
+
+        var media = useCase.readConfirmedMedia(refId, MediaPurpose.RESPONSE_VOICE);
+
+        assertThat(media).isEmpty();
+        org.mockito.Mockito.verifyNoInteractions(storage);
     }
 
     @Test
