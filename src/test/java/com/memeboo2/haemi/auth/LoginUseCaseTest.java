@@ -54,6 +54,7 @@ class LoginUseCaseTest {
     void setUp() {
         given(clock.now()).willReturn(NOW);
         lenient().when(loginProperties.maxFailedAttempts()).thenReturn(5);
+        lenient().when(loginProperties.maxPinFailedAttempts()).thenReturn(3);
         lenient().when(loginProperties.lockDurationSeconds()).thenReturn(900L);
         // 성공 기록은 원자적 UPDATE 한 건이다. 잠기지 않은 계정이면 1행이 갱신된다.
         lenient().when(accountRepository.recordLoginSuccess(any(), any())).thenReturn(1);
@@ -107,6 +108,22 @@ class LoginUseCaseTest {
         // 실제 증가·잠금은 별도 트랜잭션의 원자적 UPDATE가 담당한다.
         // 여기서는 잠금 임계값과 잠금 시간이 설정값 그대로 전달되는지만 확인한다.
         verify(loginFailureRecorder).recordFailure("guardian01", NOW, 5, 900L);
+    }
+
+    @Test
+    void PIN_로그인_실패는_더_낮은_임계값으로_기록된다() {
+        Account account = guardian();
+        account.enablePinLogin();
+        given(accountRepository.findByLoginId("guardian01")).willReturn(Optional.of(account));
+        given(passwordService.matches("000000", "pin-hash")).willReturn(false);
+
+        // 비밀번호는 미입력하고 PIN만 틀린 시도 → PIN 전용 임계값(3)이 적용되어야 한다.
+        assertThatThrownBy(() -> useCase.execute("guardian01", null, "000000", "device-a"))
+                .isInstanceOf(DomainException.class)
+                .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
+                        .isEqualTo(ErrorCode.INVALID_CREDENTIALS));
+
+        verify(loginFailureRecorder).recordFailure("guardian01", NOW, 3, 900L);
     }
 
     @Test
