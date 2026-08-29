@@ -127,7 +127,7 @@ public class AuthController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "로그인 성공"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "아이디·비밀번호 불일치 — INVALID_CREDENTIALS"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "423", description = "로그인 시도 횟수 초과로 계정 잠김 — AUTH_ACCOUNT_LOCKED")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "423", description = "로그인 시도 횟수 초과로 계정 잠김 — AUTH_ACCOUNT_LOCKED. PIN 로그인은 비밀번호보다 낮은 임계값으로 잠긴다.")
     })
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<TokenResponse>> login(
