@@ -21,6 +21,10 @@ public interface AccountQuery {
 
     boolean existsByLoginId(String loginId);
 
+    void updateName(UUID userId, String newName);
+
+    void updateBirthDate(UUID userId, String newBirthDate);
+
     void updateLoginId(UUID userId, String newLoginId);
 
     void updateProfileImageUrl(UUID userId, String profileImageUrl);

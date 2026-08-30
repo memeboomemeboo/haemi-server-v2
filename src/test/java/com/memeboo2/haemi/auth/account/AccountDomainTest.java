@@ -74,6 +74,18 @@ class AccountDomainTest {
     }
 
     @Test
+    void updateName과_updateBirthDate는_프로필_정보를_교체한다() {
+        Account account = Account.guardian(
+                "홍길동", "guardian5", "hashed-pw", "1980-01-01", "010-1234-5678", "guardian5@test.com", "pin-hash");
+
+        account.updateName("박승아");
+        account.updateBirthDate("1985-06-10");
+
+        assertThat(account.getName()).isEqualTo("박승아");
+        assertThat(account.getBirthDate()).isEqualTo("1985-06-10");
+    }
+
+    @Test
     void updateProfileImageUrl은_프로필_이미지_URL을_교체한다() {
         Account account = Account.elder("김노인", "elder3", "cred", "1945-05-05", "010-1111-2222", "F");
 

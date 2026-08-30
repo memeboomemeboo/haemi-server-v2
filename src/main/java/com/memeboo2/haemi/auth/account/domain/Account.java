@@ -102,6 +102,14 @@ public class Account extends BaseEntity {
         this.loginId = loginId;
     }
 
+    public void updateName(String name) {
+        this.name = name;
+    }
+
+    public void updateBirthDate(String birthDate) {
+        this.birthDate = birthDate;
+    }
+
     public void updateProfileImageUrl(String profileImageUrl) {
         this.profileImageUrl = profileImageUrl;
     }

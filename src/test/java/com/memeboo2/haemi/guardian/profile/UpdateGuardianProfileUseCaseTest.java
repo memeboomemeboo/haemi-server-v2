@@ -3,18 +3,21 @@ package com.memeboo2.haemi.guardian.profile;
 import com.memeboo2.haemi.auth.api.AccountQuery;
 import com.memeboo2.haemi.common.error.DomainException;
 import com.memeboo2.haemi.common.error.ErrorCode;
+import com.memeboo2.haemi.common.time.HaemiClock;
 import com.memeboo2.haemi.guardian.api.GuardianRole;
 import com.memeboo2.haemi.guardian.eldermanagement.application.ChangeGuardianRoleUseCase;
 import com.memeboo2.haemi.guardian.profile.application.UpdateGuardianProfileUseCase;
 import com.memeboo2.haemi.platform.api.MediaPurpose;
 import com.memeboo2.haemi.platform.api.MediaUploadCommand;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.net.URI;
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -31,6 +34,7 @@ class UpdateGuardianProfileUseCaseTest {
     @Mock AccountQuery accountQuery;
     @Mock ChangeGuardianRoleUseCase changeGuardianRoleUseCase;
     @Mock MediaUploadCommand mediaUploadCommand;
+    @Mock HaemiClock clock;
     @InjectMocks UpdateGuardianProfileUseCase useCase;
 
     UUID guardianId = UUID.randomUUID();
@@ -41,12 +45,17 @@ class UpdateGuardianProfileUseCaseTest {
                 "1999-01-01", null, null);
     }
 
+    @BeforeEach
+    void setUp() {
+        org.mockito.Mockito.lenient().when(clock.today()).thenReturn(LocalDate.of(2026, 8, 30));
+    }
+
     @Test
     void loginId_변경되고_사용가능하면_업데이트() {
         given(accountQuery.findById(guardianId)).willReturn(Optional.of(accountInfo("oldLoginId")));
         given(accountQuery.existsByLoginId("newLoginId")).willReturn(false);
 
-        useCase.execute(guardianId, "newLoginId", null, Map.of());
+        useCase.execute(guardianId, null, null, "newLoginId", null, Map.of());
 
         then(accountQuery).should().updateLoginId(guardianId, "newLoginId");
     }
@@ -56,7 +65,7 @@ class UpdateGuardianProfileUseCaseTest {
         given(accountQuery.findById(guardianId)).willReturn(Optional.of(accountInfo("oldLoginId")));
         given(accountQuery.existsByLoginId("newLoginId")).willReturn(true);
 
-        assertThatThrownBy(() -> useCase.execute(guardianId, "newLoginId", null, Map.of()))
+        assertThatThrownBy(() -> useCase.execute(guardianId, null, null, "newLoginId", null, Map.of()))
                 .isInstanceOf(DomainException.class)
                 .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
                         .isEqualTo(ErrorCode.LOGIN_ID_ALREADY_TAKEN));
@@ -66,7 +75,7 @@ class UpdateGuardianProfileUseCaseTest {
 
     @Test
     void loginId가_null이면_변경_생략() {
-        useCase.execute(guardianId, null, null, Map.of());
+        useCase.execute(guardianId, null, null, null, null, Map.of());
 
         then(accountQuery).should(org.mockito.Mockito.never()).findById(any());
         then(accountQuery).should(org.mockito.Mockito.never()).updateLoginId(any(), any());
@@ -76,7 +85,7 @@ class UpdateGuardianProfileUseCaseTest {
     void loginId가_기존과_동일하면_변경_생략() {
         given(accountQuery.findById(guardianId)).willReturn(Optional.of(accountInfo("sameLoginId")));
 
-        useCase.execute(guardianId, "sameLoginId", null, Map.of());
+        useCase.execute(guardianId, null, null, "sameLoginId", null, Map.of());
 
         then(accountQuery).should(org.mockito.Mockito.never()).existsByLoginId(any());
         then(accountQuery).should(org.mockito.Mockito.never()).updateLoginId(any(), any());
@@ -87,7 +96,7 @@ class UpdateGuardianProfileUseCaseTest {
         Map<UUID, GuardianRole> elderRoles = new HashMap<>();
         elderRoles.put(elderId, null);
 
-        assertThatThrownBy(() -> useCase.execute(guardianId, null, null, elderRoles))
+        assertThatThrownBy(() -> useCase.execute(guardianId, null, null, null, null, elderRoles))
                 .isInstanceOf(DomainException.class)
                 .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
                         .isEqualTo(ErrorCode.INVALID_INPUT));
@@ -99,9 +108,29 @@ class UpdateGuardianProfileUseCaseTest {
         given(mediaUploadCommand.confirmUpload(guardianId, mediaRefId, MediaPurpose.PROFILE_IMAGE))
                 .willReturn(URI.create("https://image.example/new.png"));
 
-        useCase.execute(guardianId, null, mediaRefId, Map.of());
+        useCase.execute(guardianId, null, null, null, mediaRefId, Map.of());
 
         then(accountQuery).should().updateProfileImageUrl(guardianId, "https://image.example/new.png");
+    }
+
+    @Test
+    void 이름과_생년월일을_함께_수정한다() {
+        useCase.execute(guardianId, "박승아", LocalDate.of(1985, 6, 10), null, null, Map.of());
+
+        then(accountQuery).should().updateName(guardianId, "박승아");
+        then(accountQuery).should().updateBirthDate(guardianId, "1985-06-10");
+    }
+
+    @Test
+    void 생년월일이_1920년보다_빠르면_거절한다() {
+        assertThatThrownBy(() -> useCase.execute(
+                guardianId, "박승아", LocalDate.of(1919, 12, 31), null, null, Map.of()))
+                .isInstanceOf(DomainException.class)
+                .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
+                        .isEqualTo(ErrorCode.INVALID_INPUT));
+
+        then(accountQuery).should(org.mockito.Mockito.never()).updateName(any(), any());
+        then(accountQuery).should(org.mockito.Mockito.never()).updateBirthDate(any(), any());
     }
 
     private static <T> T any() {

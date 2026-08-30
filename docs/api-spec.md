@@ -105,9 +105,16 @@
 ## 2.2 프로필 수정
 `PATCH /guardian/profile` · **200** `null`
 ```jsonc
-{ "loginId": "jeongeun", "profileImageMediaRefId": "uuid|null", "elderRoles": { "<elderId>": "DAUGHTER" } }
+{
+  "name": "박승아",
+  "birthDate": "1985-06-10",
+  "loginId": "jeongeun",
+  "profileImageMediaRefId": "uuid|null",
+  "elderRoles": { "<elderId>": "DAUGHTER" }
+}
 ```
-편집 대상: 아이디·프로필사진·어르신별 역할 (이름/생년월일은 표시 전용)
+편집 대상: 이름·생년월일·아이디·프로필사진·어르신별 역할. 모든 필드는 선택값이며 전달한 필드만 변경한다.
+`birthDate`는 `YYYY-MM-DD` 형식이고 1920-01-01부터 요청 당일(KST)까지 허용한다.
 **에러** `409 LOGIN_ID_ALREADY_TAKEN`, `403 NOT_RESOURCE_OWNER`, `400 INVALID_INPUT`
 
 ## 2.3 가족 생성
