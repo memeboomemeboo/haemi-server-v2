@@ -30,6 +30,8 @@ public interface ResponseQuery {
             String mediaUrl,
             /** 음성 답변 재생 시간(초). 비음성이면 null. */
             Integer durationSeconds,
+            /** 음성 전사 상태. 비음성 응답은 NOT_APPLICABLE이다. */
+            String transcriptionStatus,
             /** 답변 작성 시각 — 상세 화면의 "2일전·오후 3:20" 표시용 (#100 X3) */
             Instant createdAt
     ) {}

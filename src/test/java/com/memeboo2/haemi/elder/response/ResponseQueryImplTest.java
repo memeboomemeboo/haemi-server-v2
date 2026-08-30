@@ -57,25 +57,32 @@ class ResponseQueryImplTest {
         UUID elderId = UUID.randomUUID();
         UUID memoryId = UUID.randomUUID();
         Response emotionResponse = Response.emotion(memoryId, elderId, List.of(Emotion.LOVE));
+        Response textResponse = Response.text(memoryId, elderId, "직접 입력한 댓글");
         Response voiceResponse = Response.voice(memoryId, elderId, "https://media.example/voice.aac", 42);
         voiceResponse.recordTranscript("그 냇가 참 좋았지");
-        when(responseRepository.findByMemoryId(memoryId)).thenReturn(List.of(emotionResponse, voiceResponse));
+        when(responseRepository.findByMemoryId(memoryId)).thenReturn(List.of(emotionResponse, textResponse, voiceResponse));
 
         List<ResponseItem> items = responseQuery.findByMemoryId(memoryId);
 
-        assertThat(items).hasSize(2);
+        assertThat(items).hasSize(3);
         ResponseItem first = items.get(0);
         assertThat(first.responseType()).isEqualTo("EMOTION");
         assertThat(first.emotions()).containsExactly("LOVE");
         assertThat(first.text()).isNull();
         assertThat(first.mediaKey()).isNull();
+        assertThat(first.transcriptionStatus()).isEqualTo("NOT_APPLICABLE");
 
         ResponseItem second = items.get(1);
-        assertThat(second.responseType()).isEqualTo("VOICE");
-        assertThat(second.emotions()).isEmpty();
-        assertThat(second.mediaKey()).isEqualTo("https://media.example/voice.aac");
-        assertThat(second.mediaUrl()).isEqualTo("https://media.example/voice.aac");
-        assertThat(second.durationSeconds()).isEqualTo(42);
-        assertThat(second.text()).isEqualTo("그 냇가 참 좋았지");
+        assertThat(second.responseType()).isEqualTo("TEXT");
+        assertThat(second.text()).isEqualTo("직접 입력한 댓글");
+
+        ResponseItem third = items.get(2);
+        assertThat(third.responseType()).isEqualTo("VOICE");
+        assertThat(third.emotions()).isEmpty();
+        assertThat(third.mediaKey()).isEqualTo("https://media.example/voice.aac");
+        assertThat(third.mediaUrl()).isEqualTo("https://media.example/voice.aac");
+        assertThat(third.durationSeconds()).isEqualTo(42);
+        assertThat(third.text()).isEqualTo("그 냇가 참 좋았지");
+        assertThat(third.transcriptionStatus()).isEqualTo("COMPLETED");
     }
 }

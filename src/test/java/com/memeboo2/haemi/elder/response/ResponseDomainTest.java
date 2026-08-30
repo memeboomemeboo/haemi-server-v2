@@ -5,6 +5,7 @@ import com.memeboo2.haemi.common.error.ErrorCode;
 import com.memeboo2.haemi.elder.response.domain.Emotion;
 import com.memeboo2.haemi.elder.response.domain.Response;
 import com.memeboo2.haemi.elder.response.domain.ResponseType;
+import com.memeboo2.haemi.elder.response.domain.TranscriptStatus;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -95,5 +96,59 @@ class ResponseDomainTest {
 
         assertThat(response.getResponseType()).isEqualTo(ResponseType.VOICE);
         assertThat(response.getMediaKey()).isEqualTo("media-key");
+        assertThat(response.getTranscriptStatus()).isEqualTo(TranscriptStatus.PENDING);
+    }
+
+    @Test
+    void 음성_전사를_기록하면_완료_상태가_된다() {
+        Response response = Response.voice(memoryId, elderId, "media-key");
+
+        response.recordTranscript("  그 시절이 생각나요  ");
+
+        assertThat(response.getTranscript()).isEqualTo("그 시절이 생각나요");
+        assertThat(response.getTranscriptStatus()).isEqualTo(TranscriptStatus.COMPLETED);
+    }
+
+    @Test
+    void 전사에_실패하면_FAILED가_되고_완료된_전사는_실패로_되돌리지_않는다() {
+        Response response = Response.voice(memoryId, elderId, "media-key");
+
+        response.markTranscriptFailed();
+        assertThat(response.getTranscriptStatus()).isEqualTo(TranscriptStatus.FAILED);
+
+        response.recordTranscript("전사 성공");
+        response.markTranscriptFailed();
+
+        assertThat(response.getTranscriptStatus()).isEqualTo(TranscriptStatus.COMPLETED);
+    }
+
+    @Test
+    void 비음성_답변에는_전사_실패를_기록할_수_없다() {
+        Response response = Response.text(memoryId, elderId, "안녕하세요");
+
+        assertThatThrownBy(response::markTranscriptFailed)
+                .isInstanceOf(DomainException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_INPUT);
+    }
+
+    @Test
+    void 비어있거나_너무_긴_전사는_기록할_수_없다() {
+        Response response = Response.voice(memoryId, elderId, "media-key");
+
+        assertThatThrownBy(() -> response.recordTranscript(null))
+                .isInstanceOf(DomainException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_INPUT);
+        assertThatThrownBy(() -> response.recordTranscript("가".repeat(1001)))
+                .isInstanceOf(DomainException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_INPUT);
+    }
+
+    @Test
+    void 비음성_답변에는_전사를_기록할_수_없다() {
+        Response response = Response.text(memoryId, elderId, "안녕하세요");
+
+        assertThatThrownBy(() -> response.recordTranscript("전사"))
+                .isInstanceOf(DomainException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_INPUT);
     }
 }

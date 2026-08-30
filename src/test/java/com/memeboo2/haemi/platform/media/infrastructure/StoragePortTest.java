@@ -47,6 +47,12 @@ class StoragePortTest {
     }
 
     @Test
+    void copyObject_기본구현은_UnsupportedOperationException을_던진다() {
+        assertThatThrownBy(() -> minimalAdapter.copyObject("source-key", "target-key", "etag"))
+                .isInstanceOf(UnsupportedOperationException.class);
+    }
+
+    @Test
     void putObject_기본구현은_UnsupportedOperationException을_던진다() {
         assertThatThrownBy(() -> minimalAdapter.putObject("any-key", "text/plain", new byte[] {1}))
                 .isInstanceOf(UnsupportedOperationException.class);

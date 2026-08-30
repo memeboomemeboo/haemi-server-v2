@@ -42,6 +42,7 @@ public class ResponseQueryImpl implements ResponseQuery {
                         r.getMediaKey(),
                         r.getMediaKey(),
                         r.getDurationSeconds(),
+                        r.getTranscriptStatus().name(),
                         r.getCreatedAt()
                 ))
                 .toList();

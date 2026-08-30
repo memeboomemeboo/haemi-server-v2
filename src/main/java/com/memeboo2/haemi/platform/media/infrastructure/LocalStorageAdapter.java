@@ -59,6 +59,13 @@ class LocalStorageAdapter implements StoragePort {
     }
 
     @Override
+    public void copyObject(String sourceStorageKey, String targetStorageKey, String expectedETag) {
+        LocalObjectStorage.StoredObject source = objectStorage.get(sourceStorageKey)
+                .orElseThrow(() -> new IllegalStateException("복사할 업로드 객체를 찾을 수 없습니다."));
+        objectStorage.put(targetStorageKey, source.contentType(), source.content(), source.durationSeconds());
+    }
+
+    @Override
     public void putObject(String storageKey, String contentType, byte[] content) {
         objectStorage.put(storageKey, contentType, content, objectStorage.get(storageKey)
                 .map(LocalObjectStorage.StoredObject::durationSeconds)

@@ -93,7 +93,7 @@
 | M5 | 하이라이트 조회·편집을 `items[{id,title,body}]` 계약으로 구현. ID가 없는 신규 항목은 서버가 생성한다. |
 | X1 | 보호자 가입의 `phone`·`email`·`emailVerificationId`를 선택값으로 완화. 인증 ID가 전달된 경우에만 검증된 이메일을 소비한다. |
 | X2 | 어르신 등록은 필수 6자리 `pin`, 선택 `password`로 변경하고 PIN 로그인을 검증. |
-| X3 | 답변 조회에 `createdAt`, `mediaUrl`, `durationSeconds`를 노출하고, 음성의 `text`에는 저장된 전사를 매핑. 실제 STT 생산자는 현재 연결돼 있지 않아 전사 전에는 `text=null`이다. |
+| X3 | 답변 조회에 `createdAt`, `mediaUrl`, `durationSeconds`, `transcriptionStatus`를 노출하고, 음성의 `text`에는 Gemini 비동기 전사를 매핑. `PENDING`·`FAILED`에서는 `text=null`이며 음성 재생은 계속 가능하다. |
 | X4 | 추억 등록·수정·목록·상세에 선택 `place`, `memoryMonth`(1~12)를 추가. |
 
 §4의 이메일 인증, AI 회상, CIST, 보낸 이력, 어르신 텍스트 답변, `ANGRY`는 `design-api-spec.md` Part C 결정대로 제거하지 않고 유지한다.

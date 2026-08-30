@@ -198,6 +198,8 @@ sequenceDiagram
 
 도메인은 `MediaRef`(키 + 타입 + 크기)만 보관합니다. 스토리지 종류는 `platform/media/infrastructure`가 감춥니다.
 
+음성 답변은 확정 직후 `VoiceResponseCreated` 이벤트를 발행한다. 전사 리스너가 확정된 원본만 다시 읽어 Gemini `:generateContent`에 inline audio로 보내고, 응답 행의 `transcript`와 `transcript_status`만 별도 트랜잭션으로 갱신한다. 따라서 Gemini 지연·실패가 음성 답변 생성과 재생을 되돌리지 않는다. API 키가 없거나 호출이 실패하면 임의 문구를 만들지 않고 `FAILED`로 남긴다.
+
 **정책 미확정** — 이미지 용량·포맷 상한, 음성 코덱, 보관 기간(추억 "최대 1년" 경과 후 삭제인지 숨김인지)이 명세에 없습니다. 스토리지 비용에 직결되므로 `platform/media`의 첫 마이그레이션 전에 정해야 합니다.
 
 ---
@@ -270,6 +272,8 @@ flowchart LR
     AT -->|AttendanceRecorded| OB
     OB -->|출석·참여 스냅샷| R
     RS[elder/response] -->|ElderResponded| OB
+    RS -->|VoiceResponseCreated| OB
+    OB -->|원본 음성 전사| GM[Gemini]
     DC[guardian/dailycare] -->|GreetingSent| OB
     OB --> IB[elder/inbox]
     OB --> N[platform/notification]

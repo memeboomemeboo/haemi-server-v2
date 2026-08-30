@@ -252,10 +252,11 @@
 [ {
   "id","responseType":"VOICE","emotions":["LONGING","HAPPY"],
   "text":"그 냇가 참 좋았지…", "mediaKey","mediaUrl","durationSeconds",
+  "transcriptionStatus":"COMPLETED",
   "createdAt":"2026-09-06T06:20:00Z"
 } ]
 ```
-음성 응답의 `text`는 STT 전사 결과이며, 전사 전이면 null이다. `mediaUrl`은 재생용 서빙 URL, `durationSeconds`는 음성에서만 제공된다. 응답은 타입별 레코드이고 감정+음성 한 카드는 프론트가 `createdAt`·작성자로 병합한다.
+음성 응답의 `text`는 Gemini STT 전사 결과다. 업로드 확정 뒤 비동기로 처리하므로 `transcriptionStatus`가 `PENDING`이면 `text=null`이며, `COMPLETED`일 때만 전사를 표시한다. 공급자 미설정·호출 실패·원본 읽기 실패는 음성 답변 자체를 실패시키지 않고 `FAILED`로 남긴다. 비음성 응답은 `NOT_APPLICABLE`이다. `mediaUrl`은 재생용 서빙 URL, `durationSeconds`는 음성에서만 제공된다. 응답은 타입별 레코드이고 감정+음성 한 카드는 프론트가 `createdAt`·작성자로 병합한다.
 
 ## 4.5 추억 수정 (생성자 본인)
 `PUT /guardian/memories/{memoryId}` · **204** · body: 4.1과 동일(elderId 제외)

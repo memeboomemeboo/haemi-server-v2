@@ -12,6 +12,7 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.DeleteObjectResponse;
+import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
@@ -127,6 +128,7 @@ class S3StorageAdapterUnitTest {
                     .contentType("audio/mpeg")
                     .contentLength(1024L)
                     .metadata(Map.of("duration-seconds", "42"))
+                    .eTag("etag-1")
                     .build();
             when(s3Client.headObject(any(HeadObjectRequest.class))).thenReturn(response);
 
@@ -136,6 +138,7 @@ class S3StorageAdapterUnitTest {
             assertThat(result.get().contentType()).isEqualTo("audio/mpeg");
             assertThat(result.get().sizeBytes()).isEqualTo(1024L);
             assertThat(result.get().durationSeconds()).isEqualTo(42);
+            assertThat(result.get().eTag()).isEqualTo("etag-1");
         }
 
         @Test
@@ -198,6 +201,20 @@ class S3StorageAdapterUnitTest {
             Optional<StoragePort.StoredContent> result = adapter.getObject("missing/1.jpg");
 
             assertThat(result).isEmpty();
+        }
+
+        @Test
+        void 객체를_서버_전용_키로_복사한다() {
+            adapter.copyObject("response_voice/temporary.aac", "response_voice/confirmed.aac", "etag-1");
+
+            org.mockito.ArgumentCaptor<CopyObjectRequest> captor =
+                    org.mockito.ArgumentCaptor.forClass(CopyObjectRequest.class);
+            verify(s3Client).copyObject(captor.capture());
+            assertThat(captor.getValue().sourceBucket()).isEqualTo("test-bucket");
+            assertThat(captor.getValue().sourceKey()).isEqualTo("response_voice/temporary.aac");
+            assertThat(captor.getValue().destinationBucket()).isEqualTo("test-bucket");
+            assertThat(captor.getValue().destinationKey()).isEqualTo("response_voice/confirmed.aac");
+            assertThat(captor.getValue().copySourceIfMatch()).isEqualTo("etag-1");
         }
 
         @Test

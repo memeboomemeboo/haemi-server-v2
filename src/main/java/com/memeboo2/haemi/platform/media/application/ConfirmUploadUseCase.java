@@ -6,6 +6,7 @@ import com.memeboo2.haemi.common.time.HaemiClock;
 import com.memeboo2.haemi.platform.api.MediaUploadCommand;
 import com.memeboo2.haemi.platform.api.MediaPurpose;
 import com.memeboo2.haemi.platform.media.domain.MediaRef;
+import com.memeboo2.haemi.platform.media.domain.UploadStatus;
 import com.memeboo2.haemi.platform.media.infrastructure.MediaRefRepository;
 import com.memeboo2.haemi.platform.media.infrastructure.StoragePort;
 import com.memeboo2.haemi.platform.media.domain.MediaType;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.net.URI;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -46,6 +48,15 @@ public class ConfirmUploadUseCase implements MediaUploadCommand {
         return repository.findById(mediaRefId)
                 .map(MediaRef::getDeclaredDurationSeconds)
                 .orElse(null);
+    }
+
+    @Override
+    public Optional<ConfirmedMedia> readConfirmedMedia(UUID mediaRefId, MediaPurpose expectedPurpose) {
+        return repository.findById(mediaRefId)
+                .filter(ref -> ref.getStatus() == UploadStatus.CONFIRMED)
+                .filter(ref -> ref.getMediaType() == MediaType.valueOf(expectedPurpose.name()))
+                .flatMap(ref -> storage.getObject(ref.getStorageKey()))
+                .map(content -> new ConfirmedMedia(content.contentType(), content.content()));
     }
 
     @Override
@@ -83,17 +94,25 @@ public class ConfirmUploadUseCase implements MediaUploadCommand {
             }
         }
 
-        // HEIC 변환은 confirm(상태 전이) 이전에 수행한다.
-        // 만료를 먼저 선검사해 변환 후 confirm이 EXPIRED로 던지며 불일치 상태를 커밋하는 일을 막는다.
-        // 변환 실패 시에도 ref를 mutate하기 전에 예외를 던지므로 상태는 PENDING으로 남는다.
+        // 확정 중 수행하는 서버 측 복사·변환 전에 만료를 확인한다.
+        // 실패 시에도 ref를 mutate하기 전에 예외를 던지므로 상태는 PENDING으로 남는다.
         String originalKeyToPurge = null;
-        if (isHeicImage(ref)) {
-            ref.ensureConfirmable(clock.now());
-            originalKeyToPurge = ref.getStorageKey();
-            convertHeicToJpeg(ref);
+        if (ref.getStatus() != UploadStatus.CONFIRMED) {
+            java.time.Instant now = clock.now();
+            ref.ensureConfirmable(now);
+            if (isHeicImage(ref)) {
+                originalKeyToPurge = ref.getStorageKey();
+                convertHeicToJpeg(ref);
+            } else if (ref.getMediaType() == MediaType.RESPONSE_VOICE) {
+                // 업로드 URL이 가리키는 임시 키와 별도 키를 사용해, confirm 뒤에도 유효한 PUT URL로
+                // 전사 대상 음성이 덮어써지는 것을 막는다.
+                originalKeyToPurge = ref.getStorageKey();
+                String confirmedKey = storage.buildStorageKey(ref.getMediaType(), ref.getOriginalFilename());
+                storage.copyObject(originalKeyToPurge, confirmedKey, metadata.eTag());
+                ref.replaceStorage(confirmedKey, ref.getContentType(), ref.getDeclaredSizeBytes());
+            }
+            ref.confirm(now);
         }
-
-        ref.confirm(clock.now());
 
         // confirm 성공 후에만 원본 HEIC 객체를 정리한다(고아 객체 방지). 실패해도 서빙에는 영향 없음.
         if (originalKeyToPurge != null) {

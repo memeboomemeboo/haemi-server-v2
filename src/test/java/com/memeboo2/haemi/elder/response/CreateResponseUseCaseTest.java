@@ -4,6 +4,7 @@ import com.memeboo2.haemi.common.error.DomainException;
 import com.memeboo2.haemi.common.error.ErrorCode;
 import com.memeboo2.haemi.elder.response.application.CreateResponseUseCase;
 import com.memeboo2.haemi.common.event.ElderResponded;
+import com.memeboo2.haemi.common.event.VoiceResponseCreated;
 import com.memeboo2.haemi.elder.response.domain.Emotion;
 import com.memeboo2.haemi.elder.response.domain.Response;
 import com.memeboo2.haemi.elder.response.domain.ResponseType;
@@ -119,6 +120,10 @@ class CreateResponseUseCaseTest {
         assertThat(captor.getValue().getResponseType()).isEqualTo(ResponseType.VOICE);
         assertThat(captor.getValue().getMediaKey()).contains("voice.aac");
         assertThat(captor.getValue().getDurationSeconds()).isEqualTo(42);
+
+        ArgumentCaptor<VoiceResponseCreated> eventCaptor = ArgumentCaptor.forClass(VoiceResponseCreated.class);
+        verify(eventPublisher).publishEvent(eventCaptor.capture());
+        assertThat(eventCaptor.getValue().mediaRefId()).isEqualTo(refId);
     }
 
     @Test
