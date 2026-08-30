@@ -11,6 +11,7 @@ import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
+import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
@@ -92,7 +93,7 @@ class S3StorageAdapter implements StoragePort {
                     .key(storageKey)
                     .build());
             Integer duration = parseDuration(head.metadata().get(DURATION_METADATA_KEY));
-            return Optional.of(new ObjectMetadata(head.contentType(), head.contentLength(), duration));
+            return Optional.of(new ObjectMetadata(head.contentType(), head.contentLength(), duration, head.eTag()));
         } catch (NoSuchKeyException e) {
             return Optional.empty();
         }
@@ -109,6 +110,19 @@ class S3StorageAdapter implements StoragePort {
         } catch (NoSuchKeyException e) {
             return Optional.empty();
         }
+    }
+
+    @Override
+    public void copyObject(String sourceStorageKey, String targetStorageKey, String expectedETag) {
+        CopyObjectRequest.Builder request = CopyObjectRequest.builder()
+                .sourceBucket(props.bucket())
+                .sourceKey(sourceStorageKey)
+                .destinationBucket(props.bucket())
+                .destinationKey(targetStorageKey);
+        if (expectedETag != null && !expectedETag.isBlank()) {
+            request.copySourceIfMatch(expectedETag);
+        }
+        s3Client.copyObject(request.build());
     }
 
     @Override

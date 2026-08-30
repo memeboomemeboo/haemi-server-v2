@@ -30,6 +30,14 @@ public interface StoragePort {
         throw new UnsupportedOperationException("getObject is not supported by this adapter");
     }
 
+    /**
+     * 임시 업로드 객체를 서버 전용 확정 키로 복사한다.
+     * 확정 키에는 클라이언트가 가진 presigned PUT URL이 없으므로 이후 덮어쓰기를 막는다.
+     */
+    default void copyObject(String sourceStorageKey, String targetStorageKey, String expectedETag) {
+        throw new UnsupportedOperationException("copyObject is not supported by this adapter");
+    }
+
     /** 객체를 저장/덮어쓴다. (예: 변환된 JPEG 재저장) */
     default void putObject(String storageKey, String contentType, byte[] content) {
         throw new UnsupportedOperationException("putObject is not supported by this adapter");
@@ -40,9 +48,13 @@ public interface StoragePort {
         // 기본 no-op: 미지원 어댑터에서도 호출부가 깨지지 않도록 한다.
     }
 
-    record ObjectMetadata(String contentType, long sizeBytes, Integer durationSeconds) {
+    record ObjectMetadata(String contentType, long sizeBytes, Integer durationSeconds, String eTag) {
         public ObjectMetadata(String contentType, long sizeBytes) {
-            this(contentType, sizeBytes, null);
+            this(contentType, sizeBytes, null, null);
+        }
+
+        public ObjectMetadata(String contentType, long sizeBytes, Integer durationSeconds) {
+            this(contentType, sizeBytes, durationSeconds, null);
         }
     }
 

@@ -158,6 +158,32 @@ class ConfirmUploadUseCaseTest {
     }
 
     @Test
+    void 응답_음성은_확정시_임시_업로드_키와_분리된_서버_전용_키를_사용한다() {
+        UUID actorId = UUID.randomUUID();
+        UUID refId = UUID.randomUUID();
+        String temporaryKey = "response_voice/temporary.aac";
+        String confirmedKey = "response_voice/confirmed.aac";
+        MediaRef ref = MediaRef.pending(MediaType.RESPONSE_VOICE, temporaryKey, "reply.aac",
+                "audio/aac", 3L, 12, actorId, EXPIRY, NOW.plusSeconds(86400L), null);
+        given(repository.findById(refId)).willReturn(Optional.of(ref));
+        given(storage.headObject(temporaryKey)).willReturn(Optional.of(
+                new StoragePort.ObjectMetadata("audio/aac", 3L, 12, "etag-before-copy")));
+        given(policy.voice()).willReturn(new UploadPolicyProperties.Voice(
+                12_582_912L, 60, List.of("audio/aac")));
+        given(clock.now()).willReturn(NOW);
+        given(storage.buildStorageKey(MediaType.RESPONSE_VOICE, "reply.aac")).willReturn(confirmedKey);
+        given(storage.generateServingUrl(confirmedKey)).willReturn(URI.create("http://localhost/serve/confirmed"));
+
+        URI servingUrl = useCase.confirmUpload(actorId, refId, MediaPurpose.RESPONSE_VOICE);
+
+        assertThat(servingUrl).isEqualTo(URI.create("http://localhost/serve/confirmed"));
+        assertThat(ref.getStorageKey()).isEqualTo(confirmedKey);
+        assertThat(ref.getStatus()).isEqualTo(UploadStatus.CONFIRMED);
+        org.mockito.Mockito.verify(storage).copyObject(temporaryKey, confirmedKey, "etag-before-copy");
+        org.mockito.Mockito.verify(storage).deleteObject(temporaryKey);
+    }
+
+    @Test
     void 스토리지에서_검증한_음성이_1분을_넘으면_확정할_수_없다() {
         UUID actorId = UUID.randomUUID();
         UUID refId = UUID.randomUUID();

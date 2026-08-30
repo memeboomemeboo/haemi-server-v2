@@ -14,7 +14,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.modulith.events.ApplicationModuleListener;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.transaction.annotation.Propagation;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -105,5 +107,14 @@ class VoiceResponseTranscriptionListenerTest {
         listener.on(new VoiceResponseCreated(deletedResponseId, mediaRefId));
 
         verifyNoInteractions(mediaUploadCommand, transcriber);
+    }
+
+    @Test
+    void 전사_리스너는_Gemini_호출_동안_DB_트랜잭션을_열지_않는다() throws NoSuchMethodException {
+        ApplicationModuleListener annotation = VoiceResponseTranscriptionListener.class
+                .getMethod("on", VoiceResponseCreated.class)
+                .getAnnotation(ApplicationModuleListener.class);
+
+        assertThat(annotation.propagation()).isEqualTo(Propagation.NOT_SUPPORTED);
     }
 }

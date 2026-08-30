@@ -13,7 +13,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.modulith.events.ApplicationModuleListener;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
 
 /** 음성 답변이 커밋된 뒤 Gemini 전사를 실행하고 결과 상태만 갱신한다. */
 @Component
@@ -26,8 +25,11 @@ public class VoiceResponseTranscriptionListener {
     private final MediaUploadCommand mediaUploadCommand;
     private final VoiceResponseTranscriber transcriber;
 
-    @ApplicationModuleListener
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    /**
+     * Gemini 대기와 호출은 DB 트랜잭션 밖에서 수행한다.
+     * 상태 조회·갱신은 각 repository 호출의 짧은 트랜잭션으로 끝나야 대기 작업이 커넥션을 점유하지 않는다.
+     */
+    @ApplicationModuleListener(propagation = Propagation.NOT_SUPPORTED)
     public void on(VoiceResponseCreated event) {
         responseRepository.findById(event.responseId()).ifPresent(response -> transcribe(response, event));
     }

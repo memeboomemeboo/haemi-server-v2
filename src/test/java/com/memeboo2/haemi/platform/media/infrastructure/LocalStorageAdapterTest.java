@@ -102,6 +102,16 @@ class LocalStorageAdapterTest {
     }
 
     @Test
+    void copyObject는_임시_객체의_타입_내용_길이를_확정_키에_보존한다() {
+        given(objectStorage.get("temporary")).willReturn(Optional.of(
+                new LocalObjectStorage.StoredObject("audio/aac", new byte[]{9, 9}, 12)));
+
+        adapter.copyObject("temporary", "confirmed", "etag");
+
+        verify(objectStorage).put(eq("confirmed"), eq("audio/aac"), any(byte[].class), eq(12));
+    }
+
+    @Test
     void putObject는_기존_durationSeconds를_유지하며_저장한다() {
         given(objectStorage.get("k")).willReturn(Optional.of(
                 new LocalObjectStorage.StoredObject("image/jpeg", new byte[]{1}, 42)));
