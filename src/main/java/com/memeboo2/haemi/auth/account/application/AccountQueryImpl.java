@@ -55,6 +55,22 @@ public class AccountQueryImpl implements AccountQuery {
 
     @Override
     @Transactional
+    public void updateName(UUID userId, String newName) {
+        Account account = accountRepository.findById(userId)
+                .orElseThrow(() -> new DomainException(ErrorCode.RESOURCE_NOT_FOUND));
+        account.updateName(newName);
+    }
+
+    @Override
+    @Transactional
+    public void updateBirthDate(UUID userId, String newBirthDate) {
+        Account account = accountRepository.findById(userId)
+                .orElseThrow(() -> new DomainException(ErrorCode.RESOURCE_NOT_FOUND));
+        account.updateBirthDate(newBirthDate);
+    }
+
+    @Override
+    @Transactional
     public void updateLoginId(UUID userId, String newLoginId) {
         Account account = accountRepository.findById(userId)
                 .orElseThrow(() -> new DomainException(ErrorCode.RESOURCE_NOT_FOUND));

@@ -87,6 +87,26 @@ class AccountQueryImplTest {
     }
 
     @Test
+    void updateName_존재하는_유저는_업데이트() {
+        Account account = mockAccountLenient();
+        given(accountRepository.findById(userId)).willReturn(Optional.of(account));
+
+        accountQuery.updateName(userId, "박승아");
+
+        then(account).should().updateName("박승아");
+    }
+
+    @Test
+    void updateBirthDate_존재하는_유저는_업데이트() {
+        Account account = mockAccountLenient();
+        given(accountRepository.findById(userId)).willReturn(Optional.of(account));
+
+        accountQuery.updateBirthDate(userId, "1985-06-10");
+
+        then(account).should().updateBirthDate("1985-06-10");
+    }
+
+    @Test
     void updateLoginId_없는_유저는_RESOURCE_NOT_FOUND() {
         given(accountRepository.findById(userId)).willReturn(Optional.empty());
 

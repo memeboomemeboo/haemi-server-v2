@@ -184,11 +184,46 @@ class GuardianHttpTest {
     @Test
     void 보호자_프로필을_수정한다() throws Exception {
         Map<String, Object> body = new LinkedHashMap<>();
+        body.put("name", "수정보호자");
+        body.put("birthDate", "1985-06-10");
         body.put("loginId", "newlogin_" + UUID.randomUUID().toString().substring(0, 6));
 
         HttpResponse<String> response = patch("/api/v1/guardian/profile", objectMapper.writeValueAsString(body));
 
         assertThat(response.statusCode()).isEqualTo(200);
+        JsonNode profile = data(get("/api/v1/guardian/profile"), 200);
+        assertThat(profile.path("name").asText()).isEqualTo("수정보호자");
+        assertThat(profile.path("birthDate").asText()).isEqualTo("1985-06-10");
+    }
+
+    @Test
+    void 보호자_프로필_생년월일은_1920년보다_빠르면_400이다() throws Exception {
+        HttpResponse<String> response = patch("/api/v1/guardian/profile",
+                objectMapper.writeValueAsString(Map.of("birthDate", "1919-12-31")));
+
+        assertThat(response.statusCode()).isEqualTo(400);
+        assertThat(objectMapper.readTree(response.body()).path("error").path("code").asText())
+                .isEqualTo("INVALID_INPUT");
+    }
+
+    @Test
+    void 보호자_프로필_생년월일이_미래면_400이다() throws Exception {
+        HttpResponse<String> response = patch("/api/v1/guardian/profile",
+                objectMapper.writeValueAsString(Map.of("birthDate", "2100-01-01")));
+
+        assertThat(response.statusCode()).isEqualTo(400);
+        assertThat(objectMapper.readTree(response.body()).path("error").path("code").asText())
+                .isEqualTo("INVALID_INPUT");
+    }
+
+    @Test
+    void 보호자_프로필_이름은_공백만으로_수정할_수_없다() throws Exception {
+        HttpResponse<String> response = patch("/api/v1/guardian/profile",
+                objectMapper.writeValueAsString(Map.of("name", "   ")));
+
+        assertThat(response.statusCode()).isEqualTo(400);
+        assertThat(objectMapper.readTree(response.body()).path("error").path("code").asText())
+                .isEqualTo("INVALID_INPUT");
     }
 
     // ---------- LinkController ----------

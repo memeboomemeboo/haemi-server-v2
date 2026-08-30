@@ -53,6 +53,8 @@ public class ProfileController {
     }
 
     public record UpdateProfileRequest(
+            @Size(min = 1, max = 100) @jakarta.validation.constraints.Pattern(regexp = ".*\\S.*") String name,
+            LocalDate birthDate,
             @Size(min = 3, max = 20) String loginId,
             UUID profileImageMediaRefId,
             Map<UUID, GuardianRole> elderRoles
@@ -66,7 +68,7 @@ public class ProfileController {
         return ResponseEntity.ok(ApiResponse.ok(ProfileResponse.from(profile)));
     }
 
-    @Operation(summary = "보호자 프로필 수정 (아이디·어르신별 역할)")
+    @Operation(summary = "보호자 프로필 수정 (이름·생년월일·아이디·어르신별 역할)")
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "수정 성공"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "역할 값 누락 — INVALID_INPUT"),
@@ -78,7 +80,8 @@ public class ProfileController {
             @RequestAttribute UUID guardianId,
             @RequestBody @Valid UpdateProfileRequest req) {
         Map<UUID, GuardianRole> roles = req.elderRoles() != null ? req.elderRoles() : Map.of();
-        updateGuardianProfileUseCase.execute(guardianId, req.loginId(), req.profileImageMediaRefId(), roles);
+        updateGuardianProfileUseCase.execute(
+                guardianId, req.name(), req.birthDate(), req.loginId(), req.profileImageMediaRefId(), roles);
         return ResponseEntity.ok(ApiResponse.ok(null));
     }
 }

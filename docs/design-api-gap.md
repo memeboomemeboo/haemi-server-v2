@@ -35,7 +35,7 @@
 | **X3** | **추억 상세 – 주고 받은 이야기** | 답변 카드 = `작성자·작성시각` + `감정 태그(그리움/행복)` + `텍스트` + `음성 재생` 을 **한 단위**로 표시 | `ResponseItem{ id, responseType, emotions, text, mediaKey }` — **답변별 단일 타입**, `createdAt`(시각)·전사 텍스트 없음 | ① 시각(`createdAt`) 필드 추가 필요(디자인이 "2일전·오후 3:20" 표시) ② 음성 밑 인용문이 전사면 전사 필드 필요 ③ 감정+음성 한 카드 = 프론트 병합 전제인지 명확화 |
 | **X4** *(확인)* | **추억 앨범 목록** 카드 "**구지면 · 1980.04.**" | 장소(구지면) + 연·월 표시 | `RegisterMemoryRequest.memoryYear` 는 **정수(연도만)**, 장소 필드 없음 | 등록 폼(연도 아래 미확인)에 **장소 입력이 있으면** 서버에 `place`·`month` 추가 필요 → 폼 하단 확인 요망 |
 
-> **오해 정정**: 프로필 수정의 `이름·생년월일`은 회색 표시 전용이고, 편집 가능한 건 `아이디·프로필사진·보호자 역할`뿐 → 서버 `PATCH /guardian/profile`(loginId, profileImageMediaRefId, elderRoles)과 **일치**. (이전 초안의 "프로필 수정 범위 불일치"는 철회)
+> **정정(2026-08-30, 사용자 결정 + 확정 디자인 3쪽)**: 프로필 수정 화면의 `이름·생년월일`은 저장 버튼과 함께 제공되는 수정 필드다. 특히 생년월일의 달력 아이콘은 선택 UI를 뜻한다. `PATCH /guardian/profile`은 `name`, `birthDate`, `loginId`, `profileImageMediaRefId`, `elderRoles`를 받아 전달된 필드만 수정한다.
 > 어르신 등록의 `생년월일` 미수집도 서버 `birthDate`가 nullable이라 **문제 없음**.
 
 ---
