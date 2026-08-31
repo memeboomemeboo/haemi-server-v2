@@ -66,6 +66,9 @@ haemi:
     secret: ${JWT_SECRET:haemi-dev-jwt-secret-key-must-be-at-least-256-bits-long-for-hs256!!}
     access-token-validity: PT30M
     refresh-token-validity: P14D
+  internal:
+    # local/test에서 수동 배치 트리거를 사용할 때만 환경 변수로 설정한다. 기본값은 비활성(fail-closed).
+    manual-trigger-token: ${HAEMI_INTERNAL_MANUAL_TRIGGER_TOKEN:}
   mail:
     from: ${MAIL_FROM:no-reply@haemi.local}
     public-url: ${APP_PUBLIC_URL:http://localhost:8080}
@@ -79,7 +82,7 @@ haemi:
   ai:
     gemini:
       api-key: ${GEMINI_API_KEY:}
-      model: ${GEMINI_MODEL:gemini-2.0-flash}
+      model: ${GEMINI_MODEL:gemini-3.5-flash}
       base-url: ${GEMINI_BASE_URL:https://generativelanguage.googleapis.com/v1beta}
       connect-timeout: ${GEMINI_CONNECT_TIMEOUT:5s}
       read-timeout: ${GEMINI_READ_TIMEOUT:20s}

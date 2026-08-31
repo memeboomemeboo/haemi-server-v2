@@ -13,7 +13,7 @@ import java.time.Duration;
 @ConfigurationProperties(prefix = "haemi.ai.gemini")
 public record GeminiProperties(
         @DefaultValue("") String apiKey,
-        @DefaultValue("gemini-2.0-flash") String model,
+        @DefaultValue("gemini-3.5-flash") String model,
         @DefaultValue("https://generativelanguage.googleapis.com/v1beta") String baseUrl,
         @DefaultValue("5s") Duration connectTimeout,
         @DefaultValue("20s") Duration readTimeout,
