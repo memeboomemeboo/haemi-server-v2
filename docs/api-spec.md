@@ -466,12 +466,15 @@ body `{ "emotions": ["LONGING","HAPPY"] }` (최소 1, **최대 2개**)
 { "mediaRefId","presignedUrl","expiresAt","duplicate":false,"servingUrl":null }
 ```
 - mediaType 권한: 보호자(MEMORY_IMAGE/GREETING_VOICE/PROFILE_IMAGE), 어르신(RESPONSE_IMAGE/RESPONSE_VOICE)
-- `duplicate=true`면 presignedUrl=null, servingUrl 재사용(확정 불필요)
+- `originalFilename`은 검증 로그용 원본 파일명이며 **255자 이하**여야 한다.
+- `duplicate=true`면 presignedUrl=null, servingUrl 재사용(확정 불필요). 재사용 대상은 **같은 업로더·같은 `mediaType`** 으로 이미 `CONFIRMED` 된 동일 `contentHash`뿐이다.
 **에러** `400 INVALID_INPUT`, `401 UNAUTHENTICATED`, `403 ROLE_NOT_ALLOWED`
 
 ## 10.2 업로드 확정
 `POST /media/{mediaRefId}/confirm` · **200** `data: "<servingUrl>"`
-**에러** `403 NOT_RESOURCE_OWNER`, `404 RESOURCE_NOT_FOUND`
+확정되면 임시 업로드 키의 객체를 서버 전용 확정 키로 복사하고, 임시 객체는 정리한다. 따라서 아직 만료되지 않은 PUT URL로 확정 미디어를 덮어쓸 수 없다.
+동일 업로더·용도·`contentHash`의 다른 MediaRef가 먼저 확정되면 **409 `MEDIA_DUPLICATE_ALREADY_CONFIRMED`**를 반환한다. 이 경우 업로드 URL 발급을 다시 요청하면 기존 확정 미디어를 `duplicate=true`로 재사용할 수 있다.
+**에러** `400 INVALID_INPUT`, `403 NOT_RESOURCE_OWNER`, `404 RESOURCE_NOT_FOUND`, `409 MEDIA_DUPLICATE_ALREADY_CONFIRMED`
 
 ---
 

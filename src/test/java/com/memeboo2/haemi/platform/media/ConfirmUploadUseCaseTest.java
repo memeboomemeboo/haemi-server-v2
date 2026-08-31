@@ -28,6 +28,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
 
 @ExtendWith(MockitoExtension.class)
 class ConfirmUploadUseCaseTest {
@@ -64,6 +65,55 @@ class ConfirmUploadUseCaseTest {
 
         assertThat(url).isNotNull();
         assertThat(ref.getStatus()).isEqualTo(UploadStatus.CONFIRMED);
+    }
+
+    @Test
+    void 일반_이미지도_확정시_임시_업로드_키와_분리된_서버_전용_키를_사용한다() {
+        UUID actorId = UUID.randomUUID();
+        UUID refId = UUID.randomUUID();
+        String temporaryKey = "memory_image/temporary.jpg";
+        String confirmedKey = "memory_image/confirmed.jpg";
+        MediaRef ref = MediaRef.pending(MediaType.MEMORY_IMAGE, temporaryKey, "photo.jpg",
+                "image/jpeg", 3L, null, actorId, EXPIRY, NOW.plusSeconds(86400L), null);
+        given(repository.findById(refId)).willReturn(Optional.of(ref));
+        given(storage.headObject(temporaryKey)).willReturn(Optional.of(
+                new StoragePort.ObjectMetadata("image/jpeg", 3L, null, "etag-before-copy")));
+        given(clock.now()).willReturn(NOW);
+        given(storage.buildStorageKey(MediaType.MEMORY_IMAGE, "photo.jpg")).willReturn(confirmedKey);
+        given(storage.generateServingUrl(confirmedKey)).willReturn(URI.create("http://localhost/serve/confirmed"));
+
+        URI servingUrl = useCase.confirmUpload(actorId, refId);
+
+        assertThat(servingUrl).isEqualTo(URI.create("http://localhost/serve/confirmed"));
+        assertThat(ref.getStorageKey()).isEqualTo(confirmedKey);
+        assertThat(ref.getStatus()).isEqualTo(UploadStatus.CONFIRMED);
+        org.mockito.Mockito.verify(storage).copyObject(temporaryKey, confirmedKey, "etag-before-copy");
+        org.mockito.Mockito.verify(storage).deleteObject(temporaryKey);
+    }
+
+    @Test
+    void 동일_해시가_이미_다른_참조로_확정됐다면_메타데이터를_검증하기_전에_409() {
+        UUID actorId = UUID.randomUUID();
+        UUID refId = UUID.randomUUID();
+        String hash = "a".repeat(64);
+        MediaRef pending = MediaRef.pending(MediaType.MEMORY_IMAGE, "memory_image/pending.jpg", "photo.jpg",
+                "image/jpeg", 3L, null, actorId, EXPIRY, null, hash);
+        MediaRef confirmed = MediaRef.pending(MediaType.MEMORY_IMAGE, "memory_image/confirmed.jpg", "old.jpg",
+                "image/jpeg", 3L, null, actorId, EXPIRY, null, hash);
+        confirmed.confirm(NOW);
+
+        given(repository.findById(refId)).willReturn(Optional.of(pending));
+        given(repository.findFirstByUploaderIdAndMediaTypeAndContentHashOrderByIdAsc(
+                actorId, MediaType.MEMORY_IMAGE, hash)).willReturn(Optional.of(pending));
+        given(repository.findFirstByUploaderIdAndMediaTypeAndContentHashAndStatus(
+                actorId, MediaType.MEMORY_IMAGE, hash, UploadStatus.CONFIRMED)).willReturn(Optional.of(confirmed));
+
+        assertThatThrownBy(() -> useCase.confirmUpload(actorId, refId))
+                .isInstanceOf(DomainException.class)
+                .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
+                        .isEqualTo(ErrorCode.MEDIA_DUPLICATE_ALREADY_CONFIRMED));
+
+        org.mockito.Mockito.verify(storage, never()).headObject(any());
     }
 
     @Test

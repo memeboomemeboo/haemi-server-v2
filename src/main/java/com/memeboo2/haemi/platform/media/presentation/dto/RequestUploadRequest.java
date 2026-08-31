@@ -6,10 +6,11 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 
 public record RequestUploadRequest(
         @NotNull MediaType mediaType,
-        @NotBlank String originalFilename,
+        @NotBlank @Size(max = 255, message = "originalFilename은 255자 이하여야 합니다.") String originalFilename,
         @NotBlank String contentType,
         @Positive long declaredSizeBytes,
         @Positive Integer declaredDurationSeconds,

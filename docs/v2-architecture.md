@@ -198,6 +198,10 @@ sequenceDiagram
 
 도메인은 `MediaRef`(키 + 타입 + 크기)만 보관합니다. 스토리지 종류는 `platform/media/infrastructure`가 감춥니다.
 
+확정할 때는 presigned PUT URL이 가리키는 임시 객체를 서버 전용 확정 키로 복사한 뒤에만 `MediaRef`를 `CONFIRMED`로 전이한다. 그러면 PUT URL의 남은 유효 시간과 무관하게 확정된 사진·음성·전사 원본이 바뀌지 않는다.
+
+`contentHash` 중복 재사용은 **동일 업로더·동일 MediaRef 용도·`CONFIRMED` 상태**에만 적용한다. 용도가 다른 이미지를 같은 참조로 돌려주면 이후 소비 단계의 용도 검증과 충돌하므로, 부분 유니크 인덱스도 `(uploader_id, media_type, content_hash)`로 둔다. 같은 해시의 PENDING 참조가 경합하면 공통 행을 비관 잠금으로 직렬화한다. 먼저 확정된 참조 외의 confirm은 `409 MEDIA_DUPLICATE_ALREADY_CONFIRMED`로 끝나며, 클라이언트는 업로드 URL을 다시 요청해 확정 참조를 재사용한다.
+
 음성 답변은 확정 직후 `VoiceResponseCreated` 이벤트를 발행한다. 전사 리스너가 확정된 원본만 다시 읽어 Gemini `:generateContent`에 inline audio로 보내고, 응답 행의 `transcript`와 `transcript_status`만 별도 트랜잭션으로 갱신한다. 따라서 Gemini 지연·실패가 음성 답변 생성과 재생을 되돌리지 않는다. API 키가 없거나 호출이 실패하면 임의 문구를 만들지 않고 `FAILED`로 남긴다.
 
 **정책 미확정** — 이미지 용량·포맷 상한, 음성 코덱, 보관 기간(추억 "최대 1년" 경과 후 삭제인지 숨김인지)이 명세에 없습니다. 스토리지 비용에 직결되므로 `platform/media`의 첫 마이그레이션 전에 정해야 합니다.
