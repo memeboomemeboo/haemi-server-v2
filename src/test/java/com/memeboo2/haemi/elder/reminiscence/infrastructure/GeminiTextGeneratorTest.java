@@ -9,6 +9,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
+import com.memeboo2.haemi.elder.reminiscence.application.AiTextGenerator;
+
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -51,28 +53,31 @@ class GeminiTextGeneratorTest {
                                 "parts", List.of(Map.of("text", "  옛 추억이 떠오르네요  "))))));
         given(responseSpec.body(Map.class)).willReturn(response);
 
-        String result = generator.generate("프롬프트");
+        AiTextGenerator.Result result = generator.generate("프롬프트");
 
-        assertThat(result).isEqualTo("옛 추억이 떠오르네요");
+        assertThat(result.text()).isEqualTo("옛 추억이 떠오르네요");
+        assertThat(result.live()).isTrue();
     }
 
     @Test
     void 응답에_candidates가_없으면_대체_문구를_반환한다() {
         given(responseSpec.body(Map.class)).willReturn(Map.of("candidates", List.of()));
 
-        String result = generator.generate("프롬프트");
+        AiTextGenerator.Result result = generator.generate("프롬프트");
 
-        assertThat(result).isNotBlank();
-        assertThat(result).contains("기억");
+        assertThat(result.text()).isNotBlank();
+        assertThat(result.text()).contains("기억");
+        assertThat(result.live()).isFalse();
     }
 
     @Test
     void 응답이_null이면_대체_문구를_반환한다() {
         given(responseSpec.body(Map.class)).willReturn(null);
 
-        String result = generator.generate("프롬프트");
+        AiTextGenerator.Result result = generator.generate("프롬프트");
 
-        assertThat(result).isNotBlank();
+        assertThat(result.text()).isNotBlank();
+        assertThat(result.live()).isFalse();
     }
 
     @Test
@@ -83,23 +88,31 @@ class GeminiTextGeneratorTest {
                                 "parts", List.of(Map.of("text", "   "))))));
         given(responseSpec.body(Map.class)).willReturn(response);
 
-        String result = generator.generate("프롬프트");
+        AiTextGenerator.Result result = generator.generate("프롬프트");
 
-        assertThat(result).isNotBlank();
-        assertThat(result).doesNotContain("   ");
+        assertThat(result.text()).isNotBlank();
+        assertThat(result.text()).doesNotContain("   ");
+        assertThat(result.live()).isFalse();
     }
 
     @Test
     void 호출이_실패하면_예외를_삼키고_대체_문구를_반환한다() {
         given(responseSpec.body(Map.class)).willThrow(new RestClientException("boom"));
 
-        String result = generator.generate("프롬프트");
+        AiTextGenerator.Result result = generator.generate("프롬프트");
 
-        assertThat(result).isNotBlank();
+        assertThat(result.text()).isNotBlank();
+        assertThat(result.live()).isFalse();
     }
 
     @Test
-    void isLive는_true를_반환한다() {
-        assertThat(generator.isLive()).isTrue();
+    void 호출_실패로_대체_문구를_쓰면_live는_false다() {
+        // 회귀(#134): 폴백 문구를 AI 생성으로 기록하지 않는다.
+        given(responseSpec.body(Map.class)).willThrow(new RestClientException("boom"));
+
+        AiTextGenerator.Result result = generator.generate("프롬프트");
+
+        assertThat(result.live()).isFalse();
+        assertThat(result.text()).contains("기억");
     }
 }

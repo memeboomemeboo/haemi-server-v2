@@ -44,8 +44,7 @@ class ReminiscenceServiceTest {
                 new ElderQuery.ElderInfo(elderId, "김순자", Instant.now())));
         lenient().when(elderProfileQuery.findById(elderId))
                 .thenReturn(new ElderProfileQuery.ElderProfile(LocalDate.of(1948, 1, 1), Instant.now()));
-        given(generator.generate(any())).willReturn("오늘의 회상 문구");
-        given(generator.isLive()).willReturn(true);
+        given(generator.generate(any())).willReturn(new AiTextGenerator.Result("오늘의 회상 문구", true));
         given(repository.findByElderIdAndContentDate(elderId, date)).willReturn(Optional.empty());
         given(repository.save(any())).willAnswer(inv -> inv.getArgument(0));
 
@@ -65,8 +64,7 @@ class ReminiscenceServiceTest {
                 new ElderQuery.ElderInfo(elderId, "김순자", Instant.now())));
         lenient().when(elderProfileQuery.findById(elderId))
                 .thenReturn(new ElderProfileQuery.ElderProfile(null, Instant.now()));
-        given(generator.generate(any())).willReturn("가".repeat(3000));
-        given(generator.isLive()).willReturn(true);
+        given(generator.generate(any())).willReturn(new AiTextGenerator.Result("가".repeat(3000), true));
         given(repository.findByElderIdAndContentDate(elderId, date)).willReturn(Optional.empty());
         given(repository.save(any())).willAnswer(inv -> inv.getArgument(0));
 
@@ -84,8 +82,7 @@ class ReminiscenceServiceTest {
                 new ElderQuery.ElderInfo(elderId, "박영수", Instant.now())));
         lenient().when(elderProfileQuery.findById(elderId))
                 .thenReturn(new ElderProfileQuery.ElderProfile(null, Instant.now()));
-        given(generator.generate(any())).willReturn("새 문구");
-        given(generator.isLive()).willReturn(false);
+        given(generator.generate(any())).willReturn(new AiTextGenerator.Result("새 문구", false));
         given(repository.findByElderIdAndContentDate(elderId, date)).willReturn(Optional.of(existing));
 
         GeneratedReminiscence result = service().generateForElder(elderId, date);
