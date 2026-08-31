@@ -33,6 +33,7 @@ public record FamilyDetailResponse(
         }
     }
 
+    @Schema(name = "FamilyElderCardResponse")
     public record ElderCardResponse(UUID elderId, String name, LocalDate birthDate, GuardianRole myRole, String myRoleLabel) {
         static ElderCardResponse from(ElderCard c) {
             return new ElderCardResponse(c.elderId(), c.name(), c.birthDate(), c.myRole(),

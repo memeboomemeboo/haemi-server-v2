@@ -30,6 +30,7 @@ public class ProfileController {
     private final GetGuardianProfileUseCase getGuardianProfileUseCase;
     private final UpdateGuardianProfileUseCase updateGuardianProfileUseCase;
 
+    @Schema(name = "ProfileElderCardResponse")
     public record ElderCardResponse(UUID elderId, String name, LocalDate birthDate, GuardianRole role, String roleLabel) {
         static ElderCardResponse from(ElderCard c) {
             return new ElderCardResponse(c.elderId(), c.name(), c.birthDate(), c.role(), c.role().getLabel());
