@@ -34,8 +34,10 @@ public class AttendanceRecorder {
 
         // 원자적 부분 UPDATE — 다른 활동과 동시에 갱신돼도 각자 플래그만 OR로 켠다.
         int updated = repository.markActivity(elderId, date, training, greetingRead, memoryViewed, replied);
-        if (updated == 0) {
-            // 행이 없거나 이미 켜져 있음. 없으면 멱등 삽입 후 재시도한다 (동시 삽입은 한쪽만 성공).
+        // updated == 0은 두 경우다: (a) 행 없음, (b) 행은 있고 해당 플래그가 이미 켜짐.
+        // 행이 있으면(대개 하루 두 번째 이후 활동) 삽입·재시도가 불필요하므로 존재 여부로 (a)만 걸러낸다.
+        if (updated == 0 && !repository.existsByElderIdAndParticipationDate(elderId, date)) {
+            // 행이 없을 때만 멱등 삽입 후 재시도한다 (동시 삽입은 한쪽만 성공).
             participationWriter.insertIfAbsent(UuidGenerator.generate(), elderId, date);
             updated = repository.markActivity(elderId, date, training, greetingRead, memoryViewed, replied);
         }
