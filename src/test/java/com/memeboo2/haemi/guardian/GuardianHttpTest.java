@@ -238,6 +238,27 @@ class GuardianHttpTest {
                 .isEqualTo("INVALID_INPUT");
     }
 
+    @Test
+    void 보호자_프로필_수정_OpenAPI에_선택_필드와_설명이_노출된다() throws Exception {
+        HttpResponse<String> response = get("/v3/api-docs");
+
+        JsonNode apiDocs = objectMapper.readTree(response.body());
+        JsonNode requestSchema = apiDocs.path("paths").path("/api/v1/guardian/profile")
+                .path("patch").path("requestBody").path("content").path("application/json").path("schema");
+        String schemaName = requestSchema.path("$ref").asText().substring("#/components/schemas/".length());
+        JsonNode properties = apiDocs.path("components").path("schemas").path(schemaName).path("properties");
+
+        assertThat(response.statusCode()).isEqualTo(200);
+        assertThat(properties.has("name")).isTrue();
+        assertThat(properties.has("birthDate")).isTrue();
+        assertThat(properties.has("phone")).isTrue();
+        assertThat(properties.has("loginId")).isTrue();
+        assertThat(properties.has("profileImageMediaRefId")).isTrue();
+        assertThat(properties.has("elderRoles")).isTrue();
+        assertThat(properties.path("phone").path("description").asText()).contains("전화번호");
+        assertThat(properties.path("elderRoles").path("description").asText()).contains("보호자 역할");
+    }
+
     // ---------- LinkController ----------
 
     @Test

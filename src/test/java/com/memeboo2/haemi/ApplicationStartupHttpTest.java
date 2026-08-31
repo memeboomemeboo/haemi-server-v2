@@ -25,8 +25,13 @@ class ApplicationStartupHttpTest {
     @Autowired JwtTokenProvider jwtTokenProvider;
 
     @Test
-    void health_보안_입력오류와_개발용_스토리지_경로가_실제로_동작한다() throws Exception {
+    void health_Swagger_보안_입력오류와_개발용_스토리지_경로가_실제로_동작한다() throws Exception {
         assertThat(send("/actuator/health", "GET", null).statusCode()).isEqualTo(200);
+        HttpResponse<String> swaggerEntry = send("/swagger-ui.html", "GET", null);
+        assertThat(swaggerEntry.statusCode()).isEqualTo(302);
+        assertThat(swaggerEntry.headers().firstValue("location")).contains("/swagger-ui/index.html");
+        assertThat(send("/swagger-ui/index.html", "GET", null).statusCode()).isEqualTo(200);
+        assertThat(send("/v3/api-docs", "GET", null).statusCode()).isEqualTo(200);
 
         HttpResponse<String> invalidEmail = send("/api/v1/auth/email-verifications", "POST", "{\"email\":\"invalid\"}");
         assertThat(invalidEmail.statusCode()).isEqualTo(400);
