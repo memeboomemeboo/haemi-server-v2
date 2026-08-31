@@ -8,16 +8,13 @@ import com.memeboo2.haemi.elder.reminiscence.application.AiTextGenerator;
  */
 class TemplateAiTextGenerator implements AiTextGenerator {
 
-    @Override
-    public String generate(String prompt) {
-        return """
-                오늘은 지난 시절의 따뜻한 기억을 떠올려 보는 건 어떨까요?
-                젊은 날 즐겨 듣던 노래나 가족과 함께한 명절의 풍경을 하나씩 되새겨 보세요.
-                작은 기억 하나가 오늘 하루를 환하게 밝혀 줄 거예요.""";
-    }
+    private static final String TEMPLATE = """
+            오늘은 지난 시절의 따뜻한 기억을 떠올려 보는 건 어떨까요?
+            젊은 날 즐겨 듣던 노래나 가족과 함께한 명절의 풍경을 하나씩 되새겨 보세요.
+            작은 기억 하나가 오늘 하루를 환하게 밝혀 줄 거예요.""";
 
     @Override
-    public boolean isLive() {
-        return false;
+    public Result generate(String prompt) {
+        return new Result(TEMPLATE, false);
     }
 }

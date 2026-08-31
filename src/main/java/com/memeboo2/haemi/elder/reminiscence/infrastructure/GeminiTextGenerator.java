@@ -25,7 +25,7 @@ class GeminiTextGenerator implements AiTextGenerator {
     }
 
     @Override
-    public String generate(String prompt) {
+    public Result generate(String prompt) {
         Map<String, Object> body = Map.of(
                 "contents", List.of(Map.of("parts", List.of(Map.of("text", prompt)))));
         try {
@@ -41,16 +41,11 @@ class GeminiTextGenerator implements AiTextGenerator {
                 log.warn("Gemini 응답에서 텍스트를 찾지 못했습니다 — 대체 문구 사용");
                 return fallback.generate(prompt);
             }
-            return text.strip();
+            return new Result(text.strip(), true);
         } catch (RestClientException e) {
             log.warn("Gemini 호출 실패 — 대체 문구 사용: {}", e.toString());
             return fallback.generate(prompt);
         }
-    }
-
-    @Override
-    public boolean isLive() {
-        return true;
     }
 
     @SuppressWarnings("unchecked")
