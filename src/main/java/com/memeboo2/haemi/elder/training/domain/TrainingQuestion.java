@@ -17,6 +17,8 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDate;
+import java.time.format.TextStyle;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -32,6 +34,8 @@ import java.util.UUID;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class TrainingQuestion extends BaseEntity {
+
+    private static final Locale KOREAN = Locale.KOREAN;
 
     @Column(nullable = false)
     private UUID sessionId;
@@ -119,10 +123,21 @@ public class TrainingQuestion extends BaseEntity {
                 prompt, imageKey, material, answerKey, 0, hint);
     }
 
-    public Boolean evaluate(String selectedOption, String textAnswer, String voiceMediaKey) {
+    /**
+     * 답을 채점한다.
+     *
+     * @param gradingDate 채점 시각의 KST 날짜. 지남력(날짜/요일/연도) 문항은 세션 시작 시점이 아니라
+     *                    이 날짜를 기준으로 정답을 판단한다 — 지남력은 정의상 "지금"을 묻기 때문이다. (#135)
+     */
+    public Boolean evaluate(String selectedOption, String textAnswer, String voiceMediaKey, LocalDate gradingDate) {
         if (answerMode == AnswerMode.CHOICE) {
             if (selectedOption == null || !options.contains(selectedOption)) {
                 throw new DomainException(ErrorCode.INVALID_INPUT, "현재 문항의 보기를 선택해주세요.");
+            }
+            if (isOrientationTimeQuestion()) {
+                // 자정을 넘겨 이어가는 세션에서도 지남력은 채점 시각의 실제 날짜로 평가한다.
+                String expected = orientationAnswer(questionKind, gradingDate);
+                return normalized(selectedOption).equals(normalized(expected));
             }
             if (isYearAnswer()) {
                 try {
@@ -178,7 +193,27 @@ public class TrainingQuestion extends BaseEntity {
     }
 
     private boolean isYearAnswer() {
-        return questionKind == QuestionKind.RECALL_YEAR || questionKind == QuestionKind.ORIENTATION_YEAR;
+        // ORIENTATION_YEAR는 채점 시각 기준으로 별도 평가하므로 여기서 제외한다.
+        return questionKind == QuestionKind.RECALL_YEAR;
+    }
+
+    private boolean isOrientationTimeQuestion() {
+        return questionKind == QuestionKind.ORIENTATION_DATE
+                || questionKind == QuestionKind.ORIENTATION_WEEKDAY
+                || questionKind == QuestionKind.ORIENTATION_YEAR;
+    }
+
+    /**
+     * 지남력 문항의 정답 문자열을 주어진 날짜로부터 만든다.
+     * 문항 생성(보기·정답 키)과 채점이 같은 포맷을 공유해, 표기와 채점 기준이 어긋나지 않게 한다.
+     */
+    public static String orientationAnswer(QuestionKind kind, LocalDate date) {
+        return switch (kind) {
+            case ORIENTATION_DATE -> date.getMonthValue() + "월 " + date.getDayOfMonth() + "일";
+            case ORIENTATION_WEEKDAY -> date.getDayOfWeek().getDisplayName(TextStyle.FULL, KOREAN);
+            case ORIENTATION_YEAR -> String.valueOf(date.getYear());
+            default -> throw new IllegalArgumentException("지남력 문항이 아닙니다: " + kind);
+        };
     }
 
     /** 세션·문항 번호로 고정한 보기 순서라 재진입 때도 동일하며 위치 편향은 피한다. */
