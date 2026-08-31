@@ -54,7 +54,7 @@ public class ConfirmUploadUseCase implements MediaUploadCommand {
     public Optional<ConfirmedMedia> readConfirmedMedia(UUID mediaRefId, MediaPurpose expectedPurpose) {
         return repository.findById(mediaRefId)
                 .filter(ref -> ref.getStatus() == UploadStatus.CONFIRMED)
-                .filter(ref -> ref.getMediaType() == MediaType.valueOf(expectedPurpose.name()))
+                .filter(ref -> matchesPurpose(ref.getMediaType(), expectedPurpose))
                 .flatMap(ref -> storage.getObject(ref.getStorageKey()))
                 .map(content -> new ConfirmedMedia(content.contentType(), content.content()));
     }
@@ -75,7 +75,7 @@ public class ConfirmUploadUseCase implements MediaUploadCommand {
         if (!ref.isOwnedBy(actorId)) {
             throw new DomainException(ErrorCode.NOT_RESOURCE_OWNER);
         }
-        if (expectedPurpose != null && ref.getMediaType() != MediaType.valueOf(expectedPurpose.name())) {
+        if (expectedPurpose != null && !matchesPurpose(ref.getMediaType(), expectedPurpose)) {
             throw new DomainException(ErrorCode.INVALID_INPUT, "요청한 용도의 미디어가 아닙니다.");
         }
         guardSameHashConfirmation(ref);
@@ -128,8 +128,27 @@ public class ConfirmUploadUseCase implements MediaUploadCommand {
         return storage.generateServingUrl(ref.getStorageKey());
     }
 
+    /**
+     * 저장된 미디어 용도가 소비 기능이 기대하는 용도와 맞는지 판단한다.
+     *
+     * <p><b>전환 기간 예외</b>: 훈련 음성 답변은 원래 RESPONSE_VOICE를 재사용했다(#144). 업로드 요청의
+     * {@code mediaType}은 클라이언트가 직접 보내는 wire 계약이라, 서버만 먼저 배포하면 기존 클라이언트가
+     * 올린 RESPONSE_VOICE를 훈련이 거부해 음성 답변이 전면 실패한다. 그래서 TRAINING_VOICE_ANSWER를
+     * 기대하는 확정은 RESPONSE_VOICE도 함께 수용한다. 클라이언트가 새 타입으로 마이그레이션한 뒤
+     * 이 예외를 제거해야 실제 용도 격리가 완성된다 — 그때까지는 격리 이득이 없는 준비 단계다.
+     */
+    private boolean matchesPurpose(MediaType actual, MediaPurpose expectedPurpose) {
+        MediaType expected = MediaType.valueOf(expectedPurpose.name());
+        if (actual == expected) {
+            return true;
+        }
+        return expected == MediaType.TRAINING_VOICE_ANSWER && actual == MediaType.RESPONSE_VOICE;
+    }
+
     private boolean isVoice(MediaType mediaType) {
-        return mediaType == MediaType.RESPONSE_VOICE || mediaType == MediaType.GREETING_VOICE;
+        return mediaType == MediaType.RESPONSE_VOICE
+                || mediaType == MediaType.TRAINING_VOICE_ANSWER
+                || mediaType == MediaType.GREETING_VOICE;
     }
 
     private void guardSameHashConfirmation(MediaRef ref) {
