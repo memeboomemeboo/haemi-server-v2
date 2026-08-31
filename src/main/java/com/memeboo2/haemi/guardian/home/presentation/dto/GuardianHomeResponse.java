@@ -17,6 +17,7 @@ public record GuardianHomeResponse(
         List<ElderCardResponse> elders,
         ChallengeResponse challenge
 ) {
+    @Schema(name = "HomeElderCardResponse")
     public record ElderCardResponse(
             UUID elderId,
             String name,

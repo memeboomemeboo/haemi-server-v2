@@ -12,6 +12,7 @@ import java.util.Map;
 /** 보호자 홈 "오늘의 기록" 타임라인 응답 (#100 M2). */
 public record TodayActivitiesResponse(LocalDate date, List<Item> items) {
 
+    @Schema(name = "ActivityItem")
     public record Item(
             @Schema(description = "활동 발생 시각") Instant occurredAt,
             @Schema(description = "활동 종류") ActivityType type,
