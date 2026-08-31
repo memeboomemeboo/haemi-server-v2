@@ -81,7 +81,7 @@ public class RequestUploadUseCase {
                 if (sizeBytes > policy.image().maxSizeBytes())
                     throw new DomainException(ErrorCode.INVALID_INPUT);
             }
-            case RESPONSE_VOICE, GREETING_VOICE -> {
+            case RESPONSE_VOICE, TRAINING_VOICE_ANSWER, GREETING_VOICE -> {
                 if (!policy.voice().allowedContentTypes().contains(contentType))
                     throw new DomainException(ErrorCode.INVALID_INPUT);
                 if (sizeBytes > policy.voice().maxSizeBytes())
@@ -99,16 +99,22 @@ public class RequestUploadUseCase {
                     throw new DomainException(ErrorCode.INVALID_INPUT);
             }
         }
-        if (mediaType != MediaType.RESPONSE_VOICE && mediaType != MediaType.GREETING_VOICE
-                && declaredDurationSeconds != null) {
+        if (!isVoice(mediaType) && declaredDurationSeconds != null) {
             throw new DomainException(ErrorCode.INVALID_INPUT, "이미지에는 음성 길이를 입력할 수 없습니다.");
         }
+    }
+
+    private static boolean isVoice(MediaType mediaType) {
+        return mediaType == MediaType.RESPONSE_VOICE
+                || mediaType == MediaType.TRAINING_VOICE_ANSWER
+                || mediaType == MediaType.GREETING_VOICE;
     }
 
     private Instant resolveRetainUntil(MediaType mediaType, Instant now) {
         return switch (mediaType) {
             case MEMORY_IMAGE -> now.plusSeconds(86400L * policy.retention().memoryDays());
-            case RESPONSE_IMAGE, RESPONSE_VOICE, GREETING_VOICE -> now.plusSeconds(86400L * policy.retention().responseDays());
+            case RESPONSE_IMAGE, RESPONSE_VOICE, TRAINING_VOICE_ANSWER, GREETING_VOICE ->
+                    now.plusSeconds(86400L * policy.retention().responseDays());
             case PROFILE_IMAGE -> null;
         };
     }
