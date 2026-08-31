@@ -110,6 +110,10 @@ public class Account extends BaseEntity {
         this.birthDate = birthDate;
     }
 
+    public void updatePhone(String phone) {
+        this.phone = phone;
+    }
+
     public void updateProfileImageUrl(String profileImageUrl) {
         this.profileImageUrl = profileImageUrl;
     }

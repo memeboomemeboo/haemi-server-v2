@@ -107,6 +107,16 @@ class AccountQueryImplTest {
     }
 
     @Test
+    void updatePhone_존재하는_유저는_업데이트() {
+        Account account = mockAccountLenient();
+        given(accountRepository.findById(userId)).willReturn(Optional.of(account));
+
+        accountQuery.updatePhone(userId, "010-9999-8888");
+
+        then(account).should().updatePhone("010-9999-8888");
+    }
+
+    @Test
     void updateLoginId_없는_유저는_RESOURCE_NOT_FOUND() {
         given(accountRepository.findById(userId)).willReturn(Optional.empty());
 

@@ -30,12 +30,13 @@ public class UpdateGuardianProfileUseCase {
     /**
      * @param newName null이면 변경 안 함
      * @param newBirthDate null이면 변경 안 함
+     * @param newPhone null이면 변경 안 함
      * @param newLoginId null이면 변경 안 함
      * @param elderRoles elderId → 변경할 역할 (빈 맵이면 역할 변경 없음)
      */
     @Transactional
     public void execute(UUID guardianId, String newName, LocalDate newBirthDate,
-                        String newLoginId, UUID profileImageMediaRefId,
+                        String newPhone, String newLoginId, UUID profileImageMediaRefId,
                         Map<UUID, GuardianRole> elderRoles) {
         if (newBirthDate != null) {
             validateBirthDate(newBirthDate);
@@ -47,6 +48,10 @@ public class UpdateGuardianProfileUseCase {
 
         if (newBirthDate != null) {
             accountQuery.updateBirthDate(guardianId, newBirthDate.toString());
+        }
+
+        if (newPhone != null) {
+            accountQuery.updatePhone(guardianId, newPhone);
         }
 
         if (newLoginId != null) {

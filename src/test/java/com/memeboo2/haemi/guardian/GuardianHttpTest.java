@@ -186,6 +186,7 @@ class GuardianHttpTest {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("name", "수정보호자");
         body.put("birthDate", "1985-06-10");
+        body.put("phone", "010-9999-8888");
         body.put("loginId", "newlogin_" + UUID.randomUUID().toString().substring(0, 6));
 
         HttpResponse<String> response = patch("/api/v1/guardian/profile", objectMapper.writeValueAsString(body));
@@ -194,6 +195,7 @@ class GuardianHttpTest {
         JsonNode profile = data(get("/api/v1/guardian/profile"), 200);
         assertThat(profile.path("name").asText()).isEqualTo("수정보호자");
         assertThat(profile.path("birthDate").asText()).isEqualTo("1985-06-10");
+        assertThat(profile.path("phone").asText()).isEqualTo("010-9999-8888");
     }
 
     @Test
@@ -220,6 +222,16 @@ class GuardianHttpTest {
     void 보호자_프로필_이름은_공백만으로_수정할_수_없다() throws Exception {
         HttpResponse<String> response = patch("/api/v1/guardian/profile",
                 objectMapper.writeValueAsString(Map.of("name", "   ")));
+
+        assertThat(response.statusCode()).isEqualTo(400);
+        assertThat(objectMapper.readTree(response.body()).path("error").path("code").asText())
+                .isEqualTo("INVALID_INPUT");
+    }
+
+    @Test
+    void 보호자_프로필_전화번호가_20자를_초과하면_400이다() throws Exception {
+        HttpResponse<String> response = patch("/api/v1/guardian/profile",
+                objectMapper.writeValueAsString(Map.of("phone", "123456789012345678901")));
 
         assertThat(response.statusCode()).isEqualTo(400);
         assertThat(objectMapper.readTree(response.body()).path("error").path("code").asText())

@@ -55,7 +55,7 @@ class UpdateGuardianProfileUseCaseTest {
         given(accountQuery.findById(guardianId)).willReturn(Optional.of(accountInfo("oldLoginId")));
         given(accountQuery.existsByLoginId("newLoginId")).willReturn(false);
 
-        useCase.execute(guardianId, null, null, "newLoginId", null, Map.of());
+        useCase.execute(guardianId, null, null, null, "newLoginId", null, Map.of());
 
         then(accountQuery).should().updateLoginId(guardianId, "newLoginId");
     }
@@ -65,7 +65,7 @@ class UpdateGuardianProfileUseCaseTest {
         given(accountQuery.findById(guardianId)).willReturn(Optional.of(accountInfo("oldLoginId")));
         given(accountQuery.existsByLoginId("newLoginId")).willReturn(true);
 
-        assertThatThrownBy(() -> useCase.execute(guardianId, null, null, "newLoginId", null, Map.of()))
+        assertThatThrownBy(() -> useCase.execute(guardianId, null, null, null, "newLoginId", null, Map.of()))
                 .isInstanceOf(DomainException.class)
                 .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
                         .isEqualTo(ErrorCode.LOGIN_ID_ALREADY_TAKEN));
@@ -75,7 +75,7 @@ class UpdateGuardianProfileUseCaseTest {
 
     @Test
     void loginId가_null이면_변경_생략() {
-        useCase.execute(guardianId, null, null, null, null, Map.of());
+        useCase.execute(guardianId, null, null, null, null, null, Map.of());
 
         then(accountQuery).should(org.mockito.Mockito.never()).findById(any());
         then(accountQuery).should(org.mockito.Mockito.never()).updateLoginId(any(), any());
@@ -85,7 +85,7 @@ class UpdateGuardianProfileUseCaseTest {
     void loginId가_기존과_동일하면_변경_생략() {
         given(accountQuery.findById(guardianId)).willReturn(Optional.of(accountInfo("sameLoginId")));
 
-        useCase.execute(guardianId, null, null, "sameLoginId", null, Map.of());
+        useCase.execute(guardianId, null, null, null, "sameLoginId", null, Map.of());
 
         then(accountQuery).should(org.mockito.Mockito.never()).existsByLoginId(any());
         then(accountQuery).should(org.mockito.Mockito.never()).updateLoginId(any(), any());
@@ -96,7 +96,7 @@ class UpdateGuardianProfileUseCaseTest {
         Map<UUID, GuardianRole> elderRoles = new HashMap<>();
         elderRoles.put(elderId, null);
 
-        assertThatThrownBy(() -> useCase.execute(guardianId, null, null, null, null, elderRoles))
+        assertThatThrownBy(() -> useCase.execute(guardianId, null, null, null, null, null, elderRoles))
                 .isInstanceOf(DomainException.class)
                 .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
                         .isEqualTo(ErrorCode.INVALID_INPUT));
@@ -108,23 +108,24 @@ class UpdateGuardianProfileUseCaseTest {
         given(mediaUploadCommand.confirmUpload(guardianId, mediaRefId, MediaPurpose.PROFILE_IMAGE))
                 .willReturn(URI.create("https://image.example/new.png"));
 
-        useCase.execute(guardianId, null, null, null, mediaRefId, Map.of());
+        useCase.execute(guardianId, null, null, null, null, mediaRefId, Map.of());
 
         then(accountQuery).should().updateProfileImageUrl(guardianId, "https://image.example/new.png");
     }
 
     @Test
-    void 이름과_생년월일을_함께_수정한다() {
-        useCase.execute(guardianId, "박승아", LocalDate.of(1985, 6, 10), null, null, Map.of());
+    void 이름과_생년월일과_전화번호를_함께_수정한다() {
+        useCase.execute(guardianId, "박승아", LocalDate.of(1985, 6, 10), "010-9999-8888", null, null, Map.of());
 
         then(accountQuery).should().updateName(guardianId, "박승아");
         then(accountQuery).should().updateBirthDate(guardianId, "1985-06-10");
+        then(accountQuery).should().updatePhone(guardianId, "010-9999-8888");
     }
 
     @Test
     void 생년월일이_1920년보다_빠르면_거절한다() {
         assertThatThrownBy(() -> useCase.execute(
-                guardianId, "박승아", LocalDate.of(1919, 12, 31), null, null, Map.of()))
+                guardianId, "박승아", LocalDate.of(1919, 12, 31), null, null, null, Map.of()))
                 .isInstanceOf(DomainException.class)
                 .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
                         .isEqualTo(ErrorCode.INVALID_INPUT));
