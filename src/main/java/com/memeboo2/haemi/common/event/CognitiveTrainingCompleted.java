@@ -22,7 +22,7 @@ public record CognitiveTrainingCompleted(
 ) {
 
     public CognitiveTrainingCompleted {
-        cognitiveAreaResults = List.copyOf(cognitiveAreaResults);
+        cognitiveAreaResults = List.copyOf(cognitiveAreaResults != null ? cognitiveAreaResults : List.of());
     }
 
     /** 리포트 읽기 모델이 멱등 적재할 최소 영역별 집계. */
