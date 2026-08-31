@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** AuthController의 회원가입·로그인·토큰재발급·로그아웃·이메일인증 흐름에 대한 HTTP 인수 테스트다. */
 @ActiveProfiles("test")
@@ -79,39 +80,43 @@ class AuthHttpTest {
     }
 
     @Test
-    void 보호자_회원가입은_선택_이메일과_전화번호도_받는다() throws Exception {
+    void 보호자_회원가입은_선택_전화번호를_받는다() throws Exception {
         String phone = "01012345678";
-        String email = "optional-" + UUID.randomUUID() + "@example.com";
         Map<String, Object> body = registerPayloadMap(loginId);
         body.put("phone", phone);
+
+        HttpResponse<String> response = post("/api/v1/auth/guardians/register", objectMapper.writeValueAsString(body));
+
+        assertThat(response.statusCode()).isEqualTo(201);
+        UUID userId = UUID.fromString(objectMapper.readTree(response.body()).path("data").path("userId").asText());
+        assertThat(accountRepository.findById(userId).orElseThrow().getPhone()).isEqualTo(phone);
+    }
+
+    @Test
+    void 인증_없이_이메일을_제출해도_저장되지_않는다() throws Exception {
+        String email = "unverified-" + UUID.randomUUID() + "@example.com";
+        Map<String, Object> body = registerPayloadMap(loginId);
         body.put("email", email);
 
         HttpResponse<String> response = post("/api/v1/auth/guardians/register", objectMapper.writeValueAsString(body));
 
         assertThat(response.statusCode()).isEqualTo(201);
         UUID userId = UUID.fromString(objectMapper.readTree(response.body()).path("data").path("userId").asText());
-        var account = accountRepository.findById(userId).orElseThrow();
-        assertThat(account.getPhone()).isEqualTo(phone);
-        assertThat(account.getEmail()).isEqualTo(email);
+        assertThat(accountRepository.findById(userId).orElseThrow().getEmail()).isNull();
     }
 
     @Test
-    void 중복_이메일로_회원가입하면_409_EMAIL_ALREADY_TAKEN을_반환한다() throws Exception {
-        // 테스트 프로필은 Flyway를 끄므로, 운영 V117의 partial unique index를 H2에서 재현한다.
+    void 동일_이메일을_가진_두_번째_직접_INSERT는_uk_accounts_email을_위반한다() throws Exception {
         jdbcTemplate.execute("CREATE UNIQUE INDEX IF NOT EXISTS uk_accounts_email ON accounts(email)");
         String email = "duplicate-" + UUID.randomUUID() + "@example.com";
-        Map<String, Object> first = registerPayloadMap(loginId);
-        first.put("email", email);
-        Map<String, Object> second = registerPayloadMap("other_" + UUID.randomUUID().toString().substring(0, 8));
-        second.put("email", email);
+        String sql = "INSERT INTO accounts(id, role, name, login_id, password_hash, birth_date, email, " +
+                "failed_login_attempts, pin_login_enabled, created_at, updated_at) " +
+                "VALUES (?, 'GUARDIAN', '테스트', ?, 'x', '1990-01-01', ?, 0, false, NOW(), NOW())";
+        jdbcTemplate.update(sql, UUID.randomUUID().toString(), "user1_" + UUID.randomUUID().toString().substring(0, 6), email);
 
-        assertThat(post("/api/v1/auth/guardians/register", objectMapper.writeValueAsString(first)).statusCode())
-                .isEqualTo(201);
-        HttpResponse<String> response = post("/api/v1/auth/guardians/register", objectMapper.writeValueAsString(second));
-
-        assertThat(response.statusCode()).isEqualTo(409);
-        assertThat(objectMapper.readTree(response.body()).path("error").path("code").asText())
-                .isEqualTo("EMAIL_ALREADY_TAKEN");
+        assertThatThrownBy(() ->
+                jdbcTemplate.update(sql, UUID.randomUUID().toString(), "user2_" + UUID.randomUUID().toString().substring(0, 6), email))
+                .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
     }
 
     @Test

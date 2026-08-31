@@ -26,14 +26,19 @@ public interface AccountRepository extends JpaRepository<Account, UUID> {
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
             UPDATE Account a
-               SET a.failedLoginAttempts = a.failedLoginAttempts + 1,
-                   a.lockedUntil = CASE WHEN a.failedLoginAttempts + 1 >= :maxAttempts
+               SET a.failedLoginAttempts = CASE WHEN a.lockedUntil IS NOT NULL AND a.lockedUntil <= :now
+                                                THEN 1
+                                                ELSE a.failedLoginAttempts + 1 END,
+                   a.lockedUntil = CASE WHEN (CASE WHEN a.lockedUntil IS NOT NULL AND a.lockedUntil <= :now
+                                                   THEN 1
+                                                   ELSE a.failedLoginAttempts + 1 END) >= :maxAttempts
                                         THEN :lockedUntil ELSE a.lockedUntil END
              WHERE a.loginId = :loginId
             """)
     int incrementLoginFailure(@Param("loginId") String loginId,
                               @Param("maxAttempts") int maxAttempts,
-                              @Param("lockedUntil") Instant lockedUntil);
+                              @Param("lockedUntil") Instant lockedUntil,
+                              @Param("now") Instant now);
 
     /**
      * 로그인 성공 상태를 원자적으로 기록한다. 잠긴 계정에는 적용되지 않는다(0 반환).

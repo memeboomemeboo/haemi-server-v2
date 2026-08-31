@@ -23,6 +23,6 @@ public class LoginFailureRecorder {
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void recordFailure(String loginId, Instant now, int maxFailedAttempts, long lockDurationSeconds) {
-        accountRepository.incrementLoginFailure(loginId, maxFailedAttempts, now.plusSeconds(lockDurationSeconds));
+        accountRepository.incrementLoginFailure(loginId, maxFailedAttempts, now.plusSeconds(lockDurationSeconds), now);
     }
 }
