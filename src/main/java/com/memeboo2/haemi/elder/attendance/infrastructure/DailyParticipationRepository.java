@@ -17,6 +17,9 @@ public interface DailyParticipationRepository extends JpaRepository<DailyPartici
 
     long countByElderId(UUID elderId);
 
+    /** 지정 날짜를 제외한 참여일 수. 완료 직후 배지 집계에서 '오늘'을 항상 1로 더하기 위해 사용한다. */
+    long countByElderIdAndParticipationDateNot(UUID elderId, LocalDate participationDate);
+
     List<DailyParticipation> findByElderId(UUID elderId);
 
     List<DailyParticipation> findByElderIdAndParticipationDateGreaterThanEqual(UUID elderId, LocalDate from);

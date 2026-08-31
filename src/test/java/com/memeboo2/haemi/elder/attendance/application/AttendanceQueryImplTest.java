@@ -59,10 +59,10 @@ class AttendanceQueryImplTest {
         UUID elderId = UUID.randomUUID();
         LocalDate today = LocalDate.of(2026, 8, 25);
         given(clock.today()).willReturn(today);
-        given(participationRepository.countByElderId(elderId)).willReturn(6L);
-        given(participationRepository.existsByElderIdAndParticipationDate(elderId, today)).willReturn(false);
+        given(participationRepository.countByElderIdAndParticipationDateNot(elderId, today)).willReturn(6L);
         AttendanceQueryImpl query = new AttendanceQueryImpl(participationRepository, elderQuery, clock);
 
+        // 오늘 제외 6일 + 오늘 1 = 7일 → DAYS_7 (경합 없는 단일 쿼리, #143)
         assertThat(query.unlockedBadgesAfterCompletion(elderId)).containsExactly(AttendanceBadge.DAYS_7);
     }
 

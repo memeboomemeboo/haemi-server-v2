@@ -89,9 +89,9 @@ class AttendanceQueryImplAdditionalTest {
     }
 
     @Test
-    void unlockedBadgesAfterCompletion은_오늘_미완료면_1일을_더해_계산한다() {
-        given(repository.countByElderId(elderId)).willReturn(6L);
-        given(repository.existsByElderIdAndParticipationDate(elderId, TODAY)).willReturn(false);
+    void unlockedBadgesAfterCompletion은_오늘을_제외한_참여일에_1을_더해_계산한다() {
+        // 오늘 제외 6일 + 오늘 1 = 7일 → DAYS_7. 오늘 행의 커밋 가시성과 무관하게 단일 쿼리로 계산한다. (#143)
+        given(repository.countByElderIdAndParticipationDateNot(elderId, TODAY)).willReturn(6L);
 
         List<AttendanceBadge> badges = query.unlockedBadgesAfterCompletion(elderId);
 
@@ -99,9 +99,9 @@ class AttendanceQueryImplAdditionalTest {
     }
 
     @Test
-    void unlockedBadgesAfterCompletion은_오늘_이미_완료했으면_그대로_계산한다() {
-        given(repository.countByElderId(elderId)).willReturn(7L);
-        given(repository.existsByElderIdAndParticipationDate(elderId, TODAY)).willReturn(true);
+    void unlockedBadgesAfterCompletion은_오늘_행이_아직_안보여도_오늘을_한번_센다() {
+        // 오늘 행이 이 읽기 스냅샷에 아직 없더라도, 오늘을 제외한 카운트에 항상 1을 더하므로 정확히 한 번 셈된다.
+        given(repository.countByElderIdAndParticipationDateNot(elderId, TODAY)).willReturn(6L);
 
         List<AttendanceBadge> badges = query.unlockedBadgesAfterCompletion(elderId);
 
