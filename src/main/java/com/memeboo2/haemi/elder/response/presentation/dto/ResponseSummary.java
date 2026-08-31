@@ -4,6 +4,7 @@ import com.memeboo2.haemi.elder.response.domain.Emotion;
 import com.memeboo2.haemi.elder.response.domain.Response;
 import com.memeboo2.haemi.elder.response.domain.ResponseType;
 import com.memeboo2.haemi.elder.response.domain.TranscriptStatus;
+import com.memeboo2.haemi.platform.api.MediaUploadCommand;
 
 import java.time.Instant;
 import java.util.List;
@@ -21,11 +22,16 @@ public record ResponseSummary(
         Instant createdAt
 ) {
     public static ResponseSummary from(Response r) {
+        return from(r, null);
+    }
+
+    public static ResponseSummary from(Response r, MediaUploadCommand mediaUploadCommand) {
         return new ResponseSummary(
                 r.getId(), r.getResponseType(),
                 r.getEmotions().isEmpty() ? null : r.getEmotions(),
                 r.getText(), r.getTranscript(), r.getTranscriptStatus(),
-                r.getMediaKey(), r.getDurationSeconds(), r.getCreatedAt()
+                mediaUploadCommand == null ? r.getMediaKey() : mediaUploadCommand.resolveServingUrl(r.getMediaKey()),
+                r.getDurationSeconds(), r.getCreatedAt()
         );
     }
 }

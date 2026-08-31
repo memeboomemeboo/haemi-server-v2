@@ -2,6 +2,7 @@ package com.memeboo2.haemi.elder.memory.presentation.dto;
 
 import com.memeboo2.haemi.guardian.api.ElderMemoryQuery.MemoryItem;
 import io.swagger.v3.oas.annotations.media.Schema;
+import com.memeboo2.haemi.platform.api.MediaUploadCommand;
 
 import java.time.Instant;
 import java.util.List;
@@ -23,10 +24,15 @@ public record MemorySummary(
         String creatorRoleLabel
 ) {
     public static MemorySummary from(MemoryItem item) {
+        return from(item, null);
+    }
+
+    public static MemorySummary from(MemoryItem item, MediaUploadCommand mediaUploadCommand) {
         GuardianRole role = item.creatorRole();
         return new MemorySummary(
                 item.id(), item.title(), item.message(),
-                item.memoryYear(), item.imageKeys(),
+                item.memoryYear(), item.imageKeys().stream().map(key -> mediaUploadCommand == null
+                        ? key : mediaUploadCommand.resolveServingUrl(key)).toList(),
                 item.responded(), item.createdAt(), item.creatorName(), role,
                 role == null ? null : role.getLabel()
         );

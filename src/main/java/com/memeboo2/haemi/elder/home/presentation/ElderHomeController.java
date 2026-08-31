@@ -3,6 +3,7 @@ package com.memeboo2.haemi.elder.home.presentation;
 import com.memeboo2.haemi.common.web.ApiResponse;
 import com.memeboo2.haemi.elder.home.application.GetElderHomeUseCase;
 import com.memeboo2.haemi.elder.home.presentation.dto.ElderHomeResponse;
+import com.memeboo2.haemi.platform.api.MediaUploadCommand;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -18,13 +19,14 @@ import java.util.UUID;
 public class ElderHomeController {
 
     private final GetElderHomeUseCase getElderHomeUseCase;
+    private final MediaUploadCommand mediaUploadCommand;
 
     @Operation(summary = "어르신 홈 화면 조회")
     @GetMapping
     public ResponseEntity<ApiResponse<ElderHomeResponse>> home(
             @RequestAttribute("elderUserId") UUID elderUserId) {
 
-        ElderHomeResponse result = ElderHomeResponse.from(getElderHomeUseCase.execute(elderUserId));
+        ElderHomeResponse result = ElderHomeResponse.from(getElderHomeUseCase.execute(elderUserId), mediaUploadCommand);
         return ResponseEntity.ok(ApiResponse.ok(result));
     }
 }

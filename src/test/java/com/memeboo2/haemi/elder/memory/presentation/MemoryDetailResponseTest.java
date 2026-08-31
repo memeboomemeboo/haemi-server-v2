@@ -4,6 +4,7 @@ import com.memeboo2.haemi.elder.memory.presentation.dto.MemoryDetail;
 import com.memeboo2.haemi.elder.memory.presentation.dto.MemorySummary;
 import com.memeboo2.haemi.guardian.api.ElderMemoryQuery.MemoryItem;
 import com.memeboo2.haemi.guardian.api.GuardianRole;
+import com.memeboo2.haemi.platform.api.MediaUploadCommand;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -12,6 +13,8 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class MemoryDetailResponseTest {
 
@@ -74,6 +77,19 @@ class MemoryDetailResponseTest {
         assertThat(summary.creatorName()).isEqualTo("김철수");
         assertThat(summary.creatorRole()).isEqualTo(GuardianRole.GRANDSON);
         assertThat(summary.creatorRoleLabel()).isEqualTo("손자");
+    }
+
+    @Test
+    @DisplayName("어르신 추억 DTO는 영구 storage key를 serving URL로 변환한다")
+    void memoryDtos_이미지_storage_key를_serving_URL로_변환한다() {
+        MemoryItem item = new MemoryItem(
+                UUID.randomUUID(), "제목", "메모", "메시지", 2020, List.of("memory_image/photo.jpg"),
+                false, Instant.now(), "홍길동", GuardianRole.SON);
+        MediaUploadCommand media = mock(MediaUploadCommand.class);
+        when(media.resolveServingUrl("memory_image/photo.jpg")).thenReturn("https://cdn.example/photo.jpg");
+
+        assertThat(MemorySummary.from(item, media).imageKeys()).containsExactly("https://cdn.example/photo.jpg");
+        assertThat(MemoryDetail.from(item, media).imageKeys()).containsExactly("https://cdn.example/photo.jpg");
     }
 
     @Test

@@ -372,6 +372,7 @@
   "training": { "completedToday": false, "streak": 3 }
 }
 ```
+`firstImageKey`는 호환용 필드명이며, 값은 클라이언트가 바로 표시할 수 있는 현재 유효한 serving URL이다.
 
 ## 7.2 수신함(오늘 받은 하루 한마디)
 `GET /elder/inbox` · **200**
@@ -389,6 +390,7 @@
 [ { "id","title","message","memoryYear","imageKeys":[…],"responded","createdAt",
     "creatorName","creatorRole","creatorRoleLabel" } ]
 ```
+`imageKeys`라는 호환용 필드명과 달리, 각 값은 현재 유효한 serving URL이다.
 
 ## 7.5 추억 상세
 `GET /elder/memories/{memoryId}` · **200**
@@ -396,6 +398,7 @@
 { "id","title","memo","message","memoryYear","imageKeys":[…],"responded","createdAt",
   "creatorName","creatorRole","creatorRoleLabel" }
 ```
+`imageKeys`라는 호환용 필드명과 달리, 각 값은 현재 유효한 serving URL이다.
 
 ## 7.6 추억 열람 처리
 `POST /elder/memories/{memoryId}/viewed` · **200** `null` (최초 1회 MemoryViewed 발행)
@@ -419,6 +422,7 @@ body `{ "emotions": ["LONGING","HAPPY"] }` (최소 1, **최대 2개**)
 ```jsonc
 [ { "id","responseType","emotions":["…"],"text","mediaKey","createdAt" } ]
 ```
+이미지·음성 답변의 `mediaKey`는 호환용 필드명이며, 값은 현재 유효한 serving URL이다.
 
 ---
 
