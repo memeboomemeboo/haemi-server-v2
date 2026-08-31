@@ -7,6 +7,7 @@ import com.memeboo2.haemi.guardian.profile.application.GetGuardianProfileUseCase
 import com.memeboo2.haemi.guardian.profile.application.GetGuardianProfileUseCase.GuardianProfile;
 import com.memeboo2.haemi.guardian.profile.application.UpdateGuardianProfileUseCase;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -53,11 +54,17 @@ public class ProfileController {
     }
 
     public record UpdateProfileRequest(
+            @Schema(description = "보호자 이름. 전달하면 변경한다. 공백만으로는 구성할 수 없다.", example = "박승아")
             @Size(min = 1, max = 100) @jakarta.validation.constraints.Pattern(regexp = ".*\\S.*") String name,
+            @Schema(description = "생년월일. 전달하면 변경한다. 1920-01-01부터 요청 당일(KST)까지 허용한다.", example = "1985-06-10")
             LocalDate birthDate,
+            @Schema(description = "전화번호. 전달하면 변경한다. 최대 20자다.", example = "010-9999-8888")
             @Size(max = 20) String phone,
+            @Schema(description = "로그인 아이디. 전달하면 변경한다. 3~20자이며 다른 계정과 중복될 수 없다.", example = "jeongeun")
             @Size(min = 3, max = 20) String loginId,
+            @Schema(description = "업로드·확정한 프로필 이미지의 mediaRefId. 전달하면 해당 이미지로 변경한다.", example = "a2c6d96d-b999-4c5e-aa44-3ca02aaee8b3")
             UUID profileImageMediaRefId,
+            @Schema(description = "어르신 ID를 키로 하는 보호자 역할 맵. 전달한 항목의 역할만 변경한다.", example = "{\"a2c6d96d-b999-4c5e-aa44-3ca02aaee8b3\":\"DAUGHTER\"}")
             Map<UUID, GuardianRole> elderRoles
     ) {}
 
@@ -79,7 +86,10 @@ public class ProfileController {
     @PatchMapping
     public ResponseEntity<ApiResponse<Void>> updateProfile(
             @RequestAttribute UUID guardianId,
-            @RequestBody @Valid UpdateProfileRequest req) {
+            @RequestBody @Valid
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    description = "모든 필드는 선택값이며, 전달한 필드만 수정한다.")
+            UpdateProfileRequest req) {
         Map<UUID, GuardianRole> roles = req.elderRoles() != null ? req.elderRoles() : Map.of();
         updateGuardianProfileUseCase.execute(
                 guardianId, req.name(), req.birthDate(), req.phone(), req.loginId(), req.profileImageMediaRefId(), roles);
