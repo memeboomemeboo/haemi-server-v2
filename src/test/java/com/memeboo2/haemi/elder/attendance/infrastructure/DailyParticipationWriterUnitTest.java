@@ -9,8 +9,12 @@ import org.springframework.jdbc.core.ConnectionCallback;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
+import com.memeboo2.haemi.common.time.HaemiClock;
+
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
+import java.sql.Timestamp;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Map;
 import java.util.UUID;
@@ -34,11 +38,17 @@ class DailyParticipationWriterUnitTest {
     @Mock
     private JdbcTemplate jdbcTemplate;
 
+    @Mock
+    private HaemiClock clock;
+
     private DailyParticipationWriter writer;
+
+    private final Instant now = Instant.parse("2026-08-27T00:00:00Z");
 
     @BeforeEach
     void setUp() {
-        writer = new DailyParticipationWriter(namedParameterJdbcTemplate);
+        writer = new DailyParticipationWriter(namedParameterJdbcTemplate, clock);
+        org.mockito.Mockito.lenient().when(clock.now()).thenReturn(now);
     }
 
     @Test
@@ -72,7 +82,8 @@ class DailyParticipationWriterUnitTest {
         writer.insertIfAbsent(id, elderId, date);
 
         verify(namedParameterJdbcTemplate).update(anyString(),
-                eq(Map.of("id", id, "elderId", elderId, "participationDate", date)));
+                eq(Map.of("id", id, "elderId", elderId, "participationDate", date,
+                        "now", Timestamp.from(now))));
     }
 
     @Test
