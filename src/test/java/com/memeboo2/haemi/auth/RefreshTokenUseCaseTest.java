@@ -135,6 +135,23 @@ class RefreshTokenUseCaseTest {
     }
 
     @Test
+    void 잠긴_계정은_refresh_토큰이_유효해도_AUTH_ACCOUNT_LOCKED() {
+        Account account = mock(Account.class);
+        given(account.isLocked(NOW)).willReturn(true);
+        given(clock.now()).willReturn(NOW);
+        given(jwtTokenProvider.isValid(refreshToken)).willReturn(true);
+        given(refreshTokenRepository.findByTokenAndDeviceId(refreshToken, deviceId))
+                .willReturn(Optional.of(storedToken(deviceId, NOW.plus(Duration.ofDays(7)))));
+        given(accountRepository.findById(accountId)).willReturn(Optional.of(account));
+
+        assertThatThrownBy(() -> useCase.execute(refreshToken, deviceId))
+                .isInstanceOf(DomainException.class)
+                .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
+                        .isEqualTo(ErrorCode.AUTH_ACCOUNT_LOCKED));
+        verify(refreshTokenRepository, org.mockito.Mockito.never()).save(any(RefreshToken.class));
+    }
+
+    @Test
     void 만료된_토큰이면_삭제하고_401() {
         given(clock.now()).willReturn(NOW);
         given(jwtTokenProvider.isValid(refreshToken)).willReturn(true);

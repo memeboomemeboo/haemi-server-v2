@@ -51,6 +51,10 @@ public class RefreshTokenUseCase {
         Account account = accountRepository.findById(stored.getAccountId())
                 .orElseThrow(() -> new DomainException(ErrorCode.AUTH_REFRESH_TOKEN_INVALID));
 
+        if (account.isLocked(clock.now())) {
+            throw new DomainException(ErrorCode.AUTH_ACCOUNT_LOCKED);
+        }
+
         // 단일 소비(회전): 이 토큰 행을 조건부로 제거하고, 실제로 지운 요청만 재발급을 진행한다.
         // 동일 토큰으로 동시 요청이 들어와도 DB가 삭제를 직렬화해 한 요청만 성공한다 (재사용·이중 발급 차단).
         int consumed = refreshTokenRepository.deleteByTokenAndDeviceId(refreshToken, deviceId);
