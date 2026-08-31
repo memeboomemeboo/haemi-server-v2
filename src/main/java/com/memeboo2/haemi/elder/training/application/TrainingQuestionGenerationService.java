@@ -19,10 +19,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
-import java.time.format.TextStyle;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -31,8 +29,6 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class TrainingQuestionGenerationService {
-
-    private static final Locale KOREAN = Locale.KOREAN;
 
     private final TrainingQuestionRepository questionRepository;
     private final TrainingDifficultyRepository difficultyRepository;
@@ -98,16 +94,18 @@ public class TrainingQuestionGenerationService {
         int number = 1;
         questions.add(TrainingQuestion.choice(
                 sessionId, number++, QuestionType.ORIENTATION, QuestionKind.ORIENTATION_DATE,
-                "오늘은 며칠인가요?", null, null, formatDate(today), 0, null,
+                "오늘은 며칠인가요?", null, null,
+                TrainingQuestion.orientationAnswer(QuestionKind.ORIENTATION_DATE, today), 0, null,
                 dateOptions(today)));
         questions.add(TrainingQuestion.choice(
                 sessionId, number++, QuestionType.ORIENTATION, QuestionKind.ORIENTATION_WEEKDAY,
                 "오늘은 무슨 요일인가요?", null, null,
-                today.getDayOfWeek().getDisplayName(TextStyle.FULL, KOREAN), 0, null,
+                TrainingQuestion.orientationAnswer(QuestionKind.ORIENTATION_WEEKDAY, today), 0, null,
                 weekdayOptions(today)));
         questions.add(TrainingQuestion.choice(
                 sessionId, number, QuestionType.ORIENTATION, QuestionKind.ORIENTATION_YEAR,
-                "올해는 몇 년도인가요?", null, null, String.valueOf(today.getYear()), 0, null,
+                "올해는 몇 년도인가요?", null, null,
+                TrainingQuestion.orientationAnswer(QuestionKind.ORIENTATION_YEAR, today), 0, null,
                 yearOptions(today.getYear(), 4, 0)));
         return questions;
     }
@@ -173,17 +171,13 @@ public class TrainingQuestionGenerationService {
 
     private List<String> dateOptions(LocalDate today) {
         return List.of(today, today.minusDays(1), today.plusDays(1), today.plusDays(2)).stream()
-                .map(this::formatDate)
+                .map(date -> TrainingQuestion.orientationAnswer(QuestionKind.ORIENTATION_DATE, date))
                 .toList();
-    }
-
-    private String formatDate(LocalDate date) {
-        return date.getMonthValue() + "월 " + date.getDayOfMonth() + "일";
     }
 
     private List<String> weekdayOptions(LocalDate today) {
         return List.of(today, today.plusDays(1), today.plusDays(2), today.plusDays(3)).stream()
-                .map(date -> date.getDayOfWeek().getDisplayName(TextStyle.FULL, KOREAN))
+                .map(date -> TrainingQuestion.orientationAnswer(QuestionKind.ORIENTATION_WEEKDAY, date))
                 .toList();
     }
 
