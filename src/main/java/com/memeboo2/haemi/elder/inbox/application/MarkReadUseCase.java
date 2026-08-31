@@ -18,7 +18,6 @@ public class MarkReadUseCase {
     @ElderAccessChecked
     public void execute(UUID elderUserId, UUID dailyCareId) {
         UUID elderId = careAccessQuery.elderIdForUser(elderUserId);
-        careAccessQuery.requireSelf(elderUserId, elderId);
         greetingReadCommand.markRead(elderId, dailyCareId);
     }
 }

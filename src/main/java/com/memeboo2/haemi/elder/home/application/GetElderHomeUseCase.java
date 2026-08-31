@@ -28,7 +28,6 @@ public class GetElderHomeUseCase {
     @ElderAccessChecked
     public ElderHomeData execute(UUID elderUserId) {
         UUID elderId = careAccessQuery.elderIdForUser(elderUserId);
-        careAccessQuery.requireSelf(elderUserId, elderId);
 
         var greetings = greetingQuery.findFor(elderId, clock.today());
         long unreadCount = greetings.stream().filter(g -> !g.read()).count();
