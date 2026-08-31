@@ -36,7 +36,8 @@ public class MediaUrlResolver {
             path = path.startsWith("/") ? path.substring(1) : path;
             String host = uri.getHost();
             if (host == null || uri.getRawQuery() == null) return null;
-            if (host.contains("amazonaws.com") && host.startsWith(bucket + ".")) return path;
+            // AWS S3뿐 아니라 R2 등 S3 호환 스토리지의 virtual-hosted URL도 지원한다.
+            if (!bucket.isBlank() && host.startsWith(bucket + ".")) return path;
             if (!bucket.isBlank() && path.startsWith(bucket + "/")) return path.substring(bucket.length() + 1);
         } catch (IllegalArgumentException ignored) {
             // 외부 URL은 보존한다.

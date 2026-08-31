@@ -39,6 +39,18 @@ class MediaUrlResolverTest {
         verify(storage).generateServingUrl("memory_image/photo.jpg");
     }
 
+    @Test
+    void 기존_R2_virtual_hosted_URL에서는_bucket_호스트_접두어를_제거한다() throws Exception {
+        StoragePort storage = mock(StoragePort.class);
+        when(storage.generateServingUrl("memory_image/photo.jpg"))
+                .thenReturn(URI.create("https://haemi-media.account.r2.cloudflarestorage.com/memory_image/photo.jpg?new-signature"));
+        MediaUrlResolver resolver = resolver(storage, "haemi-media");
+
+        resolver.toServingUrl("https://haemi-media.account.r2.cloudflarestorage.com/memory_image/photo.jpg?X-Amz-Signature=old");
+
+        verify(storage).generateServingUrl("memory_image/photo.jpg");
+    }
+
     private MediaUrlResolver resolver(StoragePort storage, String bucket) throws Exception {
         MediaUrlResolver resolver = new MediaUrlResolver(storage);
         Field field = MediaUrlResolver.class.getDeclaredField("bucket");

@@ -245,6 +245,7 @@
 [ { "id","elderId","title","thumbnailKey","responded","place","memoryYear","memoryMonth",
     "creatorName","creatorRole","creatorRoleLabel","isMine" } ]
 ```
+`thumbnailKey`라는 호환용 필드명과 달리, 값은 클라이언트가 바로 표시할 수 있는 현재 유효한 serving URL이다.
 **에러**(특정 elderId) `403 CARE_ACCESS_DENIED`
 
 ## 4.3 추억 상세
@@ -253,6 +254,7 @@
 { "id","elderId","title","memo","message","memoryYear","memoryMonth","place",
   "imageKeys":[…],"responded","createdAt","creatorName","creatorRole","creatorRoleLabel","isMine" }
 ```
+`imageKeys`라는 호환용 필드명과 달리, 각 값은 현재 유효한 serving URL이다.
 **에러** `403`, `404`
 
 ## 4.4 어르신 답변 조회
@@ -291,6 +293,7 @@
 ```jsonc
 [ { "id","careDate","type","text","mediaKey","durationSeconds","read" } ]
 ```
+음성 항목의 `mediaKey`는 호환용 필드명이며, 값은 현재 유효한 serving URL이다.
 
 ---
 
@@ -375,6 +378,7 @@
 ```jsonc
 [ { "id","guardianId","type":"VOICE","text":null,"mediaKey","durationSeconds":24,"read":false } ]
 ```
+음성 항목의 `mediaKey`는 호환용 필드명이며, 값은 현재 유효한 serving URL이다.
 
 ## 7.3 하루 한마디 읽음
 `POST /elder/inbox/{dailyCareId}/read` · **200** `null`
@@ -485,5 +489,5 @@ body `{ "emotions": ["LONGING","HAPPY"] }` (최소 1, **최대 2개**)
 | Path | 용도 |
 | --- | --- |
 | `PUT /api/v1/internal/storage/upload`, `GET /api/v1/internal/storage/serve` | 로컬 스토리지(개발용) |
-| `POST /api/v1/internal/ai/reminiscence/run` | 회상 배치 수동 트리거(테스트) |
-| `POST /api/v1/internal/report/dispatch` | 리포트 발송 수동 트리거(테스트) |
+| `POST /api/v1/internal/ai/reminiscence/run` | 회상 배치 수동 트리거. `local` 또는 `test` 프로필에서 `haemi.ai.reminiscence.manual-trigger-enabled=true`일 때만 노출 |
+| `POST /api/v1/internal/report/dispatch` | 리포트 발송 수동 트리거. `local` 또는 `test` 프로필에서만 노출 |
