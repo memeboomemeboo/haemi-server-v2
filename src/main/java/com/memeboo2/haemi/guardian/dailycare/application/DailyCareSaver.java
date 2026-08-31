@@ -50,9 +50,9 @@ public class DailyCareSaver {
     public UUID saveVoice(UUID guardianId, UUID elderId, LocalDate today,
                           UUID mediaRefId, int durationSeconds) {
         requireNotSentToday(guardianId, elderId, today);
-        String servingUrl = mediaUploadCommand.confirmUpload(
-                guardianId, mediaRefId, MediaPurpose.GREETING_VOICE, durationSeconds).toString();
-        return persist(DailyCare.voice(guardianId, elderId, today, servingUrl, durationSeconds,
+        String storageKey = mediaUploadCommand.confirmUploadKey(
+                guardianId, mediaRefId, MediaPurpose.GREETING_VOICE, durationSeconds);
+        return persist(DailyCare.voice(guardianId, elderId, today, storageKey, durationSeconds,
                 props.retentionDays()));
     }
 

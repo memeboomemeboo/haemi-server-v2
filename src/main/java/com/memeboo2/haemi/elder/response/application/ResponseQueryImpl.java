@@ -2,6 +2,7 @@ package com.memeboo2.haemi.elder.response.application;
 
 import com.memeboo2.haemi.guardian.api.ResponseQuery;
 import com.memeboo2.haemi.elder.response.infrastructure.ResponseRepository;
+import com.memeboo2.haemi.platform.api.MediaUploadCommand;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,6 +16,7 @@ import java.util.UUID;
 public class ResponseQueryImpl implements ResponseQuery {
 
     private final ResponseRepository responseRepository;
+    private final MediaUploadCommand mediaUploadCommand;
 
     @Override
     @Transactional(readOnly = true)
@@ -39,8 +41,8 @@ public class ResponseQueryImpl implements ResponseQuery {
                         r.getResponseType().name(),
                         r.getEmotions().stream().map(Enum::name).toList(),
                         r.getText() != null ? r.getText() : r.getTranscript(),
-                        r.getMediaKey(),
-                        r.getMediaKey(),
+                        mediaUploadCommand.resolveServingUrl(r.getMediaKey()),
+                        mediaUploadCommand.resolveServingUrl(r.getMediaKey()),
                         r.getDurationSeconds(),
                         r.getTranscriptStatus().name(),
                         r.getCreatedAt()

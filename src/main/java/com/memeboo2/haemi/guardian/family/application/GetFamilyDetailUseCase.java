@@ -9,6 +9,7 @@ import com.memeboo2.haemi.guardian.eldermanagement.domain.GuardianElderLinkRepos
 import com.memeboo2.haemi.guardian.family.domain.Family;
 import com.memeboo2.haemi.guardian.family.domain.FamilyMember;
 import com.memeboo2.haemi.guardian.family.domain.FamilyRepository;
+import com.memeboo2.haemi.platform.api.MediaUploadCommand;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,6 +32,7 @@ public class GetFamilyDetailUseCase {
     private final ElderRepository elderRepository;
     private final GuardianElderLinkRepository linkRepository;
     private final AccountQuery accountQuery;
+    private final MediaUploadCommand mediaUploadCommand;
 
     public record GuardianMember(UUID userId, String name, GuardianRole role, boolean isMe) {}
 
@@ -93,7 +95,7 @@ public class GetFamilyDetailUseCase {
                 .toList();
 
         return Optional.of(new FamilyDetail(
-                family.getId(), family.getName(), family.getMemo(), family.getProfileImageUrl(),
+                family.getId(), family.getName(), family.getMemo(), mediaUploadCommand.resolveServingUrl(family.getProfileImageUrl()),
                 family.getInviteCode(), guardians, elders));
     }
 }

@@ -52,7 +52,7 @@ public class RegisterMemoryUseCase {
         Memory memory = Memory.create(elderId, title, memo, message, memoryYear, memoryMonth, place);
 
         List<String> storageKeys = mediaRefIds.stream()
-                .map(refId -> mediaUploadCommand.confirmUpload(guardianId, refId, MediaPurpose.MEMORY_IMAGE).toString())
+                .map(refId -> mediaUploadCommand.confirmUploadKey(guardianId, refId, MediaPurpose.MEMORY_IMAGE))
                 .toList();
         memory.addImages(storageKeys);
 

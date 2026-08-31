@@ -5,7 +5,10 @@ import com.memeboo2.haemi.auth.account.infrastructure.AccountRepository;
 import com.memeboo2.haemi.auth.api.AccountQuery;
 import com.memeboo2.haemi.common.error.DomainException;
 import com.memeboo2.haemi.common.error.ErrorCode;
+import com.memeboo2.haemi.common.persistence.ConstraintViolations;
+import com.memeboo2.haemi.platform.api.MediaUploadCommand;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,6 +22,7 @@ import java.util.UUID;
 public class AccountQueryImpl implements AccountQuery {
 
     private final AccountRepository accountRepository;
+    private final MediaUploadCommand mediaUploadCommand;
 
     @Override
     @Transactional(readOnly = true)
@@ -26,7 +30,7 @@ public class AccountQueryImpl implements AccountQuery {
         return accountRepository.findById(userId)
                 .map(a -> new AccountInfo(
                         a.getId(), a.getName(), a.getLoginId(), a.getPhone(),
-                        a.getBirthDate(), a.getProfileImageUrl(), a.getLastLoginAt()));
+                        a.getBirthDate(), mediaUploadCommand.resolveServingUrl(a.getProfileImageUrl()), a.getLastLoginAt()));
     }
 
     @Override
@@ -43,7 +47,7 @@ public class AccountQueryImpl implements AccountQuery {
         return accountRepository.findAllById(userIds).stream()
                 .map(a -> new AccountInfo(
                         a.getId(), a.getName(), a.getLoginId(), a.getPhone(),
-                        a.getBirthDate(), a.getProfileImageUrl(), a.getLastLoginAt()))
+                        a.getBirthDate(), mediaUploadCommand.resolveServingUrl(a.getProfileImageUrl()), a.getLastLoginAt()))
                 .toList();
     }
 
@@ -83,6 +87,14 @@ public class AccountQueryImpl implements AccountQuery {
         Account account = accountRepository.findById(userId)
                 .orElseThrow(() -> new DomainException(ErrorCode.RESOURCE_NOT_FOUND));
         account.updateLoginId(newLoginId);
+        try {
+            accountRepository.saveAndFlush(account);
+        } catch (DataIntegrityViolationException e) {
+            if (ConstraintViolations.isViolationOf(e, "uk_accounts_login_id")) {
+                throw new DomainException(ErrorCode.LOGIN_ID_ALREADY_TAKEN);
+            }
+            throw e;
+        }
     }
 
     @Override

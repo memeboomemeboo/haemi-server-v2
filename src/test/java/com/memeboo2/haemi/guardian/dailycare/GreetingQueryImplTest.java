@@ -6,6 +6,7 @@ import com.memeboo2.haemi.guardian.api.GreetingQuery;
 import com.memeboo2.haemi.guardian.dailycare.application.GreetingQueryImpl;
 import com.memeboo2.haemi.guardian.dailycare.domain.DailyCare;
 import com.memeboo2.haemi.guardian.dailycare.infrastructure.DailyCareRepository;
+import com.memeboo2.haemi.platform.api.MediaUploadCommand;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -20,6 +21,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 class GreetingQueryImplTest {
@@ -27,6 +29,7 @@ class GreetingQueryImplTest {
     @Mock DailyCareRepository dailyCareRepository;
     @Mock AccountQuery accountQuery;
     @Mock HaemiClock clock;
+    @Mock MediaUploadCommand mediaUploadCommand;
     @InjectMocks GreetingQueryImpl greetingQuery;
 
     @Test
@@ -51,5 +54,25 @@ class GreetingQueryImplTest {
 
         assertThat(result).extracting(GreetingQuery.ReceivedGreeting::guardianName)
                 .containsExactly("딸 지영", "아들 민수");
+    }
+
+    @Test
+    void 음성_인사는_현재_서빙_URL로_변환한다() {
+        UUID elderId = UUID.randomUUID();
+        UUID guardianId = UUID.randomUUID();
+        LocalDate date = LocalDate.of(2026, 8, 25);
+        DailyCare voice = DailyCare.voice(guardianId, elderId, date, "greeting_voice/confirmed.aac", 12, 30);
+        given(clock.now()).willReturn(Instant.parse("2026-08-25T00:00:00Z"));
+        given(dailyCareRepository.findByElderIdAndDate(any(), any(), any())).willReturn(List.of(voice));
+        given(accountQuery.findAllById(any())).willReturn(List.of(
+                new AccountQuery.AccountInfo(guardianId, "딸 지영", "yjy", null, null, null, null)));
+        given(mediaUploadCommand.resolveServingUrl("greeting_voice/confirmed.aac"))
+                .willReturn("https://cdn.example/greeting.aac");
+
+        List<GreetingQuery.ReceivedGreeting> result = greetingQuery.findFor(elderId, date);
+
+        assertThat(((GreetingQuery.GreetingContent.Voice) result.get(0).content()).mediaKey())
+                .isEqualTo("https://cdn.example/greeting.aac");
+        verify(mediaUploadCommand).resolveServingUrl("greeting_voice/confirmed.aac");
     }
 }

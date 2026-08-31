@@ -10,6 +10,7 @@ import com.memeboo2.haemi.guardian.family.application.GetFamilyDetailUseCase;
 import com.memeboo2.haemi.guardian.family.application.GetFamilyDetailUseCase.FamilyDetail;
 import com.memeboo2.haemi.guardian.family.domain.Family;
 import com.memeboo2.haemi.guardian.family.domain.FamilyRepository;
+import com.memeboo2.haemi.platform.api.MediaUploadCommand;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -24,6 +25,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.ArgumentMatchers.any;
 
 @ExtendWith(MockitoExtension.class)
 class GetFamilyDetailUseCaseTest {
@@ -32,10 +34,17 @@ class GetFamilyDetailUseCaseTest {
     @Mock ElderRepository elderRepository;
     @Mock GuardianElderLinkRepository linkRepository;
     @Mock AccountQuery accountQuery;
+    @Mock(lenient = true) MediaUploadCommand mediaUploadCommand;
     @InjectMocks GetFamilyDetailUseCase useCase;
 
     UUID guardianId = UUID.randomUUID();
     UUID otherGuardianId = UUID.randomUUID();
+
+    @org.junit.jupiter.api.BeforeEach
+    void setUp() {
+        org.mockito.Mockito.lenient().when(mediaUploadCommand.resolveServingUrl(any()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+    }
 
     @Test
     void 소속_가족이_없으면_빈값을_반환한다() {

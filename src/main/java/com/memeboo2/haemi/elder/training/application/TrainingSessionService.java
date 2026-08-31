@@ -93,7 +93,7 @@ public class TrainingSessionService implements TrainingSessionUseCase {
         }
 
         String voiceMediaKey = voiceMediaRefId == null ? null
-                : mediaUploadCommand.confirmUpload(elderUserId, voiceMediaRefId, MediaPurpose.RESPONSE_VOICE).toString();
+                : mediaUploadCommand.confirmUploadKey(elderUserId, voiceMediaRefId, MediaPurpose.RESPONSE_VOICE);
         Boolean evaluated = question.evaluate(
                 selectedOption, textAnswer, voiceMediaKey, HaemiClock.dateInKst(now));
         answerRepository.save(TrainingAnswer.record(

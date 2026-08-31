@@ -48,6 +48,8 @@ public class SecurityConfig {
                     auth.requestMatchers("/api/v1/internal/storage/**").permitAll();
                 }
                 auth
+                // 테스트 배치는 local/test에만 등록되지만, 일반 사용자 JWT로도 실행되면 안 된다.
+                .requestMatchers("/api/v1/internal/report/**", "/api/v1/internal/ai/**").denyAll()
                 .requestMatchers("/api/v1/guardian/**").hasRole("GUARDIAN")
                 .requestMatchers("/api/v1/elder/**").hasRole("ELDER")
                 .anyRequest().authenticated();

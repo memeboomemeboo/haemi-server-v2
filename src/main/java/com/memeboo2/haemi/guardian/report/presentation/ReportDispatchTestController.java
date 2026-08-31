@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "리포트 발송 (테스트)", description = "정기 리포트 발송 수동 트리거 — 비운영 전용")
 @RestController
 @RequiredArgsConstructor
-@Profile("!prod")
+@Profile({"local", "test"})
 public class ReportDispatchTestController {
 
     private final ReportDeliveryService deliveryService;

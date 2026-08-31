@@ -6,6 +6,7 @@ import com.memeboo2.haemi.guardian.api.GreetingQuery;
 import com.memeboo2.haemi.guardian.dailycare.domain.CareType;
 import com.memeboo2.haemi.guardian.dailycare.domain.DailyCare;
 import com.memeboo2.haemi.guardian.dailycare.infrastructure.DailyCareRepository;
+import com.memeboo2.haemi.platform.api.MediaUploadCommand;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +25,7 @@ public class GreetingQueryImpl implements GreetingQuery {
     private final DailyCareRepository dailyCareRepository;
     private final AccountQuery accountQuery;
     private final HaemiClock clock;
+    private final MediaUploadCommand mediaUploadCommand;
 
     @Override
     @Transactional(readOnly = true)
@@ -44,7 +46,7 @@ public class GreetingQueryImpl implements GreetingQuery {
     private ReceivedGreeting toReceived(DailyCare c, String guardianName) {
         GreetingContent content = c.getCareType() == CareType.TEXT
                 ? new GreetingContent.Text(c.getText())
-                : new GreetingContent.Voice(c.getMediaKey(), c.getDurationSeconds());
+                : new GreetingContent.Voice(mediaUploadCommand.resolveServingUrl(c.getMediaKey()), c.getDurationSeconds());
         return new ReceivedGreeting(c.getId(), c.getGuardianId(), guardianName, content, c.isRead());
     }
 }

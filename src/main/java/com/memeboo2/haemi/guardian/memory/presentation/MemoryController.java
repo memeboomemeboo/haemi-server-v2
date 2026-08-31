@@ -4,6 +4,7 @@ import com.memeboo2.haemi.common.web.ApiResponse;
 import com.memeboo2.haemi.guardian.api.ResponseQuery;
 import com.memeboo2.haemi.guardian.memory.application.*;
 import com.memeboo2.haemi.guardian.memory.presentation.dto.*;
+import com.memeboo2.haemi.platform.api.MediaUploadCommand;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -28,6 +29,7 @@ public class MemoryController {
     private final GetMemoryResponsesUseCase getMemoryResponsesUseCase;
     private final UpdateMemoryUseCase updateMemoryUseCase;
     private final DeleteMemoryUseCase deleteMemoryUseCase;
+    private final MediaUploadCommand mediaUploadCommand;
 
     @Operation(summary = "추억 등록")
     @ApiResponses({
@@ -62,7 +64,7 @@ public class MemoryController {
         List<MemoryWithCreator> memories = elderId == null
                 ? getMemoriesUseCase.executeAll(guardianId)
                 : getMemoriesUseCase.execute(guardianId, elderId);
-        List<MemorySummaryResponse> result = memories.stream().map(MemorySummaryResponse::from).toList();
+        List<MemorySummaryResponse> result = memories.stream().map(m -> MemorySummaryResponse.from(m, mediaUploadCommand)).toList();
 
         return ResponseEntity.ok(ApiResponse.ok(result));
     }
@@ -79,7 +81,7 @@ public class MemoryController {
             @PathVariable UUID memoryId) {
 
         return ResponseEntity.ok(ApiResponse.ok(
-                MemoryDetailResponse.from(getMemoryDetailUseCase.execute(guardianId, memoryId))));
+                MemoryDetailResponse.from(getMemoryDetailUseCase.execute(guardianId, memoryId), mediaUploadCommand)));
     }
 
     @Operation(summary = "어르신 답변 조회")
