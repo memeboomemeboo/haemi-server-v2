@@ -8,6 +8,7 @@ import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.domain.JavaMethod;
 import com.tngtech.archunit.core.domain.JavaModifier;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
+import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.lang.ArchCondition;
 import com.tngtech.archunit.lang.ConditionEvents;
 import com.tngtech.archunit.lang.SimpleConditionEvent;
@@ -46,7 +47,9 @@ class ArchitectureTest {
 
     @BeforeAll
     static void setup() {
-        classes = new ClassFileImporter().importPackages(BASE_PACKAGE);
+        classes = new ClassFileImporter()
+                .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
+                .importPackages(BASE_PACKAGE);
     }
 
     /** AU-1: 어르신 사용자 ID를 받는 공개 유스케이스는 접근 검증 마커를 남긴다. */
