@@ -115,6 +115,19 @@ class AuthHttpTest {
     }
 
     @Test
+    void 빈_이메일_문자열로_두_계정을_가입해도_모두_201을_반환한다() throws Exception {
+        Map<String, Object> first = registerPayloadMap(loginId);
+        first.put("email", "");
+        Map<String, Object> second = registerPayloadMap("other_" + UUID.randomUUID().toString().substring(0, 8));
+        second.put("email", "");
+
+        assertThat(post("/api/v1/auth/guardians/register", objectMapper.writeValueAsString(first)).statusCode())
+                .isEqualTo(201);
+        assertThat(post("/api/v1/auth/guardians/register", objectMapper.writeValueAsString(second)).statusCode())
+                .isEqualTo(201);
+    }
+
+    @Test
     void 이메일_없이_인증ID만_제출하면_400을_반환한다() throws Exception {
         Map<String, Object> body = registerPayloadMap(loginId);
         body.put("emailVerificationId", UUID.randomUUID());

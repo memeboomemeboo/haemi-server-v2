@@ -44,7 +44,8 @@ public class RegisterGuardianUseCase {
         }
         String hash = passwordService.encode(password);
         String pinHash = passwordService.encode(pin);
-        Account account = Account.guardian(name, loginId, hash, birthDate, phone, email, pinHash);
+        String normalizedEmail = (email == null || email.isBlank()) ? null : email;
+        Account account = Account.guardian(name, loginId, hash, birthDate, phone, normalizedEmail, pinHash);
         try {
             // 선검사(existsBy...)와 insert 사이에 다른 요청이 같은 loginId를 커밋할 수 있다.
             // 유니크 위반을 그대로 두면 커밋 시점에 500이 되므로, 여기서 409로 변환한다.
