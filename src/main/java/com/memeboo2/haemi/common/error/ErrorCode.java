@@ -37,6 +37,7 @@ public enum ErrorCode {
     REPORT_PDF_RENDER_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "리포트 PDF 생성에 실패했습니다."),
 
     // 미디어
+    MEDIA_DUPLICATE_ALREADY_CONFIRMED(HttpStatus.CONFLICT, "같은 파일이 이미 확정되었습니다. 업로드 요청을 다시 시도해 주세요."),
     MEDIA_CONVERSION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "이미지 변환에 실패했습니다.");
 
     private final HttpStatus status;

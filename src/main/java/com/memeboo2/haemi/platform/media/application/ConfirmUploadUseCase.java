@@ -78,6 +78,7 @@ public class ConfirmUploadUseCase implements MediaUploadCommand {
         if (expectedPurpose != null && ref.getMediaType() != MediaType.valueOf(expectedPurpose.name())) {
             throw new DomainException(ErrorCode.INVALID_INPUT, "요청한 용도의 미디어가 아닙니다.");
         }
+        guardSameHashConfirmation(ref);
 
         StoragePort.ObjectMetadata metadata = storage.headObject(ref.getStorageKey())
                 .orElseThrow(() -> new DomainException(ErrorCode.INVALID_INPUT, "업로드된 파일을 찾을 수 없습니다."));
@@ -103,9 +104,9 @@ public class ConfirmUploadUseCase implements MediaUploadCommand {
             if (isHeicImage(ref)) {
                 originalKeyToPurge = ref.getStorageKey();
                 convertHeicToJpeg(ref);
-            } else if (ref.getMediaType() == MediaType.RESPONSE_VOICE) {
-                // 업로드 URL이 가리키는 임시 키와 별도 키를 사용해, confirm 뒤에도 유효한 PUT URL로
-                // 전사 대상 음성이 덮어써지는 것을 막는다.
+            } else {
+                // 확정 객체는 presigned PUT URL이 가리키는 임시 키와 분리한다. URL이 아직 유효해도
+                // 확정 후 서빙·전사 대상의 바이트가 덮어써지지 않는다.
                 originalKeyToPurge = ref.getStorageKey();
                 String confirmedKey = storage.buildStorageKey(ref.getMediaType(), ref.getOriginalFilename());
                 storage.copyObject(originalKeyToPurge, confirmedKey, metadata.eTag());
@@ -114,13 +115,13 @@ public class ConfirmUploadUseCase implements MediaUploadCommand {
             ref.confirm(now);
         }
 
-        // confirm 성공 후에만 원본 HEIC 객체를 정리한다(고아 객체 방지). 실패해도 서빙에는 영향 없음.
+        // confirm 성공 후에만 확정 전 임시 객체를 정리한다(고아 객체 방지). 실패해도 서빙에는 영향 없음.
         if (originalKeyToPurge != null) {
             try {
                 storage.deleteObject(originalKeyToPurge);
             } catch (RuntimeException e) {
                 // best-effort 정리 — 실패는 로깅만 하고 확정 결과를 막지 않는다.
-                log.warn("HEIC 원본 정리 실패(고아 객체 가능): key={}, cause={}", originalKeyToPurge, e.toString());
+                log.warn("확정 전 임시 객체 정리 실패(고아 객체 가능): key={}, cause={}", originalKeyToPurge, e.toString());
             }
         }
 
@@ -129,6 +130,22 @@ public class ConfirmUploadUseCase implements MediaUploadCommand {
 
     private boolean isVoice(MediaType mediaType) {
         return mediaType == MediaType.RESPONSE_VOICE || mediaType == MediaType.GREETING_VOICE;
+    }
+
+    private void guardSameHashConfirmation(MediaRef ref) {
+        if (ref.getContentHash() == null) {
+            return;
+        }
+
+        // 두 요청이 모두 PENDING일 때도 같은 첫 행을 잠가 확인 순서를 직렬화한다.
+        repository.findFirstByUploaderIdAndMediaTypeAndContentHashOrderByIdAsc(
+                ref.getUploaderId(), ref.getMediaType(), ref.getContentHash());
+        repository.findFirstByUploaderIdAndMediaTypeAndContentHashAndStatus(
+                        ref.getUploaderId(), ref.getMediaType(), ref.getContentHash(), UploadStatus.CONFIRMED)
+                .filter(existing -> existing != ref)
+                .ifPresent(existing -> {
+                    throw new DomainException(ErrorCode.MEDIA_DUPLICATE_ALREADY_CONFIRMED);
+                });
     }
 
     private boolean isHeicImage(MediaRef ref) {

@@ -167,6 +167,14 @@ class S3StorageAdapterUnitTest {
         }
 
         @Test
+        void HeadObject가_일반_S3_404를_반환해도_빈_Optional을_반환한다() {
+            when(s3Client.headObject(any(HeadObjectRequest.class)))
+                    .thenThrow(S3Exception.builder().message("not found").statusCode(404).build());
+
+            assertThat(adapter.headObject("missing/1.mp3")).isEmpty();
+        }
+
+        @Test
         void S3Exception이_발생하면_그대로_전파한다() {
             when(s3Client.headObject(any(HeadObjectRequest.class)))
                     .thenThrow(S3Exception.builder().message("boom").statusCode(500).build());
@@ -201,6 +209,14 @@ class S3StorageAdapterUnitTest {
             Optional<StoragePort.StoredContent> result = adapter.getObject("missing/1.jpg");
 
             assertThat(result).isEmpty();
+        }
+
+        @Test
+        void 객체_읽기에서_일반_S3_404도_빈_Optional을_반환한다() {
+            when(s3Client.getObjectAsBytes(any(GetObjectRequest.class)))
+                    .thenThrow(S3Exception.builder().message("not found").statusCode(404).build());
+
+            assertThat(adapter.getObject("missing/1.jpg")).isEmpty();
         }
 
         @Test

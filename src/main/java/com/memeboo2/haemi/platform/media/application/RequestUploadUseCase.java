@@ -36,15 +36,16 @@ public class RequestUploadUseCase {
     @Transactional
     public Result request(UUID uploaderId, MediaType mediaType, String originalFilename, String contentType,
                           long declaredSizeBytes, Integer declaredDurationSeconds, String contentHash) {
-        validate(mediaType, contentType, declaredSizeBytes, declaredDurationSeconds);
+        validate(mediaType, originalFilename, contentType, declaredSizeBytes, declaredDurationSeconds);
 
         // 해시를 한 번만 정규화한다(소문자, 공백/빈값은 null).
         String normalizedHash = (contentHash == null || contentHash.isBlank()) ? null : contentHash.toLowerCase();
 
-        // SHA-256 중복 방지: 동일 업로더가 이미 확정한 동일 해시 객체가 있으면 재사용한다.
+        // SHA-256 중복 방지: 동일 업로더·동일 용도로 이미 확정한 동일 해시 객체만 재사용한다.
+        // MediaRef는 용도를 함께 보관하므로, 다른 용도의 참조를 재사용하면 확정 단계에서 용도 검증이 실패한다.
         if (normalizedHash != null) {
-            Optional<MediaRef> existing = repository.findFirstByUploaderIdAndContentHashAndStatus(
-                    uploaderId, normalizedHash, UploadStatus.CONFIRMED);
+            Optional<MediaRef> existing = repository.findFirstByUploaderIdAndMediaTypeAndContentHashAndStatus(
+                    uploaderId, mediaType, normalizedHash, UploadStatus.CONFIRMED);
             if (existing.isPresent()) {
                 MediaRef reused = existing.get();
                 return Result.duplicate(reused.getId(), storage.generateServingUrl(reused.getStorageKey()));
@@ -68,7 +69,11 @@ public class RequestUploadUseCase {
         return new Result(ref.getId(), presignedUrl, expiresAt, false, null);
     }
 
-    private void validate(MediaType mediaType, String contentType, long sizeBytes, Integer declaredDurationSeconds) {
+    private void validate(MediaType mediaType, String originalFilename, String contentType, long sizeBytes,
+                          Integer declaredDurationSeconds) {
+        if (originalFilename == null || originalFilename.isBlank() || originalFilename.length() > 255) {
+            throw new DomainException(ErrorCode.INVALID_INPUT, "파일명은 255자 이하여야 합니다.");
+        }
         switch (mediaType) {
             case MEMORY_IMAGE, RESPONSE_IMAGE -> {
                 if (!policy.image().allowedContentTypes().contains(contentType))

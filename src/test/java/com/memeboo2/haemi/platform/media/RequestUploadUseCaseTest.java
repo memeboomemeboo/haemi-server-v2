@@ -29,6 +29,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -96,6 +97,18 @@ class RequestUploadUseCaseTest {
     }
 
     @Test
+    void 원본_파일명이_255자를_넘으면_저장소를_호출하지_않고_400() {
+        assertThatThrownBy(() -> useCase.request(
+                UUID.randomUUID(), MediaType.MEMORY_IMAGE, "a".repeat(256) + ".jpg", "image/jpeg", 1_000_000L, null))
+                .isInstanceOf(DomainException.class)
+                .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
+                        .isEqualTo(ErrorCode.INVALID_INPUT));
+
+        verify(storage, never()).buildStorageKey(any(), any());
+        verify(repository, never()).save(any());
+    }
+
+    @Test
     void 음성_파일_발급() {
         RequestUploadUseCase.Result result = useCase.request(
                 UUID.randomUUID(), MediaType.GREETING_VOICE, "hello.aac", "audio/aac", 1_000_000L, 60);
@@ -138,8 +151,9 @@ class RequestUploadUseCaseTest {
         String hash = "A".repeat(64);
         MediaRef existing = MediaRef.pending(MediaType.MEMORY_IMAGE, "memory_image/existing.jpg", "old.jpg",
                 "image/jpeg", 1_000_000L, null, uploaderId, NOW, null, hash.toLowerCase());
-        given(repository.findFirstByUploaderIdAndContentHashAndStatus(
-                uploaderId, hash.toLowerCase(), UploadStatus.CONFIRMED)).willReturn(java.util.Optional.of(existing));
+        given(repository.findFirstByUploaderIdAndMediaTypeAndContentHashAndStatus(
+                uploaderId, MediaType.MEMORY_IMAGE, hash.toLowerCase(), UploadStatus.CONFIRMED))
+                .willReturn(java.util.Optional.of(existing));
         given(storage.generateServingUrl("memory_image/existing.jpg"))
                 .willReturn(URI.create("http://localhost/serve/existing"));
 
@@ -156,8 +170,9 @@ class RequestUploadUseCaseTest {
     void 해시가_있어도_기존이_없으면_정상_발급하고_해시를_저장한다() {
         UUID uploaderId = UUID.randomUUID();
         String hash = "b".repeat(64);
-        given(repository.findFirstByUploaderIdAndContentHashAndStatus(
-                uploaderId, hash, UploadStatus.CONFIRMED)).willReturn(java.util.Optional.empty());
+        given(repository.findFirstByUploaderIdAndMediaTypeAndContentHashAndStatus(
+                uploaderId, MediaType.MEMORY_IMAGE, hash, UploadStatus.CONFIRMED))
+                .willReturn(java.util.Optional.empty());
 
         RequestUploadUseCase.Result result = useCase.request(
                 uploaderId, MediaType.MEMORY_IMAGE, "new.jpg", "image/jpeg", 1_000_000L, null, hash);
@@ -167,6 +182,23 @@ class RequestUploadUseCaseTest {
         ArgumentCaptor<MediaRef> captor = ArgumentCaptor.forClass(MediaRef.class);
         verify(repository).save(captor.capture());
         assertThat(captor.getValue().getContentHash()).isEqualTo(hash);
+    }
+
+    @Test
+    void 동일_해시라도_다른_미디어_용도면_새_업로드를_발급한다() {
+        UUID uploaderId = UUID.randomUUID();
+        String hash = "c".repeat(64);
+        given(repository.findFirstByUploaderIdAndMediaTypeAndContentHashAndStatus(
+                uploaderId, MediaType.MEMORY_IMAGE, hash, UploadStatus.CONFIRMED))
+                .willReturn(java.util.Optional.empty());
+
+        RequestUploadUseCase.Result result = useCase.request(
+                uploaderId, MediaType.MEMORY_IMAGE, "memory.jpg", "image/jpeg", 1_000_000L, null, hash);
+
+        assertThat(result.duplicate()).isFalse();
+        verify(repository).findFirstByUploaderIdAndMediaTypeAndContentHashAndStatus(
+                uploaderId, MediaType.MEMORY_IMAGE, hash, UploadStatus.CONFIRMED);
+        verify(repository).save(any(MediaRef.class));
     }
 
     @Test

@@ -11,6 +11,7 @@ import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
@@ -96,6 +97,11 @@ class S3StorageAdapter implements StoragePort {
             return Optional.of(new ObjectMetadata(head.contentType(), head.contentLength(), duration, head.eTag()));
         } catch (NoSuchKeyException e) {
             return Optional.empty();
+        } catch (S3Exception e) {
+            if (e.statusCode() == 404) {
+                return Optional.empty();
+            }
+            throw e;
         }
     }
 
@@ -109,6 +115,11 @@ class S3StorageAdapter implements StoragePort {
             return Optional.of(new StoredContent(object.response().contentType(), object.asByteArray()));
         } catch (NoSuchKeyException e) {
             return Optional.empty();
+        } catch (S3Exception e) {
+            if (e.statusCode() == 404) {
+                return Optional.empty();
+            }
+            throw e;
         }
     }
 
