@@ -10,5 +10,10 @@ public enum MediaPurpose {
     GREETING_VOICE,
     RESPONSE_IMAGE,
     RESPONSE_VOICE,
+    /**
+     * 훈련 세션의 음성 답변. 추억 응답 음성(RESPONSE_VOICE)과 보관 주기·소비 경로가 달라 용도를 분리한다.
+     * 전환 기간에는 ConfirmUploadUseCase가 RESPONSE_VOICE로 올라온 기존 클라이언트 업로드도 함께 수용한다. (#144)
+     */
+    TRAINING_VOICE_ANSWER,
     PROFILE_IMAGE
 }

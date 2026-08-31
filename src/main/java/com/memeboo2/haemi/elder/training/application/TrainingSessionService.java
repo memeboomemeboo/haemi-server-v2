@@ -92,8 +92,11 @@ public class TrainingSessionService implements TrainingSessionUseCase {
             throw new DomainException(ErrorCode.INVALID_INPUT, "현재 진행 중인 문항이 아닙니다.");
         }
 
+        // 훈련 음성 답변은 추억 응답 음성과 별도 용도다. 전환 기간에는 기존 클라이언트가 올린
+        // RESPONSE_VOICE도 platform/media가 함께 수용한다. (#144)
         String voiceMediaKey = voiceMediaRefId == null ? null
-                : mediaUploadCommand.confirmUploadKey(elderUserId, voiceMediaRefId, MediaPurpose.RESPONSE_VOICE);
+                : mediaUploadCommand.confirmUploadKey(
+                        elderUserId, voiceMediaRefId, MediaPurpose.TRAINING_VOICE_ANSWER);
         Boolean evaluated = question.evaluate(
                 selectedOption, textAnswer, voiceMediaKey, HaemiClock.dateInKst(now));
         answerRepository.save(TrainingAnswer.record(
