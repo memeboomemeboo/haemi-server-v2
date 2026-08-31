@@ -42,7 +42,7 @@ public class RefreshTokenUseCase {
         RefreshToken stored = refreshTokenRepository.findByTokenAndDeviceId(refreshToken, deviceId)
                 .orElseThrow(() -> new DomainException(ErrorCode.AUTH_REFRESH_TOKEN_INVALID));
 
-        if (stored.isExpired()) {
+        if (stored.isExpired(clock.now())) {
             // 별도 트랜잭션으로 정리해, 아래 예외 롤백에 삭제가 휩쓸리지 않게 한다.
             refreshTokenMaintenance.purge(refreshToken, deviceId);
             throw new DomainException(ErrorCode.AUTH_REFRESH_TOKEN_INVALID);

@@ -35,17 +35,19 @@ class RefreshTokenDomainTest {
 
     @Test
     void isExpired는_만료_시각이_과거면_true다() {
+        Instant now = Instant.parse("2026-08-31T00:00:00Z");
         RefreshToken token = RefreshToken.of(
-                UUID.randomUUID(), "device-1", "token-value", Instant.now().minusSeconds(60));
+                UUID.randomUUID(), "device-1", "token-value", now.minusSeconds(60));
 
-        assertThat(token.isExpired()).isTrue();
+        assertThat(token.isExpired(now)).isTrue();
     }
 
     @Test
     void isExpired는_만료_시각이_미래면_false다() {
+        Instant now = Instant.parse("2026-08-31T00:00:00Z");
         RefreshToken token = RefreshToken.of(
-                UUID.randomUUID(), "device-1", "token-value", Instant.now().plusSeconds(3600));
+                UUID.randomUUID(), "device-1", "token-value", now.plusSeconds(3600));
 
-        assertThat(token.isExpired()).isFalse();
+        assertThat(token.isExpired(now)).isFalse();
     }
 }

@@ -86,6 +86,7 @@ class RefreshTokenUseCaseTest {
     void 경쟁_요청이_이미_토큰을_소비했으면_401_이고_재발급하지_않는다() {
         Account account = mock(Account.class);
         lenient().when(account.getId()).thenReturn(accountId);
+        given(clock.now()).willReturn(NOW);
         given(jwtTokenProvider.isValid(refreshToken)).willReturn(true);
         given(refreshTokenRepository.findByTokenAndDeviceId(refreshToken, deviceId))
                 .willReturn(Optional.of(storedToken(deviceId, NOW.plus(Duration.ofDays(7)))));
@@ -135,6 +136,7 @@ class RefreshTokenUseCaseTest {
 
     @Test
     void 만료된_토큰이면_삭제하고_401() {
+        given(clock.now()).willReturn(NOW);
         given(jwtTokenProvider.isValid(refreshToken)).willReturn(true);
         RefreshToken expired = storedToken(deviceId, NOW.minus(Duration.ofDays(1)));
         given(refreshTokenRepository.findByTokenAndDeviceId(refreshToken, deviceId)).willReturn(Optional.of(expired));

@@ -115,6 +115,19 @@ class AuthHttpTest {
     }
 
     @Test
+    void 빈_이메일_문자열로_두_계정을_가입해도_모두_201을_반환한다() throws Exception {
+        Map<String, Object> first = registerPayloadMap(loginId);
+        first.put("email", "");
+        Map<String, Object> second = registerPayloadMap("other_" + UUID.randomUUID().toString().substring(0, 8));
+        second.put("email", "");
+
+        assertThat(post("/api/v1/auth/guardians/register", objectMapper.writeValueAsString(first)).statusCode())
+                .isEqualTo(201);
+        assertThat(post("/api/v1/auth/guardians/register", objectMapper.writeValueAsString(second)).statusCode())
+                .isEqualTo(201);
+    }
+
+    @Test
     void 이메일_없이_인증ID만_제출하면_400을_반환한다() throws Exception {
         Map<String, Object> body = registerPayloadMap(loginId);
         body.put("emailVerificationId", UUID.randomUUID());
@@ -137,6 +150,15 @@ class AuthHttpTest {
     }
 
     @Test
+    void 짧은_loginId로_중복확인하면_400을_반환한다() throws Exception {
+        HttpResponse<String> response = get("/api/v1/auth/login-id/availability?loginId=ab");
+
+        assertThat(response.statusCode()).isEqualTo(400);
+        assertThat(objectMapper.readTree(response.body()).path("error").path("code").asText())
+                .isEqualTo("INVALID_INPUT");
+    }
+
+    @Test
     void 잘못된_비밀번호로_로그인하면_401을_반환한다() throws Exception {
         assertThat(post("/api/v1/auth/guardians/register", registerPayload(loginId)).statusCode()).isEqualTo(201);
 
@@ -155,6 +177,20 @@ class AuthHttpTest {
         JsonNode data = objectMapper.readTree(response.body()).path("data");
         assertThat(data.path("accessToken").asText()).isNotBlank();
         assertThat(data.path("refreshToken").asText()).isNotBlank();
+    }
+
+    @Test
+    void 빈_pin을_함께_보내도_password_로그인은_200을_반환한다() throws Exception {
+        assertThat(post("/api/v1/auth/guardians/register", registerPayload(loginId)).statusCode()).isEqualTo(201);
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("loginId", loginId);
+        body.put("password", password);
+        body.put("pin", "");
+        body.put("deviceId", "test-device");
+
+        HttpResponse<String> response = post("/api/v1/auth/login", objectMapper.writeValueAsString(body));
+
+        assertThat(response.statusCode()).isEqualTo(200);
     }
 
     @Test
