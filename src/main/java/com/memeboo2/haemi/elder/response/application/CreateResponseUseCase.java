@@ -83,7 +83,6 @@ public class CreateResponseUseCase {
 
     private UUID requireTargetMemory(UUID elderUserId, UUID memoryId) {
         UUID elderId = careAccessQuery.elderIdForUser(elderUserId);
-        careAccessQuery.requireSelf(elderUserId, elderId);
         if (elderMemoryQuery.findForElder(memoryId, elderId).isEmpty()) {
             throw new DomainException(ErrorCode.RESOURCE_NOT_FOUND);
         }

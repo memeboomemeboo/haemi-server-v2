@@ -218,7 +218,6 @@ public class TrainingSessionService implements TrainingSessionUseCase {
 
     private UUID requireElderId(UUID elderUserId) {
         UUID elderId = careAccessQuery.elderIdForUser(elderUserId);
-        careAccessQuery.requireSelf(elderUserId, elderId);
         return elderId;
     }
 

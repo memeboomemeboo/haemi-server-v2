@@ -6,6 +6,7 @@ import com.tngtech.archunit.base.DescribedPredicate;
 import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.domain.JavaMethod;
+import com.tngtech.archunit.core.domain.JavaMethodCall;
 import com.tngtech.archunit.core.domain.JavaModifier;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
@@ -24,7 +25,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.lang.reflect.AnnotatedElement;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Stream;
 
@@ -101,6 +104,28 @@ class ArchitectureTest {
 
         assertThat(markerWithoutAccessPort)
                 .as("@ElderAccessChecked 유스케이스는 CareAccessQuery에 의존해야 합니다")
+                .isEmpty();
+    }
+
+    /**
+     * AU-1 보강(메서드 레벨): 각 @ElderAccessChecked 메서드는 본문(또는 같은 클래스의 헬퍼)에서
+     * 실제로 CareAccessQuery를 호출해야 한다. 클래스 레벨 의존만 보면, 다른 메서드가 인가를 호출하는
+     * 클래스에 인가를 빠뜨린 메서드를 하나 추가해도 게이트를 통과한다 — 애노테이션이 "검증했다"고
+     * 주장만 하고 아무도 검증하지 않는 사각(#136)을 이 규칙이 막는다.
+     */
+    @Test
+    void AU1_접근검증_메서드는_본문에서_CareAccessQuery를_호출한다() {
+        var methodsWithoutAccessCall = classes.stream()
+                .filter(javaClass -> !javaClass.isInterface())
+                .filter(ArchitectureTest::isElderUseCaseBoundary)
+                .flatMap(javaClass -> javaClass.getMethods().stream()
+                        .filter(method -> method.isAnnotatedWith(ElderAccessChecked.class))
+                        .filter(method -> !invokesCareAccessQuery(method, javaClass, new HashSet<>())))
+                .map(JavaMethod::getFullName)
+                .toList();
+
+        assertThat(methodsWithoutAccessCall)
+                .as("@ElderAccessChecked 메서드는 본문(또는 같은 클래스 헬퍼)에서 CareAccessQuery를 호출해야 합니다")
                 .isEmpty();
     }
 
@@ -303,6 +328,32 @@ class ArchitectureTest {
                         .flatMap(methodPath -> classPaths.stream()
                                 .map(classPath -> new ControllerMapping(
                                         controller.getSimpleName(), method.getName(), joinPath(classPath, methodPath)))));
+    }
+
+    /**
+     * {@code method}가 CareAccessQuery의 메서드를 직접 호출하거나, 같은 클래스의 헬퍼를 통해
+     * 도달하는지 검사한다. {@code requireElderId} 같은 사설 헬퍼로 인가를 감싼 경우도 인정한다.
+     */
+    private static boolean invokesCareAccessQuery(JavaMethod method, JavaClass owner, Set<String> visited) {
+        if (!visited.add(method.getFullName())) {
+            return false;
+        }
+        for (JavaMethodCall call : method.getMethodCallsFromSelf()) {
+            JavaClass targetOwner = call.getTargetOwner();
+            if (targetOwner.isEquivalentTo(CareAccessQuery.class)) {
+                return true;
+            }
+            if (targetOwner.getName().equals(owner.getName())) {
+                String targetName = call.getTarget().getName();
+                boolean reached = owner.getMethods().stream()
+                        .filter(candidate -> candidate.getName().equals(targetName))
+                        .anyMatch(candidate -> invokesCareAccessQuery(candidate, owner, visited));
+                if (reached) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private static boolean isElderUseCaseBoundary(JavaClass javaClass) {

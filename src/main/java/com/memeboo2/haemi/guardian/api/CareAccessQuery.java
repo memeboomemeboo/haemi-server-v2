@@ -11,10 +11,11 @@ public interface CareAccessQuery {
     /** 링크가 없으면 CARE_ACCESS_DENIED(403). */
     void requireGuardianOf(UUID guardianId, UUID elderId);
 
-    /** 어르신 본인 확인. 어르신 유스케이스의 첫 줄. */
-    void requireSelf(UUID actorId, UUID elderId);
-
-    /** 인증 Account ID를 guardian_elders의 도메인 ID로 해석한다. */
+    /**
+     * 인증 Account ID를 guardian_elders의 도메인 ID로 해석한다.
+     * 해당 어르신이 없으면 RESOURCE_NOT_FOUND로 fail-closed 하므로, 어르신 유스케이스의 본인 인가 관문이다.
+     * (elderId는 이 호출로만 얻으므로 별도 본인 재확인은 항진식이다 — #137)
+     */
     UUID elderIdForUser(UUID userId);
 
     boolean canAccess(UUID guardianId, UUID elderId);
