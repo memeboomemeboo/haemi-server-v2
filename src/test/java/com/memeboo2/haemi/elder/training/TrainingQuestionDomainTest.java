@@ -117,6 +117,25 @@ class TrainingQuestionDomainTest {
     }
 
     @Test
+    void 서술형_한글자_정답키는_아무_답이나_정답으로_만들지_않는다() {
+        // 키가 "봄" 한 글자면 부분 일치 상한이 없어 무관한 답까지 통과하던 문제 (#139)
+        TrainingQuestion question = TrainingQuestion.textOrVoice(
+                sessionId, 5, QuestionType.RECALL, QuestionKind.RECALL_TITLE,
+                "이 사진에 대해 이야기해 주세요.", null, null, "봄", null);
+
+        assertThat(question.evaluate(null, "기억이 안 나요", null, ANY_DATE)).isFalse();
+    }
+
+    @Test
+    void 서술형_두글자_이상_정답키는_부분_일치하면_true다() {
+        TrainingQuestion question = TrainingQuestion.textOrVoice(
+                sessionId, 5, QuestionType.RECALL, QuestionKind.RECALL_TITLE,
+                "이 사진에 대해 이야기해 주세요.", null, null, "봄나들이", null);
+
+        assertThat(question.evaluate(null, "가족과 봄나들이 갔던 날이에요", null, ANY_DATE)).isTrue();
+    }
+
+    @Test
     void choice_모드에서_다중_정답키_중_하나와_일치하면_true를_반환한다() {
         TrainingQuestion question = TrainingQuestion.choice(
                 sessionId, 1, QuestionType.RECALL, QuestionKind.RECALL_TITLE,
