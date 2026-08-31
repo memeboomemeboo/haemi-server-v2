@@ -36,8 +36,9 @@ public class ReminiscenceService {
     @Transactional
     public GeneratedReminiscence generateForElder(UUID elderId, LocalDate date) {
         String prompt = buildPrompt(elderId, date);
-        String content = truncate(generator.generate(prompt));
-        boolean live = generator.isLive();
+        AiTextGenerator.Result result = generator.generate(prompt);
+        String content = truncate(result.text());
+        boolean live = result.live();
 
         GeneratedReminiscence saved = repository.findByElderIdAndContentDate(elderId, date)
                 .map(existing -> {
