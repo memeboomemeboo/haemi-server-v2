@@ -75,6 +75,20 @@ class DailyParticipationWriterUnitTest {
                 eq(Map.of("id", id, "elderId", elderId, "participationDate", date)));
     }
 
+    @Test
+    void DB_메타데이터는_여러_번_삽입해도_한_번만_조회한다() throws Exception {
+        stubDatabaseProductName("PostgreSQL");
+        when(namedParameterJdbcTemplate.update(anyString(), anyMap())).thenReturn(1);
+
+        writer.insertIfAbsent(UUID.randomUUID(), UUID.randomUUID(), LocalDate.now());
+        writer.insertIfAbsent(UUID.randomUUID(), UUID.randomUUID(), LocalDate.now());
+        writer.insertIfAbsent(UUID.randomUUID(), UUID.randomUUID(), LocalDate.now());
+
+        // 방언 판별용 메타데이터 조회(execute)는 최초 1회만 수행되고 이후 캐시된 SQL을 재사용한다. (#140)
+        verify(jdbcTemplate, org.mockito.Mockito.times(1)).execute(any(ConnectionCallback.class));
+        verify(namedParameterJdbcTemplate, org.mockito.Mockito.times(3)).update(anyString(), anyMap());
+    }
+
     private void stubDatabaseProductName(String productName) throws Exception {
         Connection connection = mock(Connection.class);
         DatabaseMetaData metaData = mock(DatabaseMetaData.class);

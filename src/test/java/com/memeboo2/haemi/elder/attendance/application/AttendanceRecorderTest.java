@@ -50,8 +50,9 @@ class AttendanceRecorderTest {
 
     @Test
     void 행이_없으면_멱등_삽입_후_켜고_발행한다() {
-        // 첫 UPDATE는 행이 없어 0, 삽입 후 재시도는 1.
+        // 첫 UPDATE는 행이 없어 0, 행도 없으므로 삽입 후 재시도는 1.
         given(repository.markActivity(elderId, date, true, false, false, false)).willReturn(0, 1);
+        given(repository.existsByElderIdAndParticipationDate(elderId, date)).willReturn(false);
 
         recorder.record(elderId, date, ActivityType.TRAINING);
 
@@ -60,13 +61,14 @@ class AttendanceRecorderTest {
     }
 
     @Test
-    void 이미_켜진_종류면_발행하지_않는다_멱등() {
-        // 행은 있으나 이미 켜져 변화 없음(0), 삽입해도 여전히 0.
-        given(repository.markActivity(elderId, date, true, false, false, false)).willReturn(0, 0);
-        given(participationWriter.insertIfAbsent(any(UUID.class), eq(elderId), eq(date))).willReturn(false);
+    void 행이_있고_이미_켜진_종류면_삽입도_발행도_하지_않는다() {
+        // 행은 있으나 해당 플래그가 이미 켜져 변화 없음(0). 행이 존재하므로 불필요한 삽입·재시도를 하지 않는다 (#141).
+        given(repository.markActivity(elderId, date, true, false, false, false)).willReturn(0);
+        given(repository.existsByElderIdAndParticipationDate(elderId, date)).willReturn(true);
 
         recorder.record(elderId, date, ActivityType.TRAINING);
 
+        verify(participationWriter, never()).insertIfAbsent(any(), any(), any());
         verify(publisher, never()).publishEvent(any());
     }
 }
