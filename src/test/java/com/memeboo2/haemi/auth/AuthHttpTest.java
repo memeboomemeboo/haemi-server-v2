@@ -158,6 +158,20 @@ class AuthHttpTest {
     }
 
     @Test
+    void 빈_pin을_함께_보내도_password_로그인은_200을_반환한다() throws Exception {
+        assertThat(post("/api/v1/auth/guardians/register", registerPayload(loginId)).statusCode()).isEqualTo(201);
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("loginId", loginId);
+        body.put("password", password);
+        body.put("pin", "");
+        body.put("deviceId", "test-device");
+
+        HttpResponse<String> response = post("/api/v1/auth/login", objectMapper.writeValueAsString(body));
+
+        assertThat(response.statusCode()).isEqualTo(200);
+    }
+
+    @Test
     void 리프레시_토큰으로_새_토큰을_재발급한다() throws Exception {
         assertThat(post("/api/v1/auth/guardians/register", registerPayload(loginId)).statusCode()).isEqualTo(201);
         JsonNode loginData = objectMapper.readTree(

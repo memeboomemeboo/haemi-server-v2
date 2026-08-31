@@ -62,7 +62,7 @@ public class AuthController {
     public record LoginRequest(
             @NotBlank String loginId,
             String password,
-            @Pattern(regexp = "\\d{6}") String pin,
+            @Pattern(regexp = "\\d{6}|") String pin,
             @NotBlank @Size(max = 100) String deviceId
     ) {}
 
