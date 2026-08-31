@@ -9,8 +9,12 @@ import org.springframework.jdbc.core.ConnectionCallback;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
+import com.memeboo2.haemi.common.time.HaemiClock;
+
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
+import java.sql.Timestamp;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Map;
 import java.util.UUID;
@@ -34,11 +38,17 @@ class DailyParticipationWriterUnitTest {
     @Mock
     private JdbcTemplate jdbcTemplate;
 
+    @Mock
+    private HaemiClock clock;
+
     private DailyParticipationWriter writer;
+
+    private final Instant now = Instant.parse("2026-08-27T00:00:00Z");
 
     @BeforeEach
     void setUp() {
-        writer = new DailyParticipationWriter(namedParameterJdbcTemplate);
+        writer = new DailyParticipationWriter(namedParameterJdbcTemplate, clock);
+        org.mockito.Mockito.lenient().when(clock.now()).thenReturn(now);
     }
 
     @Test
@@ -72,7 +82,22 @@ class DailyParticipationWriterUnitTest {
         writer.insertIfAbsent(id, elderId, date);
 
         verify(namedParameterJdbcTemplate).update(anyString(),
-                eq(Map.of("id", id, "elderId", elderId, "participationDate", date)));
+                eq(Map.of("id", id, "elderId", elderId, "participationDate", date,
+                        "now", Timestamp.from(now))));
+    }
+
+    @Test
+    void DB_메타데이터는_여러_번_삽입해도_한_번만_조회한다() throws Exception {
+        stubDatabaseProductName("PostgreSQL");
+        when(namedParameterJdbcTemplate.update(anyString(), anyMap())).thenReturn(1);
+
+        writer.insertIfAbsent(UUID.randomUUID(), UUID.randomUUID(), LocalDate.now());
+        writer.insertIfAbsent(UUID.randomUUID(), UUID.randomUUID(), LocalDate.now());
+        writer.insertIfAbsent(UUID.randomUUID(), UUID.randomUUID(), LocalDate.now());
+
+        // 방언 판별용 메타데이터 조회(execute)는 최초 1회만 수행되고 이후 캐시된 SQL을 재사용한다. (#140)
+        verify(jdbcTemplate, org.mockito.Mockito.times(1)).execute(any(ConnectionCallback.class));
+        verify(namedParameterJdbcTemplate, org.mockito.Mockito.times(3)).update(anyString(), anyMap());
     }
 
     private void stubDatabaseProductName(String productName) throws Exception {
