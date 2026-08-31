@@ -39,10 +39,7 @@ public class SecurityConfig {
                         "/api/v1/auth/login", "/api/v1/auth/refresh",
                         "/api/v1/auth/email-verifications/**",
                         "/actuator/health").permitAll();
-                // prod에서는 API 문서 엔드포인트를 익명 열람 불가로 닫는다.
-                if (!isProd) {
-                    auth.requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll();
-                }
+                auth.requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll();
                 // LocalStorageAdapter가 만드는 presigned URL을 개발 환경에서만 재현한다.
                 if (localStorageEnabled) {
                     auth.requestMatchers("/api/v1/internal/storage/**").permitAll();
