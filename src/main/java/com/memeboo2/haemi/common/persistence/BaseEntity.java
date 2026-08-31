@@ -5,6 +5,7 @@ import lombok.Getter;
 import org.springframework.data.annotation.CreatedBy;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.domain.Persistable;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.Instant;
@@ -13,7 +14,7 @@ import java.util.UUID;
 @Getter
 @MappedSuperclass
 @EntityListeners(AuditingEntityListener.class)
-public abstract class BaseEntity {
+public abstract class BaseEntity implements Persistable<UUID> {
 
     @Id
     @Column(columnDefinition = "uuid", updatable = false, nullable = false)
@@ -33,6 +34,21 @@ public abstract class BaseEntity {
 
     @Column
     private Instant deletedAt;
+
+    // JPA가 @PostLoad/@PostPersist로 관리하는 필드 — DB에 저장하지 않음.
+    @Transient
+    private boolean isNew = true;
+
+    @PostPersist
+    @PostLoad
+    void markNotNew() {
+        this.isNew = false;
+    }
+
+    @Override
+    public boolean isNew() {
+        return isNew;
+    }
 
     @PrePersist
     protected void prePersist() {

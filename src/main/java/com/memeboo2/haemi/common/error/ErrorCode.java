@@ -5,6 +5,7 @@ import org.springframework.http.HttpStatus;
 public enum ErrorCode {
 
     // 공통
+    INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다."),
     UNAUTHENTICATED(HttpStatus.UNAUTHORIZED, "인증이 필요합니다."),
     ROLE_NOT_ALLOWED(HttpStatus.FORBIDDEN, "권한이 없습니다."),
     CARE_ACCESS_DENIED(HttpStatus.FORBIDDEN, "해당 어르신에 대한 접근 권한이 없습니다."),

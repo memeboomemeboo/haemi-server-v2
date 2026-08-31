@@ -1,18 +1,19 @@
 package com.memeboo2.haemi.common.persistence;
 
+import com.memeboo2.haemi.common.security.JwtPrincipal;
+import com.memeboo2.haemi.common.time.HaemiClock;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.data.auditing.DateTimeProvider;
 import org.springframework.data.domain.AuditorAware;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.Optional;
 import java.util.UUID;
 
-import com.memeboo2.haemi.common.security.JwtPrincipal;
-import org.springframework.security.core.context.SecurityContextHolder;
-
 @Configuration
-@EnableJpaAuditing(auditorAwareRef = "auditorProvider")
+@EnableJpaAuditing(auditorAwareRef = "auditorProvider", dateTimeProviderRef = "auditingDateTimeProvider")
 public class AuditingConfig {
 
     @Bean
@@ -22,5 +23,10 @@ public class AuditingConfig {
                 .filter(JwtPrincipal.class::isInstance)
                 .map(JwtPrincipal.class::cast)
                 .map(JwtPrincipal::userId);
+    }
+
+    @Bean
+    public DateTimeProvider auditingDateTimeProvider(HaemiClock clock) {
+        return () -> Optional.of(clock.now());
     }
 }
