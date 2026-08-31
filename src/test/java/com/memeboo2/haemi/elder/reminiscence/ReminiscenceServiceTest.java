@@ -4,11 +4,13 @@ import com.memeboo2.haemi.common.time.HaemiClock;
 import com.memeboo2.haemi.guardian.api.ElderProfileQuery;
 import com.memeboo2.haemi.guardian.api.ElderQuery;
 import com.memeboo2.haemi.elder.reminiscence.application.AiTextGenerator;
+import com.memeboo2.haemi.elder.reminiscence.application.GeneratedReminiscenceSaver;
 import com.memeboo2.haemi.elder.reminiscence.application.ReminiscenceService;
 import com.memeboo2.haemi.elder.reminiscence.domain.GeneratedReminiscence;
 import com.memeboo2.haemi.elder.reminiscence.infrastructure.GeneratedReminiscenceRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -19,6 +21,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
@@ -30,68 +33,71 @@ class ReminiscenceServiceTest {
     @Mock ElderQuery elderQuery;
     @Mock ElderProfileQuery elderProfileQuery;
     @Mock GeneratedReminiscenceRepository repository;
+    @Mock GeneratedReminiscenceSaver saver;
     @Mock HaemiClock clock;
 
     ReminiscenceService service() {
-        return new ReminiscenceService(generator, elderQuery, elderProfileQuery, repository, clock);
+        return new ReminiscenceService(generator, elderQuery, elderProfileQuery, repository, saver, clock);
     }
 
     @Test
-    void 신규_어르신은_생성_저장된다() {
+    void 생성_문구와_live를_saver에_넘겨_저장한다() {
         UUID elderId = UUID.randomUUID();
         LocalDate date = LocalDate.of(2026, 8, 26);
         given(elderQuery.findById(elderId)).willReturn(Optional.of(
                 new ElderQuery.ElderInfo(elderId, "김순자", Instant.now())));
         lenient().when(elderProfileQuery.findById(elderId))
                 .thenReturn(new ElderProfileQuery.ElderProfile(LocalDate.of(1948, 1, 1), Instant.now()));
-        given(generator.generate(any())).willReturn("오늘의 회상 문구");
-        given(generator.isLive()).willReturn(true);
-        given(repository.findByElderIdAndContentDate(elderId, date)).willReturn(Optional.empty());
-        given(repository.save(any())).willAnswer(inv -> inv.getArgument(0));
+        given(generator.generate(any())).willReturn(new AiTextGenerator.Result("오늘의 회상 문구", true));
+        GeneratedReminiscence saved = GeneratedReminiscence.of(elderId, date, "오늘의 회상 문구", true);
+        given(saver.upsert(elderId, date, "오늘의 회상 문구", true)).willReturn(saved);
 
         GeneratedReminiscence result = service().generateForElder(elderId, date);
 
-        assertThat(result.getContent()).isEqualTo("오늘의 회상 문구");
-        assertThat(result.isAiGenerated()).isTrue();
-        assertThat(result.getElderId()).isEqualTo(elderId);
-        verify(repository).save(any());
+        assertThat(result).isSameAs(saved);
+        verify(saver).upsert(elderId, date, "오늘의 회상 문구", true);
     }
 
     @Test
-    void 응답이_2000자를_넘으면_잘라서_저장한다() {
+    void 응답이_2000자를_넘으면_잘라서_saver에_넘긴다() {
         UUID elderId = UUID.randomUUID();
         LocalDate date = LocalDate.of(2026, 8, 26);
         given(elderQuery.findById(elderId)).willReturn(Optional.of(
                 new ElderQuery.ElderInfo(elderId, "김순자", Instant.now())));
         lenient().when(elderProfileQuery.findById(elderId))
                 .thenReturn(new ElderProfileQuery.ElderProfile(null, Instant.now()));
-        given(generator.generate(any())).willReturn("가".repeat(3000));
-        given(generator.isLive()).willReturn(true);
-        given(repository.findByElderIdAndContentDate(elderId, date)).willReturn(Optional.empty());
-        given(repository.save(any())).willAnswer(inv -> inv.getArgument(0));
+        given(generator.generate(any())).willReturn(new AiTextGenerator.Result("가".repeat(3000), true));
+        given(saver.upsert(any(), any(), any(), eq(true))).willAnswer(inv ->
+                GeneratedReminiscence.of(inv.getArgument(0), inv.getArgument(1), inv.getArgument(2), inv.getArgument(3)));
 
-        GeneratedReminiscence result = service().generateForElder(elderId, date);
+        service().generateForElder(elderId, date);
 
-        assertThat(result.getContent()).hasSize(2000);
+        ArgumentCaptor<String> content = ArgumentCaptor.forClass(String.class);
+        verify(saver).upsert(eq(elderId), eq(date), content.capture(), eq(true));
+        assertThat(content.getValue()).hasSize(2000);
     }
 
     @Test
-    void 기존_콘텐츠는_갱신된다() {
+    void 절단_경계가_서로게이트_쌍을_쪼개지_않는다() {
         UUID elderId = UUID.randomUUID();
         LocalDate date = LocalDate.of(2026, 8, 26);
-        GeneratedReminiscence existing = GeneratedReminiscence.of(elderId, date, "이전 문구", false);
         given(elderQuery.findById(elderId)).willReturn(Optional.of(
-                new ElderQuery.ElderInfo(elderId, "박영수", Instant.now())));
+                new ElderQuery.ElderInfo(elderId, "김순자", Instant.now())));
         lenient().when(elderProfileQuery.findById(elderId))
                 .thenReturn(new ElderProfileQuery.ElderProfile(null, Instant.now()));
-        given(generator.generate(any())).willReturn("새 문구");
-        given(generator.isLive()).willReturn(false);
-        given(repository.findByElderIdAndContentDate(elderId, date)).willReturn(Optional.of(existing));
+        // 앞 1999자 뒤에 이모지(서로게이트 쌍)를 두면 2000번째 코드 유닛이 high surrogate가 된다.
+        String text = "가".repeat(1999) + "😀" + "나".repeat(100);
+        given(generator.generate(any())).willReturn(new AiTextGenerator.Result(text, true));
+        given(saver.upsert(any(), any(), any(), eq(true))).willAnswer(inv ->
+                GeneratedReminiscence.of(inv.getArgument(0), inv.getArgument(1), inv.getArgument(2), inv.getArgument(3)));
 
-        GeneratedReminiscence result = service().generateForElder(elderId, date);
+        service().generateForElder(elderId, date);
 
-        assertThat(result).isSameAs(existing);
-        assertThat(result.getContent()).isEqualTo("새 문구");
-        verify(repository, org.mockito.Mockito.never()).save(any());
+        ArgumentCaptor<String> content = ArgumentCaptor.forClass(String.class);
+        verify(saver).upsert(eq(elderId), eq(date), content.capture(), eq(true));
+        String saved = content.getValue();
+        // 쪼개진 이모지를 버려 1999자로 자르고, 끝에 짝 잃은 high surrogate가 남지 않아야 한다.
+        assertThat(saved).hasSize(1999);
+        assertThat(Character.isHighSurrogate(saved.charAt(saved.length() - 1))).isFalse();
     }
 }

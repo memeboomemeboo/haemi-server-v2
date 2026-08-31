@@ -94,14 +94,15 @@ class MarkMemoryViewedUseCaseTest {
     }
 
     @Test
-    void 권한없는_접근은_403() {
-        given(careAccessQuery.elderIdForUser(elderUserId)).willReturn(elderId);
-        willThrow(new DomainException(ErrorCode.CARE_ACCESS_DENIED))
-                .given(careAccessQuery).requireSelf(elderUserId, elderId);
+    void 본인_어르신이_아니면_인가에서_막힌다() {
+        // elderIdForUser가 유일한 본인 인가 관문이다: 어르신이 아니거나 링크가 없으면 여기서 fail-closed 된다. (#137)
+        willThrow(new DomainException(ErrorCode.RESOURCE_NOT_FOUND))
+                .given(careAccessQuery).elderIdForUser(elderUserId);
 
         assertThatThrownBy(() -> useCase.execute(elderUserId, memoryId))
                 .isInstanceOf(DomainException.class)
                 .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
-                        .isEqualTo(ErrorCode.CARE_ACCESS_DENIED));
+                        .isEqualTo(ErrorCode.RESOURCE_NOT_FOUND));
+        verify(eventPublisher, never()).publishEvent(org.mockito.ArgumentMatchers.any());
     }
 }

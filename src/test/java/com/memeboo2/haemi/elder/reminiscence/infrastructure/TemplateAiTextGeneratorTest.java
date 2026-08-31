@@ -1,5 +1,6 @@
 package com.memeboo2.haemi.elder.reminiscence.infrastructure;
 
+import com.memeboo2.haemi.elder.reminiscence.application.AiTextGenerator;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -11,29 +12,29 @@ class TemplateAiTextGeneratorTest {
 
     @Test
     void 프롬프트와_무관하게_고정된_회상_문구를_반환한다() {
-        String result = generator.generate("아무 프롬프트");
+        AiTextGenerator.Result result = generator.generate("아무 프롬프트");
 
-        assertThat(result).contains("따뜻한 기억");
-        assertThat(result).isNotBlank();
+        assertThat(result.text()).contains("따뜻한 기억");
+        assertThat(result.text()).isNotBlank();
     }
 
     @Test
     void 빈_프롬프트를_전달해도_동일한_문구를_반환한다() {
-        String result1 = generator.generate("");
-        String result2 = generator.generate("다른 프롬프트");
+        AiTextGenerator.Result result1 = generator.generate("");
+        AiTextGenerator.Result result2 = generator.generate("다른 프롬프트");
 
-        assertThat(result1).isEqualTo(result2);
+        assertThat(result1.text()).isEqualTo(result2.text());
     }
 
     @Test
     void null_프롬프트를_전달해도_예외없이_문구를_반환한다() {
-        String result = generator.generate(null);
+        AiTextGenerator.Result result = generator.generate(null);
 
-        assertThat(result).isNotBlank();
+        assertThat(result.text()).isNotBlank();
     }
 
     @Test
-    void isLive는_항상_false를_반환한다() {
-        assertThat(generator.isLive()).isFalse();
+    void 대체_문구는_항상_live가_false다() {
+        assertThat(generator.generate("아무 프롬프트").live()).isFalse();
     }
 }

@@ -20,7 +20,6 @@ public class GetMemoriesUseCase {
     @ElderAccessChecked
     public List<MemoryItem> execute(UUID elderUserId) {
         UUID elderId = careAccessQuery.elderIdForUser(elderUserId);
-        careAccessQuery.requireSelf(elderUserId, elderId);
         return elderMemoryQuery.listForElder(elderId);
     }
 }

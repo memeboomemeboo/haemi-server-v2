@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.repository.query.Param;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
@@ -16,6 +17,9 @@ public interface DailyParticipationRepository extends JpaRepository<DailyPartici
     boolean existsByElderIdAndParticipationDate(UUID elderId, LocalDate participationDate);
 
     long countByElderId(UUID elderId);
+
+    /** 지정 날짜를 제외한 참여일 수. 완료 직후 배지 집계에서 '오늘'을 항상 1로 더하기 위해 사용한다. */
+    long countByElderIdAndParticipationDateNot(UUID elderId, LocalDate participationDate);
 
     List<DailyParticipation> findByElderId(UUID elderId);
 
@@ -42,7 +46,7 @@ public interface DailyParticipationRepository extends JpaRepository<DailyPartici
                 greeting_read_done = greeting_read_done OR :greetingRead,
                 memory_viewed_done = memory_viewed_done OR :memoryViewed,
                 replied_done       = replied_done       OR :replied,
-                updated_at = now()
+                updated_at = :updatedAt
             WHERE elder_id = :elderId AND participation_date = :participationDate
               AND ( (:training      AND NOT training_done)
                  OR (:greetingRead  AND NOT greeting_read_done)
@@ -54,5 +58,6 @@ public interface DailyParticipationRepository extends JpaRepository<DailyPartici
                      @Param("training") boolean training,
                      @Param("greetingRead") boolean greetingRead,
                      @Param("memoryViewed") boolean memoryViewed,
-                     @Param("replied") boolean replied);
+                     @Param("replied") boolean replied,
+                     @Param("updatedAt") Instant updatedAt);
 }

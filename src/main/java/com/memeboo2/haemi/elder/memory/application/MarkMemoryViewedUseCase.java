@@ -35,7 +35,6 @@ public class MarkMemoryViewedUseCase {
     @ElderAccessChecked
     public void execute(UUID elderUserId, UUID memoryId) {
         UUID elderId = careAccessQuery.elderIdForUser(elderUserId);
-        careAccessQuery.requireSelf(elderUserId, elderId);
 
         // 본인에게 등록된 추억이 아니면 404
         if (elderMemoryQuery.findForElder(memoryId, elderId).isEmpty()) {

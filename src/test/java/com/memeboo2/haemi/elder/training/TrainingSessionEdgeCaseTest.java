@@ -20,6 +20,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /** CIST 세션의 완료 경계와 참여형 언어 응답의 도메인 규칙을 검증한다. */
 class TrainingSessionEdgeCaseTest {
 
+    /** 비-지남력 문항 채점에는 영향이 없는 임의의 채점 날짜. */
+    private static final LocalDate ANY_DATE = LocalDate.of(2026, 8, 26);
+
     @Test
     void 마지막인_10번_문항에서만_세션을_완료하고_이전_문항의_재전송은_막는다() {
         TrainingSession session = TrainingSession.start(
@@ -51,8 +54,8 @@ class TrainingSessionEdgeCaseTest {
                 "사진을 설명해 주세요.", "memory/example.jpg", null, "어린 시절", null);
 
         assertThat(question.getAnswerMode()).isEqualTo(AnswerMode.TEXT_OR_VOICE);
-        assertThat(question.evaluate(null, "가족과 함께 찍은 사진이에요.", null)).isNull();
-        assertThatThrownBy(() -> question.evaluate(null, " ", null)).isInstanceOf(DomainException.class);
+        assertThat(question.evaluate(null, "가족과 함께 찍은 사진이에요.", null, ANY_DATE)).isNull();
+        assertThatThrownBy(() -> question.evaluate(null, " ", null, ANY_DATE)).isInstanceOf(DomainException.class);
     }
 
     @Test
@@ -62,19 +65,38 @@ class TrainingSessionEdgeCaseTest {
                 "몇 년도쯤인가요?", "content/example.jpg", null, "1970", 10, null,
                 List.of("1970", "1980", "1990"));
 
-        assertThat(question.evaluate("1980", null, null)).isTrue();
-        assertThat(question.evaluate("1990", null, null)).isFalse();
+        assertThat(question.evaluate("1980", null, null, ANY_DATE)).isTrue();
+        assertThat(question.evaluate("1990", null, null, ANY_DATE)).isFalse();
     }
 
     @Test
-    void 객관식은_정답_키와_정확히_일치할_때만_정답이다() {
+    void 지남력_날짜는_채점_시각의_날짜와_일치할_때만_정답이다() {
+        LocalDate gradingDate = LocalDate.of(2026, 1, 1);
         TrainingQuestion question = TrainingQuestion.choice(
                 UUID.randomUUID(), 1, QuestionType.ORIENTATION, QuestionKind.ORIENTATION_DATE,
-                "오늘은 며칠인가요?", null, null, "1월 1일", 0, null,
+                "오늘은 며칠인가요?", null, null,
+                TrainingQuestion.orientationAnswer(QuestionKind.ORIENTATION_DATE, gradingDate), 0, null,
                 List.of("1월 1일", "11월 1일"));
 
-        assertThat(question.evaluate("1월 1일", null, null)).isTrue();
-        assertThat(question.evaluate("11월 1일", null, null)).isFalse();
+        assertThat(question.evaluate("1월 1일", null, null, gradingDate)).isTrue();
+        assertThat(question.evaluate("11월 1일", null, null, gradingDate)).isFalse();
+    }
+
+    @Test
+    void 자정을_넘긴_세션의_지남력은_시작일이_아니라_채점일_기준으로_평가한다() {
+        LocalDate sessionStart = LocalDate.of(2026, 8, 25);
+        LocalDate afterMidnight = sessionStart.plusDays(1);
+        // 세션 시작 시점(8/25)에 고정된 정답 키와 보기. 보기에는 다음 날짜(8/26)도 포함된다.
+        TrainingQuestion question = TrainingQuestion.choice(
+                UUID.randomUUID(), 1, QuestionType.ORIENTATION, QuestionKind.ORIENTATION_DATE,
+                "오늘은 며칠인가요?", null, null,
+                TrainingQuestion.orientationAnswer(QuestionKind.ORIENTATION_DATE, sessionStart), 0, null,
+                List.of("8월 25일", "8월 24일", "8월 26일", "8월 27일"));
+
+        // 자정을 넘겨 실제 오늘이 8/26이 된 뒤 정확히 맞는 날짜를 고르면 정답이어야 한다.
+        assertThat(question.evaluate("8월 26일", null, null, afterMidnight)).isTrue();
+        // 세션 시작일(어제)을 고르면 오답이다.
+        assertThat(question.evaluate("8월 25일", null, null, afterMidnight)).isFalse();
     }
 
     @Test
@@ -83,15 +105,15 @@ class TrainingSessionEdgeCaseTest {
         List<String> options = List.of("정답", "오답 1", "오답 2", "오답 3");
 
         TrainingQuestion sameQuestionAgain = TrainingQuestion.choice(
-                sessionId, 1, QuestionType.ORIENTATION, QuestionKind.ORIENTATION_DATE,
-                "오늘은 며칠인가요?", null, null, "정답", 0, null, options);
+                sessionId, 1, QuestionType.RECALL, QuestionKind.RECALL_TITLE,
+                "이 사진과 어울리는 추억은?", null, null, "정답", 0, null, options);
         TrainingQuestion firstQuestion = TrainingQuestion.choice(
-                sessionId, 1, QuestionType.ORIENTATION, QuestionKind.ORIENTATION_DATE,
-                "오늘은 며칠인가요?", null, null, "정답", 0, null, options);
+                sessionId, 1, QuestionType.RECALL, QuestionKind.RECALL_TITLE,
+                "이 사진과 어울리는 추억은?", null, null, "정답", 0, null, options);
         List<TrainingQuestion> questions = java.util.stream.IntStream.rangeClosed(1, 10)
                 .mapToObj(number -> TrainingQuestion.choice(
-                        sessionId, number, QuestionType.ORIENTATION, QuestionKind.ORIENTATION_DATE,
-                        "오늘은 며칠인가요?", null, null, "정답", 0, null, options))
+                        sessionId, number, QuestionType.RECALL, QuestionKind.RECALL_TITLE,
+                        "이 사진과 어울리는 추억은?", null, null, "정답", 0, null, options))
                 .toList();
 
         assertThat(firstQuestion.getOptions()).isEqualTo(sameQuestionAgain.getOptions());

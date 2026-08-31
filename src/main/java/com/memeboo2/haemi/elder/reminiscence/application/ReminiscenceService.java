@@ -26,26 +26,20 @@ public class ReminiscenceService {
     private final ElderQuery elderQuery;
     private final ElderProfileQuery elderProfileQuery;
     private final GeneratedReminiscenceRepository repository;
+    private final GeneratedReminiscenceSaver saver;
     private final HaemiClock clock;
 
     /**
      * 지정 어르신의 지정 날짜 회상 콘텐츠를 생성(또는 갱신)한다. (elderId, date) 당 하나.
      * <p>elderId는 호출부에서 확정된 도메인 ID다: 어르신 엔드포인트는 JWT 사용자 ID를
      * {@code CareAccessQuery.elderIdForUser}로 해석해 본인으로 제한하고, 배치는 신뢰된 시스템 호출이다.
+     * <p>트랜잭션을 걸지 않는다: Gemini 호출(외부 HTTP, 수 초)을 DB 트랜잭션 밖에서 수행해
+     * 커넥션 점유를 막는다. 프롬프트 조회와 저장은 각각 짧은 트랜잭션으로 끝난다.
      */
-    @Transactional
     public GeneratedReminiscence generateForElder(UUID elderId, LocalDate date) {
         String prompt = buildPrompt(elderId, date);
-        String content = truncate(generator.generate(prompt));
-        boolean live = generator.isLive();
-
-        GeneratedReminiscence saved = repository.findByElderIdAndContentDate(elderId, date)
-                .map(existing -> {
-                    existing.update(content, live);
-                    return existing;
-                })
-                .orElseGet(() -> repository.save(GeneratedReminiscence.of(elderId, date, content, live)));
-        return saved;
+        AiTextGenerator.Result result = generator.generate(prompt);
+        return saver.upsert(elderId, date, truncate(result.text()), result.live());
     }
 
     @Transactional(readOnly = true)
@@ -57,7 +51,15 @@ public class ReminiscenceService {
         if (content == null) {
             return "";
         }
-        return content.length() <= MAX_CONTENT_LENGTH ? content : content.substring(0, MAX_CONTENT_LENGTH);
+        if (content.length() <= MAX_CONTENT_LENGTH) {
+            return content;
+        }
+        // 상한 경계가 서로게이트 쌍의 앞(high surrogate)에 걸리면 짝을 쪼개 깨진 문자가 되므로, 한 유닛 덜 자른다.
+        // (LLM 응답의 이모지 등에서 재현 가능. 컬럼 상한은 코드 유닛 기준이라 길이는 여전히 안전하다.)
+        int end = Character.isHighSurrogate(content.charAt(MAX_CONTENT_LENGTH - 1))
+                ? MAX_CONTENT_LENGTH - 1
+                : MAX_CONTENT_LENGTH;
+        return content.substring(0, end);
     }
 
     private String buildPrompt(UUID elderId, LocalDate date) {

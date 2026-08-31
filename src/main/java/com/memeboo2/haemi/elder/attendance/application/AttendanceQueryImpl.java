@@ -112,10 +112,9 @@ public class AttendanceQueryImpl implements AttendanceQuery {
     @Override
     @Transactional(readOnly = true)
     public List<AttendanceBadge> unlockedBadgesAfterCompletion(UUID elderId) {
-        long participationDays = repository.countByElderId(elderId);
-        if (!repository.existsByElderIdAndParticipationDate(elderId, clock.today())) {
-            participationDays++;
-        }
+        // 완료 직후엔 오늘이 반드시 참여일이다. '오늘 제외 카운트 + 1'을 단일 쿼리로 계산하면,
+        // 오늘 행의 커밋 가시성과 무관하게 오늘을 정확히 1로 셈해 count·exists 두 읽기의 경합을 없앤다. (#143)
+        long participationDays = repository.countByElderIdAndParticipationDateNot(elderId, clock.today()) + 1;
         return badgesFor(participationDays);
     }
 

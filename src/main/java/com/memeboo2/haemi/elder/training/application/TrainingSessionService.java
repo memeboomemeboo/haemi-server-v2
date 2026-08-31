@@ -94,7 +94,8 @@ public class TrainingSessionService implements TrainingSessionUseCase {
 
         String voiceMediaKey = voiceMediaRefId == null ? null
                 : mediaUploadCommand.confirmUpload(elderUserId, voiceMediaRefId, MediaPurpose.RESPONSE_VOICE).toString();
-        Boolean evaluated = question.evaluate(selectedOption, textAnswer, voiceMediaKey);
+        Boolean evaluated = question.evaluate(
+                selectedOption, textAnswer, voiceMediaKey, HaemiClock.dateInKst(now));
         answerRepository.save(TrainingAnswer.record(
                 sessionId, questionId, elderId, questionNumber, question.getQuestionType(),
                 selectedOption, textAnswer, voiceMediaKey, evaluated, now));
@@ -218,7 +219,6 @@ public class TrainingSessionService implements TrainingSessionUseCase {
 
     private UUID requireElderId(UUID elderUserId) {
         UUID elderId = careAccessQuery.elderIdForUser(elderUserId);
-        careAccessQuery.requireSelf(elderUserId, elderId);
         return elderId;
     }
 

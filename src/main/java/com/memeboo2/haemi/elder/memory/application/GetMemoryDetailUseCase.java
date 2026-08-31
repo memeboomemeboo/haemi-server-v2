@@ -21,7 +21,6 @@ public class GetMemoryDetailUseCase {
     @ElderAccessChecked
     public MemoryItem execute(UUID elderUserId, UUID memoryId) {
         UUID elderId = careAccessQuery.elderIdForUser(elderUserId);
-        careAccessQuery.requireSelf(elderUserId, elderId);
         return elderMemoryQuery.findForElder(memoryId, elderId)
                 .orElseThrow(() -> new DomainException(ErrorCode.RESOURCE_NOT_FOUND, "추억을 찾을 수 없습니다."));
     }

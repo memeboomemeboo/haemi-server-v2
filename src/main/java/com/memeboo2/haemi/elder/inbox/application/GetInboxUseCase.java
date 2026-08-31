@@ -24,7 +24,6 @@ public class GetInboxUseCase {
     @ElderAccessChecked
     public List<ReceivedGreeting> execute(UUID elderUserId) {
         UUID elderId = careAccessQuery.elderIdForUser(elderUserId);
-        careAccessQuery.requireSelf(elderUserId, elderId);
         LocalDate today = clock.today();
         return greetingQuery.findFor(elderId, today);
     }
