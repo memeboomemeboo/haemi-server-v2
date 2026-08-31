@@ -7,6 +7,7 @@ import com.memeboo2.haemi.elder.training.domain.QuestionType;
 import com.memeboo2.haemi.elder.training.domain.TrainingQuestion;
 import org.junit.jupiter.api.Test;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -16,6 +17,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class TrainingQuestionDomainTest {
 
     private final UUID sessionId = UUID.randomUUID();
+    /** 비-지남력 문항 채점에는 영향이 없는 임의의 채점 날짜. */
+    private static final LocalDate ANY_DATE = LocalDate.of(2026, 8, 26);
 
     @Test
     void choice_모드에서_정답을_선택하면_true를_반환한다() {
@@ -23,7 +26,7 @@ class TrainingQuestionDomainTest {
                 sessionId, 1, QuestionType.RECALL, QuestionKind.RECALL_TITLE,
                 "질문", null, null, "정답", 0, null, List.of("정답", "오답1", "오답2"));
 
-        assertThat(question.evaluate("정답", null, null)).isTrue();
+        assertThat(question.evaluate("정답", null, null, ANY_DATE)).isTrue();
     }
 
     @Test
@@ -32,7 +35,7 @@ class TrainingQuestionDomainTest {
                 sessionId, 1, QuestionType.RECALL, QuestionKind.RECALL_TITLE,
                 "질문", null, null, "정답", 0, null, List.of("정답", "오답1", "오답2"));
 
-        assertThat(question.evaluate("오답1", null, null)).isFalse();
+        assertThat(question.evaluate("오답1", null, null, ANY_DATE)).isFalse();
     }
 
     @Test
@@ -41,7 +44,7 @@ class TrainingQuestionDomainTest {
                 sessionId, 1, QuestionType.RECALL, QuestionKind.RECALL_TITLE,
                 "질문", null, null, "정답", 0, null, List.of("정답", "오답1"));
 
-        assertThatThrownBy(() -> question.evaluate(null, null, null))
+        assertThatThrownBy(() -> question.evaluate(null, null, null, ANY_DATE))
                 .isInstanceOf(DomainException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_INPUT);
     }
@@ -52,7 +55,7 @@ class TrainingQuestionDomainTest {
                 sessionId, 1, QuestionType.RECALL, QuestionKind.RECALL_TITLE,
                 "질문", null, null, "정답", 0, null, List.of("정답", "오답1"));
 
-        assertThatThrownBy(() -> question.evaluate("존재하지않는보기", null, null))
+        assertThatThrownBy(() -> question.evaluate("존재하지않는보기", null, null, ANY_DATE))
                 .isInstanceOf(DomainException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_INPUT);
     }
@@ -63,7 +66,7 @@ class TrainingQuestionDomainTest {
                 sessionId, 1, QuestionType.RECALL, QuestionKind.RECALL_YEAR,
                 "질문", null, null, "2020", 2, null, List.of("2018", "2020", "2025"));
 
-        assertThat(question.evaluate("2018", null, null)).isTrue();
+        assertThat(question.evaluate("2018", null, null, ANY_DATE)).isTrue();
     }
 
     @Test
@@ -72,7 +75,7 @@ class TrainingQuestionDomainTest {
                 sessionId, 1, QuestionType.RECALL, QuestionKind.RECALL_YEAR,
                 "질문", null, null, "2020", 1, null, List.of("2018", "2020", "2025"));
 
-        assertThat(question.evaluate("2018", null, null)).isFalse();
+        assertThat(question.evaluate("2018", null, null, ANY_DATE)).isFalse();
     }
 
     @Test
@@ -81,7 +84,7 @@ class TrainingQuestionDomainTest {
                 sessionId, 1, QuestionType.RECALL, QuestionKind.RECALL_TITLE,
                 "질문", null, null, "정답", null);
 
-        assertThat(question.evaluate(null, "이것은 정답 입니다", null)).isTrue();
+        assertThat(question.evaluate(null, "이것은 정답 입니다", null, ANY_DATE)).isTrue();
     }
 
     @Test
@@ -90,7 +93,7 @@ class TrainingQuestionDomainTest {
                 sessionId, 1, QuestionType.RECALL, QuestionKind.RECALL_TITLE,
                 "질문", null, null, "정답", null);
 
-        assertThat(question.evaluate(null, null, "voice-key")).isNull();
+        assertThat(question.evaluate(null, null, "voice-key", ANY_DATE)).isNull();
     }
 
     @Test
@@ -99,7 +102,7 @@ class TrainingQuestionDomainTest {
                 sessionId, 1, QuestionType.RECALL, QuestionKind.RECALL_TITLE,
                 "질문", null, null, "정답", null);
 
-        assertThatThrownBy(() -> question.evaluate(null, null, null))
+        assertThatThrownBy(() -> question.evaluate(null, null, null, ANY_DATE))
                 .isInstanceOf(DomainException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_INPUT);
     }
@@ -110,7 +113,7 @@ class TrainingQuestionDomainTest {
                 sessionId, 1, QuestionType.LANGUAGE, QuestionKind.LANGUAGE_NAMING,
                 "질문", null, null, "정답", null);
 
-        assertThat(question.evaluate(null, "아무 텍스트", null)).isNull();
+        assertThat(question.evaluate(null, "아무 텍스트", null, ANY_DATE)).isNull();
     }
 
     @Test
@@ -119,6 +122,6 @@ class TrainingQuestionDomainTest {
                 sessionId, 1, QuestionType.RECALL, QuestionKind.RECALL_TITLE,
                 "질문", null, null, "정답1정답2", 0, null, List.of("정답1", "정답2", "오답"));
 
-        assertThat(question.evaluate("정답2", null, null)).isTrue();
+        assertThat(question.evaluate("정답2", null, null, ANY_DATE)).isTrue();
     }
 }
