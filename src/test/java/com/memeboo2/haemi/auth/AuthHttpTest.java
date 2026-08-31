@@ -107,16 +107,21 @@ class AuthHttpTest {
 
     @Test
     void 동일_이메일을_가진_두_번째_직접_INSERT는_uk_accounts_email을_위반한다() throws Exception {
+        // 공유 H2 스키마를 오염시키지 않도록 인덱스는 테스트 종료 시 반드시 제거한다.
         jdbcTemplate.execute("CREATE UNIQUE INDEX IF NOT EXISTS uk_accounts_email ON accounts(email)");
-        String email = "duplicate-" + UUID.randomUUID() + "@example.com";
-        String sql = "INSERT INTO accounts(id, role, name, login_id, password_hash, birth_date, email, " +
-                "failed_login_attempts, pin_login_enabled, created_at, updated_at) " +
-                "VALUES (?, 'GUARDIAN', '테스트', ?, 'x', '1990-01-01', ?, 0, false, NOW(), NOW())";
-        jdbcTemplate.update(sql, UUID.randomUUID().toString(), "user1_" + UUID.randomUUID().toString().substring(0, 6), email);
+        try {
+            String email = "duplicate-" + UUID.randomUUID() + "@example.com";
+            String sql = "INSERT INTO accounts(id, role, name, login_id, password_hash, birth_date, email, " +
+                    "failed_login_attempts, pin_login_enabled, created_at, updated_at) " +
+                    "VALUES (?, 'GUARDIAN', '테스트', ?, 'x', '1990-01-01', ?, 0, false, NOW(), NOW())";
+            jdbcTemplate.update(sql, UUID.randomUUID().toString(), "user1_" + UUID.randomUUID().toString().substring(0, 6), email);
 
-        assertThatThrownBy(() ->
-                jdbcTemplate.update(sql, UUID.randomUUID().toString(), "user2_" + UUID.randomUUID().toString().substring(0, 6), email))
-                .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
+            assertThatThrownBy(() ->
+                    jdbcTemplate.update(sql, UUID.randomUUID().toString(), "user2_" + UUID.randomUUID().toString().substring(0, 6), email))
+                    .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
+        } finally {
+            jdbcTemplate.execute("DROP INDEX IF EXISTS uk_accounts_email");
+        }
     }
 
     @Test

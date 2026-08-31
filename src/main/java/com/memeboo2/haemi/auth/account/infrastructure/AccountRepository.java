@@ -29,10 +29,14 @@ public interface AccountRepository extends JpaRepository<Account, UUID> {
                SET a.failedLoginAttempts = CASE WHEN a.lockedUntil IS NOT NULL AND a.lockedUntil <= :now
                                                 THEN 1
                                                 ELSE a.failedLoginAttempts + 1 END,
-                   a.lockedUntil = CASE WHEN (CASE WHEN a.lockedUntil IS NOT NULL AND a.lockedUntil <= :now
+                   a.lockedUntil = CASE
+                                        WHEN (CASE WHEN a.lockedUntil IS NOT NULL AND a.lockedUntil <= :now
                                                    THEN 1
                                                    ELSE a.failedLoginAttempts + 1 END) >= :maxAttempts
-                                        THEN :lockedUntil ELSE a.lockedUntil END
+                                             THEN :lockedUntil
+                                        WHEN a.lockedUntil IS NOT NULL AND a.lockedUntil <= :now
+                                             THEN NULL
+                                        ELSE a.lockedUntil END
              WHERE a.loginId = :loginId
             """)
     int incrementLoginFailure(@Param("loginId") String loginId,
