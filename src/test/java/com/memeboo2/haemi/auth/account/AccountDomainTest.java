@@ -74,15 +74,17 @@ class AccountDomainTest {
     }
 
     @Test
-    void updateName과_updateBirthDate는_프로필_정보를_교체한다() {
+    void updateName과_updateBirthDate와_updatePhone은_프로필_정보를_교체한다() {
         Account account = Account.guardian(
                 "홍길동", "guardian5", "hashed-pw", "1980-01-01", "010-1234-5678", "guardian5@test.com", "pin-hash");
 
         account.updateName("박승아");
         account.updateBirthDate("1985-06-10");
+        account.updatePhone("010-9999-8888");
 
         assertThat(account.getName()).isEqualTo("박승아");
         assertThat(account.getBirthDate()).isEqualTo("1985-06-10");
+        assertThat(account.getPhone()).isEqualTo("010-9999-8888");
     }
 
     @Test

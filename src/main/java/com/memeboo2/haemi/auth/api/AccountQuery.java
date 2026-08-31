@@ -25,6 +25,8 @@ public interface AccountQuery {
 
     void updateBirthDate(UUID userId, String newBirthDate);
 
+    void updatePhone(UUID userId, String newPhone);
+
     void updateLoginId(UUID userId, String newLoginId);
 
     void updateProfileImageUrl(UUID userId, String profileImageUrl);
