@@ -35,16 +35,6 @@ public class CareAccessQueryImpl implements CareAccessQuery {
     }
 
     @Override
-    public void requireSelf(UUID actorId, UUID elderId) {
-        Elder elder = elderRepository.findById(elderId)
-                .orElseThrow(() -> new DomainException(ErrorCode.RESOURCE_NOT_FOUND));
-        if (!elder.getUserId().equals(actorId)) {
-            log.warn("CareAccess denied (self): actorId={}, elderId={}, at={}", actorId, elderId, Instant.now());
-            throw new DomainException(ErrorCode.CARE_ACCESS_DENIED);
-        }
-    }
-
-    @Override
     public UUID elderIdForUser(UUID userId) {
         return elderRepository.findByUserId(userId)
                 .map(Elder::getId)
