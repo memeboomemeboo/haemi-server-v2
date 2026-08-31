@@ -13,6 +13,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.http.MediaType;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfigurationSource;
 
 import java.io.IOException;
 
@@ -23,11 +24,13 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http, TokenVerifier tokenVerifier,
-                                           Environment environment) throws Exception {
+                                           Environment environment,
+                                           CorsConfigurationSource corsConfigurationSource) throws Exception {
         // prod가 아닌 환경에서만 로컬 스토리지 엔드포인트를 개방한다.
         // prod에는 LocalStorageController 자체가 등록되지 않으므로(@Profile("!prod")) 규칙도 함께 제거한다.
         boolean localStorageEnabled = !environment.matchesProfiles("prod");
         http
+            .cors(cors -> cors.configurationSource(corsConfigurationSource))
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> {
