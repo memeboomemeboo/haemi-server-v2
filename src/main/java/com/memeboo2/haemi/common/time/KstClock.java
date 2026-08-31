@@ -15,6 +15,6 @@ public class KstClock implements HaemiClock {
 
     @Override
     public LocalDate today() {
-        return LocalDate.now(HaemiClock.KST);
+        return HaemiClock.dateInKst(now());
     }
 }
