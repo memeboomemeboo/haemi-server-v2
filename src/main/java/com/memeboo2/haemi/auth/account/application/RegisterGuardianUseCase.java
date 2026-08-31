@@ -39,12 +39,14 @@ public class RegisterGuardianUseCase {
             throw new DomainException(ErrorCode.INVALID_INPUT,
                     "이메일 인증번호를 사용하려면 이메일을 함께 입력해주세요.");
         }
+        // 인증을 거치지 않은 이메일은 저장하지 않는다 — 미인증 주소로 타 계정 선점 및 리포트 오발송 방지.
+        String normalizedEmail = null;
         if (emailVerificationId != null) {
             emailVerificationUseCase.consumeVerified(emailVerificationId, email);
+            normalizedEmail = email.strip();
         }
         String hash = passwordService.encode(password);
         String pinHash = passwordService.encode(pin);
-        String normalizedEmail = (email == null || email.isBlank()) ? null : email;
         Account account = Account.guardian(name, loginId, hash, birthDate, phone, normalizedEmail, pinHash);
         try {
             // 선검사(existsBy...)와 insert 사이에 다른 요청이 같은 loginId를 커밋할 수 있다.
