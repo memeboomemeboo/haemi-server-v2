@@ -4,6 +4,7 @@ import com.memeboo2.haemi.auth.account.application.CheckLoginIdAvailabilityUseCa
 import com.memeboo2.haemi.auth.account.application.RegisterGuardianUseCase;
 import com.memeboo2.haemi.auth.verification.application.EmailVerificationUseCase;
 import com.memeboo2.haemi.auth.session.application.LoginUseCase;
+import com.memeboo2.haemi.auth.session.application.ElderPinLoginUseCase;
 import com.memeboo2.haemi.auth.session.application.LogoutUseCase;
 import com.memeboo2.haemi.auth.session.application.RefreshTokenUseCase;
 import com.memeboo2.haemi.common.security.JwtPrincipal;
@@ -37,6 +38,7 @@ public class AuthController {
     private final CheckLoginIdAvailabilityUseCase checkLoginIdAvailabilityUseCase;
     private final EmailVerificationUseCase emailVerificationUseCase;
     private final LoginUseCase loginUseCase;
+    private final ElderPinLoginUseCase elderPinLoginUseCase;
     private final LogoutUseCase logoutUseCase;
     private final RefreshTokenUseCase refreshTokenUseCase;
 
@@ -48,7 +50,8 @@ public class AuthController {
             @NotBlank @Pattern(regexp = "\\d{6}") String pin,
             @Size(max = 20) String phone,
             @Email @Size(max = 255) String email,
-            UUID emailVerificationId
+            UUID emailVerificationId,
+            @Size(max = 12) String inviteCode
     ) {}
 
     public record LoginIdAvailabilityResponse(
@@ -65,6 +68,11 @@ public class AuthController {
             @Pattern(regexp = "\\d{6}|") String pin,
             @NotBlank @Size(max = 100) String deviceId
     ) {}
+
+    /** 어르신 로그인은 신원 식별자나 기기 식별자 없이 PIN만 받는다. */
+    public record ElderPinLoginRequest(@NotBlank @Pattern(regexp = "\\d{6}") String pin) {}
+
+    public record ElderPinLoginResponse(String accessToken) {}
 
     public record LogoutRequest(@NotBlank @Size(max = 100) String deviceId) {}
 
@@ -83,7 +91,7 @@ public class AuthController {
             @RequestBody @Valid GuardianRegisterRequest req) {
         UUID userId = registerGuardianUseCase.execute(
                 req.name(), req.loginId(), req.password(), req.birthDate(), req.pin(),
-                req.phone(), req.email(), req.emailVerificationId());
+                req.phone(), req.email(), req.emailVerificationId(), req.inviteCode());
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.ok(new RegisterResponse(userId)));
     }
@@ -139,6 +147,19 @@ public class AuthController {
         }
         LoginUseCase.TokenPair pair = loginUseCase.execute(req.loginId(), req.password(), req.pin(), req.deviceId());
         return ResponseEntity.ok(ApiResponse.ok(new TokenResponse(pair.accessToken(), pair.refreshToken())));
+    }
+
+    @Operation(summary = "어르신 PIN 로그인", description = "PIN만으로 어르신 계정을 로그인한다. loginId, password, deviceId는 받지 않는다.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "로그인 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "PIN 불일치 — INVALID_CREDENTIALS"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "423", description = "계정 잠김 — AUTH_ACCOUNT_LOCKED")
+    })
+    @PostMapping("/elders/login")
+    public ResponseEntity<ApiResponse<ElderPinLoginResponse>> loginElder(
+            @RequestBody @Valid ElderPinLoginRequest req) {
+        String accessToken = elderPinLoginUseCase.execute(req.pin());
+        return ResponseEntity.ok(ApiResponse.ok(new ElderPinLoginResponse(accessToken)));
     }
 
     @Operation(summary = "액세스 토큰 재발급", description = "refresh 토큰과 deviceId로 새 access·refresh 토큰을 발급한다. refresh 토큰은 회전된다.")

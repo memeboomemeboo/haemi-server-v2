@@ -26,7 +26,7 @@ public class ElderController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "등록 성공"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409",
-                    description = "어르신 상한 초과(FAMILY_CAPACITY_EXCEEDED) 또는 아이디 중복(LOGIN_ID_ALREADY_TAKEN)")
+                    description = "어르신 상한 초과(FAMILY_CAPACITY_EXCEEDED), 아이디 중복(LOGIN_ID_ALREADY_TAKEN), 또는 PIN 중복(PIN_ALREADY_TAKEN)")
     })
     @PostMapping
     public ResponseEntity<ApiResponse<UUID>> register(

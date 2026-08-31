@@ -2,6 +2,7 @@ package com.memeboo2.haemi.guardian.family.application;
 
 import com.memeboo2.haemi.common.error.DomainException;
 import com.memeboo2.haemi.common.error.ErrorCode;
+import com.memeboo2.haemi.common.family.FamilyJoinCommand;
 import com.memeboo2.haemi.common.persistence.ConstraintViolations;
 import com.memeboo2.haemi.guardian.eldermanagement.domain.ElderRepository;
 import com.memeboo2.haemi.guardian.eldermanagement.domain.GuardianElderLink;
@@ -32,7 +33,7 @@ import java.util.UUID;
  */
 @Component
 @RequiredArgsConstructor
-public class FamilyJoinSaver {
+public class FamilyJoinSaver implements FamilyJoinCommand {
 
     private final FamilyRepository familyRepository;
     private final ElderRepository elderRepository;
@@ -41,6 +42,16 @@ public class FamilyJoinSaver {
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void join(UUID guardianId, String inviteCode) {
+        joinInCurrentTransaction(guardianId, inviteCode);
+    }
+
+    /**
+     * 새 보호자 회원가입 트랜잭션에서 사용한다. 계정 INSERT와 가족 멤버 INSERT를 함께 롤백해
+     * 유효하지 않은 초대 코드로 계정만 생성되는 상태를 막는다.
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    @Override
+    public void joinInCurrentTransaction(UUID guardianId, String inviteCode) {
         Family family = familyRepository.findByInviteCodeForUpdate(inviteCode)
                 .orElseThrow(() -> new DomainException(ErrorCode.RESOURCE_NOT_FOUND, "유효하지 않은 초대 코드입니다."));
 

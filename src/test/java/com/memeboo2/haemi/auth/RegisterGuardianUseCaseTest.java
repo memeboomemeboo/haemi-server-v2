@@ -8,6 +8,7 @@ import com.memeboo2.haemi.auth.credential.PasswordService;
 import com.memeboo2.haemi.auth.verification.application.EmailVerificationUseCase;
 import com.memeboo2.haemi.common.error.DomainException;
 import com.memeboo2.haemi.common.error.ErrorCode;
+import com.memeboo2.haemi.common.family.FamilyJoinCommand;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -15,6 +16,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.UUID;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -28,6 +30,7 @@ class RegisterGuardianUseCaseTest {
     @Mock AccountRepository accountRepository;
     @Mock PasswordService passwordService;
     @Mock EmailVerificationUseCase emailVerificationUseCase;
+    @Mock FamilyJoinCommand familyJoinCommand;
     @InjectMocks RegisterGuardianUseCase sut;
 
     private void stubSaveAssigning(UUID id) throws Exception {
@@ -52,6 +55,21 @@ class RegisterGuardianUseCaseTest {
         UUID result = sut.execute("홍길동", "user01", "pass1234", "1970-01-01", "123456");
 
         assertThat(result).isEqualTo(expectedId);
+    }
+
+    @Test
+    void 초대코드가_입력되면_가입한_보호자를_같은_트랜잭션에서_가족에_합류시킨다() throws Exception {
+        UUID expectedId = UUID.randomUUID();
+        given(accountRepository.existsByLoginId("user01")).willReturn(false);
+        given(passwordService.encode("pass1234")).willReturn("hashed");
+        given(passwordService.encode("123456")).willReturn("pin_hashed");
+        stubSaveAssigning(expectedId);
+
+        UUID result = sut.execute("홍길동", "user01", "pass1234", "1970-01-01", "123456",
+                null, null, null, " INVITE123 ");
+
+        assertThat(result).isEqualTo(expectedId);
+        then(familyJoinCommand).should().joinInCurrentTransaction(expectedId, "INVITE123");
     }
 
     @Test
@@ -131,6 +149,23 @@ class RegisterGuardianUseCaseTest {
                 "김할머니", "elder01", "123456", "1945-01-01", "01011112222", "FEMALE");
 
         assertThat(result).isEqualTo(expectedId);
+    }
+
+    @Test
+    void 어르신_PIN이_이미_사용중이면_등록을_거부한다() {
+        var cmd = new CreateElderAccountUseCase(accountRepository, passwordService);
+        Account existingElder = Account.elder("기존 어르신", "elder01", "password-hash", "pin-hash",
+                "1945-01-01", null, null);
+        given(accountRepository.existsByLoginId("elder02")).willReturn(false);
+        given(accountRepository.findAllByRole(com.memeboo2.haemi.auth.account.domain.AccountRole.ELDER))
+                .willReturn(List.of(existingElder));
+        given(passwordService.matches("123456", "pin-hash")).willReturn(true);
+
+        assertThatThrownBy(() -> cmd.createElderAccount("새 어르신", "elder02", "123456",
+                "1945-01-01", null, null))
+                .isInstanceOf(DomainException.class)
+                .extracting(e -> ((DomainException) e).getErrorCode())
+                .isEqualTo(ErrorCode.PIN_ALREADY_TAKEN);
     }
 
     @Test
