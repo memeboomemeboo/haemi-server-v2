@@ -7,6 +7,7 @@ import com.memeboo2.haemi.auth.verification.application.EmailVerificationUseCase
 import com.memeboo2.haemi.common.error.DomainException;
 import com.memeboo2.haemi.common.error.ErrorCode;
 import com.memeboo2.haemi.common.persistence.ConstraintViolations;
+import com.memeboo2.haemi.common.family.FamilyJoinCommand;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -21,6 +22,7 @@ public class RegisterGuardianUseCase {
     private final AccountRepository accountRepository;
     private final PasswordService passwordService;
     private final EmailVerificationUseCase emailVerificationUseCase;
+    private final FamilyJoinCommand familyJoinCommand;
 
     /** 선택 연락처가 없던 기존 호출부 호환용. */
     @Transactional
@@ -32,6 +34,13 @@ public class RegisterGuardianUseCase {
     @Transactional
     public UUID execute(String name, String loginId, String password, String birthDate, String pin,
                         String phone, String email, UUID emailVerificationId) {
+        return execute(name, loginId, password, birthDate, pin, phone, email, emailVerificationId, null);
+    }
+
+    /** 초대 코드는 선택값이며, 입력 시 계정 생성과 가족 합류를 하나의 트랜잭션으로 처리한다. */
+    @Transactional
+    public UUID execute(String name, String loginId, String password, String birthDate, String pin,
+                        String phone, String email, UUID emailVerificationId, String inviteCode) {
         if (accountRepository.existsByLoginId(loginId)) {
             throw new DomainException(ErrorCode.LOGIN_ID_ALREADY_TAKEN);
         }
@@ -62,6 +71,9 @@ public class RegisterGuardianUseCase {
                 throw new DomainException(ErrorCode.EMAIL_ALREADY_TAKEN);
             }
             throw e;
+        }
+        if (inviteCode != null && !inviteCode.isBlank()) {
+            familyJoinCommand.joinInCurrentTransaction(account.getId(), inviteCode.strip());
         }
         return account.getId();
     }

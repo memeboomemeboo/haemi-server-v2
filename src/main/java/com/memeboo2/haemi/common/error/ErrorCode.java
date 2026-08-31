@@ -18,6 +18,7 @@ public enum ErrorCode {
 
     // 인증
     LOGIN_ID_ALREADY_TAKEN(HttpStatus.CONFLICT, "이미 사용 중인 아이디입니다."),
+    PIN_ALREADY_TAKEN(HttpStatus.CONFLICT, "이미 사용 중인 PIN입니다."),
     INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "아이디 또는 비밀번호가 올바르지 않습니다."),
     EMAIL_VERIFICATION_REQUIRED(HttpStatus.BAD_REQUEST, "이메일 인증이 필요합니다."),
     EMAIL_ALREADY_TAKEN(HttpStatus.CONFLICT, "이미 사용 중인 이메일입니다."),

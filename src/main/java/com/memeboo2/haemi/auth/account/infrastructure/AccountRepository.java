@@ -1,12 +1,14 @@
 package com.memeboo2.haemi.auth.account.infrastructure;
 
 import com.memeboo2.haemi.auth.account.domain.Account;
+import com.memeboo2.haemi.auth.account.domain.AccountRole;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -17,6 +19,12 @@ public interface AccountRepository extends JpaRepository<Account, UUID> {
     boolean existsByLoginId(String loginId);
 
     boolean existsByEmail(String email);
+
+    /**
+     * 어르신 전용 PIN 로그인은 loginId를 받지 않으므로 어르신 계정의 PIN 해시만 검증한다.
+     * PIN은 BCrypt 해시로 저장되어 DB 동등 비교를 할 수 없다.
+     */
+    List<Account> findAllByRole(AccountRole role);
 
     /**
      * 로그인 실패 카운터를 DB에서 직접 증가시키고, 임계값에 도달하면 같은 UPDATE에서 잠금까지 건다.
