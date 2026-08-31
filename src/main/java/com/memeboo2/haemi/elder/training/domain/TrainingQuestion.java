@@ -37,6 +37,9 @@ public class TrainingQuestion extends BaseEntity {
 
     private static final Locale KOREAN = Locale.KOREAN;
 
+    /** 서술형 부분 일치에 쓰는 정답 키의 최소 길이. 너무 짧은 키는 아무 답이나 통과시키므로 제외한다. (#139) */
+    private static final int MIN_DESCRIPTIVE_KEY_LENGTH = 2;
+
     @Column(nullable = false)
     private UUID sessionId;
 
@@ -234,9 +237,13 @@ public class TrainingQuestion extends BaseEntity {
     }
 
     private boolean matchesAnswerKey(String answer) {
+        String normalizedAnswer = normalized(answer);
         return Arrays.stream(answerKey.split("\\u001F"))
                 .map(TrainingQuestion::normalized)
-                .anyMatch(key -> normalized(answer).contains(key));
+                // 부분 문자열 포함은 어르신 서술형에 관대하게 열어두되, 상한 없는 관대함을 막는다:
+                // 한 글자(또는 빈) 키는 "봄"이 "기억이안나봄"까지 정답으로 만들거나 contains("")가 늘 참이 되므로 제외한다. (#139)
+                .filter(key -> key.length() >= MIN_DESCRIPTIVE_KEY_LENGTH)
+                .anyMatch(normalizedAnswer::contains);
     }
 
     private static String normalized(String value) {
