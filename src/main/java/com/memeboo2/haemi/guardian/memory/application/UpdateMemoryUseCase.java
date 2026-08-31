@@ -51,7 +51,7 @@ public class UpdateMemoryUseCase {
         }
 
         List<String> storageKeys = mediaRefIds.stream()
-                .map(refId -> mediaUploadCommand.confirmUpload(guardianId, refId, MediaPurpose.MEMORY_IMAGE).toString())
+                .map(refId -> mediaUploadCommand.confirmUploadKey(guardianId, refId, MediaPurpose.MEMORY_IMAGE))
                 .toList();
 
         memory.update(title, memo, message, memoryYear, memoryMonth, place, storageKeys);

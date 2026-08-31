@@ -6,6 +6,7 @@ import com.memeboo2.haemi.auth.account.infrastructure.AccountRepository;
 import com.memeboo2.haemi.auth.api.AccountQuery;
 import com.memeboo2.haemi.common.error.DomainException;
 import com.memeboo2.haemi.common.error.ErrorCode;
+import com.memeboo2.haemi.platform.api.MediaUploadCommand;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -26,9 +27,16 @@ import static org.mockito.BDDMockito.willReturn;
 class AccountQueryImplTest {
 
     @Mock AccountRepository accountRepository;
+    @Mock MediaUploadCommand mediaUploadCommand;
     @InjectMocks AccountQueryImpl accountQuery;
 
     UUID userId = UUID.randomUUID();
+
+    @org.junit.jupiter.api.BeforeEach
+    void preserveStorageValueInUnitTests() {
+        org.mockito.Mockito.lenient().when(mediaUploadCommand.resolveServingUrl(org.mockito.ArgumentMatchers.any()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+    }
 
     private Account mockAccount(String email) {
         Account account = org.mockito.Mockito.mock(Account.class);

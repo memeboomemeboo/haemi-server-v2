@@ -16,7 +16,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.net.URI;
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.Map;
@@ -105,12 +104,12 @@ class UpdateGuardianProfileUseCaseTest {
     @Test
     void mediaRefId_있으면_프로필_이미지_업데이트() {
         UUID mediaRefId = UUID.randomUUID();
-        given(mediaUploadCommand.confirmUpload(guardianId, mediaRefId, MediaPurpose.PROFILE_IMAGE))
-                .willReturn(URI.create("https://image.example/new.png"));
+        given(mediaUploadCommand.confirmUploadKey(guardianId, mediaRefId, MediaPurpose.PROFILE_IMAGE))
+                .willReturn("profile_image/confirmed.png");
 
         useCase.execute(guardianId, null, null, null, null, mediaRefId, Map.of());
 
-        then(accountQuery).should().updateProfileImageUrl(guardianId, "https://image.example/new.png");
+        then(accountQuery).should().updateProfileImageUrl(guardianId, "profile_image/confirmed.png");
     }
 
     @Test

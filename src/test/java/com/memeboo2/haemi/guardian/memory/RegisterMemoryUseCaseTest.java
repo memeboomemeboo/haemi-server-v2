@@ -17,7 +17,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 
-import java.net.URI;
 import java.util.List;
 import java.util.UUID;
 
@@ -44,8 +43,8 @@ class RegisterMemoryUseCaseTest {
     void 정상_경로_등록_및_이벤트_발행() {
         UUID mediaRefId = UUID.randomUUID();
         given(mediaUploadCommand.memoryImageMaxCount()).willReturn(4);
-        given(mediaUploadCommand.confirmUpload(guardianId, mediaRefId, MediaPurpose.MEMORY_IMAGE))
-                .willReturn(URI.create("https://image.example/memory.png"));
+        given(mediaUploadCommand.confirmUploadKey(guardianId, mediaRefId, MediaPurpose.MEMORY_IMAGE))
+                .willReturn("memory_image/confirmed.png");
         given(memoryRepository.save(any(Memory.class))).willAnswer(invocation -> {
             Memory saved = invocation.getArgument(0);
             java.lang.reflect.Field idField =
@@ -67,6 +66,8 @@ class RegisterMemoryUseCaseTest {
         then(memoryRepository).should().save(memoryCaptor.capture());
         assertThat(memoryCaptor.getValue().getMemoryMonth()).isEqualTo(4);
         assertThat(memoryCaptor.getValue().getPlace()).isEqualTo("구지면");
+        assertThat(memoryCaptor.getValue().getImages()).extracting(image -> image.getStorageKey())
+                .containsExactly("memory_image/confirmed.png");
     }
 
     @Test
@@ -99,7 +100,7 @@ class RegisterMemoryUseCaseTest {
 
         assertThat(result).isNotNull();
         then(mediaUploadCommand).should(org.mockito.Mockito.never())
-                .confirmUpload(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+                .confirmUploadKey(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
     }
 
     @Test

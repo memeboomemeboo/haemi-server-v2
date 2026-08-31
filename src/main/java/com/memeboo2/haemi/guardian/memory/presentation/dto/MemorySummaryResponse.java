@@ -3,6 +3,7 @@ package com.memeboo2.haemi.guardian.memory.presentation.dto;
 import com.memeboo2.haemi.guardian.api.GuardianRole;
 import com.memeboo2.haemi.guardian.memory.application.MemoryWithCreator;
 import com.memeboo2.haemi.guardian.memory.domain.Memory;
+import com.memeboo2.haemi.platform.api.MediaUploadCommand;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.util.UUID;
@@ -25,8 +26,13 @@ public record MemorySummaryResponse(
         boolean isMine
 ) {
     public static MemorySummaryResponse from(MemoryWithCreator mc) {
+        return from(mc, null);
+    }
+
+    public static MemorySummaryResponse from(MemoryWithCreator mc, MediaUploadCommand mediaUploadCommand) {
         Memory m = mc.memory();
         String thumbnail = m.getImages().isEmpty() ? null : m.getImages().get(0).getStorageKey();
+        if (mediaUploadCommand != null) thumbnail = mediaUploadCommand.resolveServingUrl(thumbnail);
         GuardianRole role = mc.creatorRole();
         return new MemorySummaryResponse(m.getId(), m.getElderId(), m.getTitle(), thumbnail, m.isResponded(),
                 m.getPlace(), m.getMemoryYear(), m.getMemoryMonth(),

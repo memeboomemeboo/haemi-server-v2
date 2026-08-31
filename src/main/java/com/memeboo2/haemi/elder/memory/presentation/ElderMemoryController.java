@@ -6,6 +6,7 @@ import com.memeboo2.haemi.elder.memory.application.GetMemoryDetailUseCase;
 import com.memeboo2.haemi.elder.memory.application.MarkMemoryViewedUseCase;
 import com.memeboo2.haemi.elder.memory.presentation.dto.MemoryDetail;
 import com.memeboo2.haemi.elder.memory.presentation.dto.MemorySummary;
+import com.memeboo2.haemi.platform.api.MediaUploadCommand;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +25,7 @@ public class ElderMemoryController {
     private final GetMemoriesUseCase getMemoriesUseCase;
     private final GetMemoryDetailUseCase getMemoryDetailUseCase;
     private final MarkMemoryViewedUseCase markMemoryViewedUseCase;
+    private final MediaUploadCommand mediaUploadCommand;
 
     @Operation(summary = "추억 목록 조회")
     @GetMapping
@@ -31,7 +33,7 @@ public class ElderMemoryController {
             @RequestAttribute("elderUserId") UUID elderUserId) {
 
         List<MemorySummary> result = getMemoriesUseCase.execute(elderUserId)
-                .stream().map(MemorySummary::from).toList();
+                .stream().map(memory -> MemorySummary.from(memory, mediaUploadCommand)).toList();
         return ResponseEntity.ok(ApiResponse.ok(result));
     }
 
@@ -41,7 +43,7 @@ public class ElderMemoryController {
             @RequestAttribute("elderUserId") UUID elderUserId,
             @PathVariable UUID memoryId) {
 
-        MemoryDetail result = MemoryDetail.from(getMemoryDetailUseCase.execute(elderUserId, memoryId));
+        MemoryDetail result = MemoryDetail.from(getMemoryDetailUseCase.execute(elderUserId, memoryId), mediaUploadCommand);
         return ResponseEntity.ok(ApiResponse.ok(result));
     }
 

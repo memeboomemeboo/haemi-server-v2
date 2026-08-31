@@ -6,6 +6,7 @@ import com.memeboo2.haemi.guardian.dailycare.application.SendDailyCareUseCase;
 import com.memeboo2.haemi.guardian.dailycare.presentation.dto.SendTextRequest;
 import com.memeboo2.haemi.guardian.dailycare.presentation.dto.SendVoiceRequest;
 import com.memeboo2.haemi.guardian.dailycare.presentation.dto.SentDailyCareItem;
+import com.memeboo2.haemi.platform.api.MediaUploadCommand;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -26,6 +27,7 @@ public class DailyCareController {
 
     private final SendDailyCareUseCase sendDailyCareUseCase;
     private final GetSentDailyCareHistoryUseCase getSentDailyCareHistoryUseCase;
+    private final MediaUploadCommand mediaUploadCommand;
 
     @Operation(summary = "텍스트 하루 한마디 전송")
     @PostMapping("/text")
@@ -64,7 +66,7 @@ public class DailyCareController {
             @PathVariable UUID elderId) {
 
         List<SentDailyCareItem> result = getSentDailyCareHistoryUseCase.execute(guardianId, elderId)
-                .stream().map(SentDailyCareItem::from).toList();
+                .stream().map(c -> SentDailyCareItem.from(c, mediaUploadCommand)).toList();
         return ResponseEntity.ok(ApiResponse.ok(result));
     }
 }

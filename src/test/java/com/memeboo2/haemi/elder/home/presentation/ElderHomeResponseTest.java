@@ -4,6 +4,7 @@ import com.memeboo2.haemi.elder.home.application.GetElderHomeUseCase.ElderHomeDa
 import com.memeboo2.haemi.elder.home.presentation.dto.ElderHomeResponse;
 import com.memeboo2.haemi.guardian.api.ElderMemoryQuery.MemoryItem;
 import com.memeboo2.haemi.guardian.api.GuardianRole;
+import com.memeboo2.haemi.platform.api.MediaUploadCommand;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -12,6 +13,8 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class ElderHomeResponseTest {
 
@@ -52,5 +55,20 @@ class ElderHomeResponseTest {
         ElderHomeResponse response = ElderHomeResponse.from(data);
 
         assertThat(response.recentMemories().get(0).firstImageKey()).isNull();
+    }
+
+    @Test
+    @DisplayName("최근 추억의 영구 storage key를 serving URL로 변환한다")
+    void from_최근_추억_storage_key를_serving_URL로_변환한다() {
+        MemoryItem memory = new MemoryItem(
+                UUID.randomUUID(), "제목", null, "메시지", null, List.of("memory_image/photo.jpg"),
+                false, Instant.now(), null, null);
+        MediaUploadCommand media = mock(MediaUploadCommand.class);
+        when(media.resolveServingUrl("memory_image/photo.jpg")).thenReturn("https://cdn.example/photo.jpg");
+
+        ElderHomeResponse response = ElderHomeResponse.from(
+                new ElderHomeData(0L, 0L, List.of(memory), false, 0), media);
+
+        assertThat(response.recentMemories().getFirst().firstImageKey()).isEqualTo("https://cdn.example/photo.jpg");
     }
 }

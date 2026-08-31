@@ -30,6 +30,7 @@ public class ConfirmUploadUseCase implements MediaUploadCommand {
     private final HaemiClock clock;
     private final UploadPolicyProperties policy;
     private final HeicImageConverter heicConverter;
+    private final MediaUrlResolver mediaUrlResolver;
 
     @Override
     @Transactional(noRollbackFor = DomainException.class)
@@ -67,8 +68,14 @@ public class ConfirmUploadUseCase implements MediaUploadCommand {
 
     @Override
     @Transactional(noRollbackFor = DomainException.class)
-    public URI confirmUpload(UUID actorId, UUID mediaRefId, MediaPurpose expectedPurpose,
-                             Integer expectedDurationSeconds) {
+    public String confirmUploadKey(UUID actorId, UUID mediaRefId, MediaPurpose expectedPurpose) {
+        return confirmUploadKey(actorId, mediaRefId, expectedPurpose, null);
+    }
+
+    @Override
+    @Transactional(noRollbackFor = DomainException.class)
+    public String confirmUploadKey(UUID actorId, UUID mediaRefId, MediaPurpose expectedPurpose,
+                                   Integer expectedDurationSeconds) {
         MediaRef ref = repository.findById(mediaRefId)
                 .orElseThrow(() -> new DomainException(ErrorCode.RESOURCE_NOT_FOUND));
 
@@ -125,7 +132,20 @@ public class ConfirmUploadUseCase implements MediaUploadCommand {
             }
         }
 
-        return storage.generateServingUrl(ref.getStorageKey());
+        return ref.getStorageKey();
+    }
+
+    @Override
+    @Transactional(noRollbackFor = DomainException.class)
+    public URI confirmUpload(UUID actorId, UUID mediaRefId, MediaPurpose expectedPurpose,
+                             Integer expectedDurationSeconds) {
+        return storage.generateServingUrl(confirmUploadKey(actorId, mediaRefId, expectedPurpose,
+                expectedDurationSeconds));
+    }
+
+    @Override
+    public String resolveServingUrl(String storageKeyOrLegacyUrl) {
+        return mediaUrlResolver.toServingUrl(storageKeyOrLegacyUrl);
     }
 
     /**

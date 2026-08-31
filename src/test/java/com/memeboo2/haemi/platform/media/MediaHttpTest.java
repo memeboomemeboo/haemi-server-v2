@@ -18,6 +18,7 @@ import java.net.http.HttpResponse;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -86,6 +87,23 @@ class MediaHttpTest {
                 .isEqualTo("MEDIA_DUPLICATE_ALREADY_CONFIRMED");
     }
 
+    @Test
+    void 같은_해시의_동시_확정은_500_대신_성공과_409으로_수렴한다() throws Exception {
+        String hash = "b".repeat(64);
+        JsonNode first = objectMapper.readTree(postMediaUpload("first-concurrent.jpg", hash).body()).path("data");
+        JsonNode second = objectMapper.readTree(postMediaUpload("second-concurrent.jpg", hash).body()).path("data");
+        assertThat(put(localUri(first.path("presignedUrl").asText()), "12345").statusCode()).isEqualTo(204);
+        assertThat(put(localUri(second.path("presignedUrl").asText()), "12345").statusCode()).isEqualTo(204);
+
+        CompletableFuture<Integer> firstStatus = CompletableFuture.supplyAsync(
+                () -> confirm(first.path("mediaRefId").asText()));
+        CompletableFuture<Integer> secondStatus = CompletableFuture.supplyAsync(
+                () -> confirm(second.path("mediaRefId").asText()));
+
+        assertThat(java.util.List.of(firstStatus.join(), secondStatus.join()))
+                .containsExactlyInAnyOrder(200, 409);
+    }
+
     private HttpResponse<String> postMediaUpload(String originalFilename) throws Exception {
         return postMediaUpload(originalFilename, null);
     }
@@ -108,6 +126,14 @@ class MediaHttpTest {
                 .POST(HttpRequest.BodyPublishers.ofString(body))
                 .build();
         return httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+    }
+
+    private int confirm(String mediaRefId) {
+        try {
+            return post("/api/v1/media/" + mediaRefId + "/confirm", "").statusCode();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private HttpResponse<String> put(URI uri, String body) throws Exception {

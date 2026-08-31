@@ -188,15 +188,15 @@ sequenceDiagram
     participant O as 오브젝트 스토리지
     C->>S: 1. 업로드 URL 요청 (용도, 파일타입)
     S->>S: 인가 확인 · MediaRef 발급(PENDING)
-    S-->>C: 2. presigned URL + mediaKey
+    S-->>C: 2. presigned URL + mediaRefId
     C->>O: 3. 파일 직접 PUT
-    C->>S: 4. 추억 등록 (mediaKey 4개 포함)
-    S->>S: 5. 키 소유·상태 검증 → CONFIRMED
+    C->>S: 4. 추억 등록 (mediaRefId 최대 4개 포함)
+    S->>S: 5. MediaRef 소유·상태 검증 → CONFIRMED
 ```
 
 **근거**: 음성 1분 + 이미지 4장이 본문에 실리면 요청이 수 MB가 됩니다. 어르신 앱은 불안정한 네트워크를 가정해야 하고, 업로드 실패가 **추억 등록 전체를 실패시키는** 구조는 피해야 합니다.
 
-도메인은 `MediaRef`(키 + 타입 + 크기)만 보관합니다. 스토리지 종류는 `platform/media/infrastructure`가 감춥니다.
+도메인은 `MediaRef`(키 + 타입 + 크기)만 보관합니다. 클라이언트는 도메인 API에 storage key가 아닌 `mediaRefId`를 전달하며, 확정 뒤 도메인 데이터에는 영구 storage key만 저장합니다. 스토리지 종류는 `platform/media/infrastructure`가 감춥니다.
 
 확정할 때는 presigned PUT URL이 가리키는 임시 객체를 서버 전용 확정 키로 복사한 뒤에만 `MediaRef`를 `CONFIRMED`로 전이한다. 그러면 PUT URL의 남은 유효 시간과 무관하게 확정된 사진·음성·전사 원본이 바뀌지 않는다.
 

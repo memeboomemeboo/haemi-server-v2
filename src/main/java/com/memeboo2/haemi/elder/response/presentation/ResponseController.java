@@ -4,6 +4,7 @@ import com.memeboo2.haemi.common.web.ApiResponse;
 import com.memeboo2.haemi.elder.response.application.CreateResponseUseCase;
 import com.memeboo2.haemi.elder.response.application.GetResponsesUseCase;
 import com.memeboo2.haemi.elder.response.presentation.dto.*;
+import com.memeboo2.haemi.platform.api.MediaUploadCommand;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -23,6 +24,7 @@ public class ResponseController {
 
     private final CreateResponseUseCase createResponseUseCase;
     private final GetResponsesUseCase getResponsesUseCase;
+    private final MediaUploadCommand mediaUploadCommand;
 
     @Operation(summary = "마음 전하기")
     @PostMapping("/emotion")
@@ -79,7 +81,7 @@ public class ResponseController {
             @PathVariable UUID memoryId) {
 
         List<ResponseSummary> result = getResponsesUseCase.execute(elderUserId, memoryId)
-                .stream().map(ResponseSummary::from).toList();
+                .stream().map(response -> ResponseSummary.from(response, mediaUploadCommand)).toList();
         return ResponseEntity.ok(ApiResponse.ok(result));
     }
 }

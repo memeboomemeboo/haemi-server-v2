@@ -6,6 +6,7 @@ import com.memeboo2.haemi.elder.response.domain.Response;
 import com.memeboo2.haemi.elder.response.infrastructure.ResponseRepository;
 import com.memeboo2.haemi.guardian.api.ResponseQuery.ElderResponseActivity;
 import com.memeboo2.haemi.guardian.api.ResponseQuery.ResponseItem;
+import com.memeboo2.haemi.platform.api.MediaUploadCommand;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -23,12 +24,15 @@ import static org.mockito.Mockito.when;
 class ResponseQueryImplTest {
 
     @Mock ResponseRepository responseRepository;
+    @Mock MediaUploadCommand mediaUploadCommand;
 
     private ResponseQueryImpl responseQuery;
 
     @BeforeEach
     void setUp() {
-        responseQuery = new ResponseQueryImpl(responseRepository);
+        responseQuery = new ResponseQueryImpl(responseRepository, mediaUploadCommand);
+        org.mockito.Mockito.lenient().when(mediaUploadCommand.resolveServingUrl(org.mockito.ArgumentMatchers.any()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
     }
 
     @Test

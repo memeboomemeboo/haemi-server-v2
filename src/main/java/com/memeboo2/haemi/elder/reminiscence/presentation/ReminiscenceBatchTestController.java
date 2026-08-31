@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "AI 회상 배치 (테스트)", description = "개인화 회상 콘텐츠 배치 수동 트리거 — 비운영 전용")
 @RestController
 @RequiredArgsConstructor
-@Profile("!prod")
+@Profile({"local", "test"})
 @ConditionalOnProperty(prefix = "haemi.ai.reminiscence", name = "manual-trigger-enabled", havingValue = "true")
 public class ReminiscenceBatchTestController {
 

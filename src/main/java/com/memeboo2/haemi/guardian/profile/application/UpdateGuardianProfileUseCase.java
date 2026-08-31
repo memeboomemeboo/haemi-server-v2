@@ -68,7 +68,7 @@ public class UpdateGuardianProfileUseCase {
 
         if (profileImageMediaRefId != null) {
             String profileImageUrl = mediaUploadCommand
-                    .confirmUpload(guardianId, profileImageMediaRefId, MediaPurpose.PROFILE_IMAGE).toString();
+                    .confirmUploadKey(guardianId, profileImageMediaRefId, MediaPurpose.PROFILE_IMAGE);
             accountQuery.updateProfileImageUrl(guardianId, profileImageUrl);
         }
 

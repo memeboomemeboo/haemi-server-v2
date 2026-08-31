@@ -15,7 +15,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.lang.reflect.Field;
-import java.net.URI;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -49,8 +48,8 @@ class UpdateMemoryUseCaseTest {
 
         UUID mediaRefId = UUID.randomUUID();
         given(mediaUploadCommand.memoryImageMaxCount()).willReturn(4);
-        given(mediaUploadCommand.confirmUpload(guardianId, mediaRefId, MediaPurpose.MEMORY_IMAGE))
-                .willReturn(URI.create("https://image.example/new.png"));
+        given(mediaUploadCommand.confirmUploadKey(guardianId, mediaRefId, MediaPurpose.MEMORY_IMAGE))
+                .willReturn("memory_image/confirmed.png");
 
         useCase.execute(guardianId, memoryId, "새제목", "새메모", "새한마디", 2021, 5, "대구",
                 List.of(mediaRefId));
@@ -61,6 +60,8 @@ class UpdateMemoryUseCaseTest {
         assertThat(memory.getMemoryYear()).isEqualTo(2021);
         assertThat(memory.getMemoryMonth()).isEqualTo(5);
         assertThat(memory.getPlace()).isEqualTo("대구");
+        assertThat(memory.getImages()).extracting(image -> image.getStorageKey())
+                .containsExactly("memory_image/confirmed.png");
     }
 
     @Test

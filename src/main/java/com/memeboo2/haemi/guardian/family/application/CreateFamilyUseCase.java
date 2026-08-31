@@ -35,7 +35,7 @@ public class CreateFamilyUseCase {
         });
 
         String profileImageUrl = profileImageMediaRefId == null ? null
-                : mediaUploadCommand.confirmUpload(guardianId, profileImageMediaRefId, MediaPurpose.PROFILE_IMAGE).toString();
+                : mediaUploadCommand.confirmUploadKey(guardianId, profileImageMediaRefId, MediaPurpose.PROFILE_IMAGE);
 
         for (int attempt = 0; attempt < MAX_CODE_ATTEMPTS; attempt++) {
             String inviteCode = inviteCodeGenerator.nextCode();

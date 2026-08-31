@@ -21,6 +21,16 @@ public interface MediaUploadCommand {
     /** 확정된 음성의 서버 검증 길이가 요청 길이와 같은지도 검증한다. */
     URI confirmUpload(UUID actorId, UUID mediaRefId, MediaPurpose expectedPurpose, Integer expectedDurationSeconds);
 
+    /** 확정한 객체의 영구 storage key를 반환한다. 도메인 데이터에는 이 값만 저장한다. */
+    String confirmUploadKey(UUID actorId, UUID mediaRefId, MediaPurpose expectedPurpose);
+
+    /** 확정한 객체의 영구 storage key를 반환한다. */
+    String confirmUploadKey(UUID actorId, UUID mediaRefId, MediaPurpose expectedPurpose,
+                            Integer expectedDurationSeconds);
+
+    /** storage key를 현재 유효한 serving URL로 변환한다. */
+    String resolveServingUrl(String storageKeyOrLegacyUrl);
+
     /** 확정된 음성 응답의 재생 시간을 응답 레코드에 고정하기 위한 업로드 메타데이터 조회. */
     Integer declaredDurationSeconds(UUID mediaRefId);
 

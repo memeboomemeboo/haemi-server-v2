@@ -60,7 +60,7 @@ public class CreateResponseUseCase {
     @ElderAccessChecked
     public UUID image(UUID elderUserId, UUID memoryId, UUID mediaRefId) {
         UUID elderId = requireTargetMemory(elderUserId, memoryId);
-        String mediaKey = mediaUploadCommand.confirmUpload(elderUserId, mediaRefId, MediaPurpose.RESPONSE_IMAGE).toString();
+        String mediaKey = mediaUploadCommand.confirmUploadKey(elderUserId, mediaRefId, MediaPurpose.RESPONSE_IMAGE);
         Response r = Response.image(memoryId, elderId, mediaKey);
         r = responseRepository.save(r);
         eventPublisher.publishEvent(new ElderResponded(memoryId, elderId, clock.today()));
@@ -72,7 +72,7 @@ public class CreateResponseUseCase {
     @ElderAccessChecked
     public UUID voice(UUID elderUserId, UUID memoryId, UUID mediaRefId) {
         UUID elderId = requireTargetMemory(elderUserId, memoryId);
-        String mediaKey = mediaUploadCommand.confirmUpload(elderUserId, mediaRefId, MediaPurpose.RESPONSE_VOICE).toString();
+        String mediaKey = mediaUploadCommand.confirmUploadKey(elderUserId, mediaRefId, MediaPurpose.RESPONSE_VOICE);
         Integer durationSeconds = mediaUploadCommand.declaredDurationSeconds(mediaRefId);
         Response r = Response.voice(memoryId, elderId, mediaKey, durationSeconds);
         r = responseRepository.save(r);

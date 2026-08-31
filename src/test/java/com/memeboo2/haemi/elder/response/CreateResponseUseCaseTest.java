@@ -108,8 +108,8 @@ class CreateResponseUseCaseTest {
     @Test
     void 음성_정상() {
         UUID refId = UUID.randomUUID();
-        given(mediaUploadCommand.confirmUpload(elderUserId, refId, MediaPurpose.RESPONSE_VOICE))
-                .willReturn(URI.create("http://localhost/serve?key=voice.aac"));
+        given(mediaUploadCommand.confirmUploadKey(elderUserId, refId, MediaPurpose.RESPONSE_VOICE))
+                .willReturn("response_voice/voice.aac");
         given(mediaUploadCommand.declaredDurationSeconds(refId)).willReturn(42);
         given(responseRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
 
@@ -118,7 +118,7 @@ class CreateResponseUseCaseTest {
         ArgumentCaptor<Response> captor = ArgumentCaptor.forClass(Response.class);
         verify(responseRepository).save(captor.capture());
         assertThat(captor.getValue().getResponseType()).isEqualTo(ResponseType.VOICE);
-        assertThat(captor.getValue().getMediaKey()).contains("voice.aac");
+        assertThat(captor.getValue().getMediaKey()).isEqualTo("response_voice/voice.aac");
         assertThat(captor.getValue().getDurationSeconds()).isEqualTo(42);
 
         ArgumentCaptor<VoiceResponseCreated> eventCaptor = ArgumentCaptor.forClass(VoiceResponseCreated.class);
