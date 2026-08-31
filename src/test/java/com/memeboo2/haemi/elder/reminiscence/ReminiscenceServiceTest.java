@@ -76,4 +76,28 @@ class ReminiscenceServiceTest {
         verify(saver).upsert(eq(elderId), eq(date), content.capture(), eq(true));
         assertThat(content.getValue()).hasSize(2000);
     }
+
+    @Test
+    void 절단_경계가_서로게이트_쌍을_쪼개지_않는다() {
+        UUID elderId = UUID.randomUUID();
+        LocalDate date = LocalDate.of(2026, 8, 26);
+        given(elderQuery.findById(elderId)).willReturn(Optional.of(
+                new ElderQuery.ElderInfo(elderId, "김순자", Instant.now())));
+        lenient().when(elderProfileQuery.findById(elderId))
+                .thenReturn(new ElderProfileQuery.ElderProfile(null, Instant.now()));
+        // 앞 1999자 뒤에 이모지(서로게이트 쌍)를 두면 2000번째 코드 유닛이 high surrogate가 된다.
+        String text = "가".repeat(1999) + "😀" + "나".repeat(100);
+        given(generator.generate(any())).willReturn(new AiTextGenerator.Result(text, true));
+        given(saver.upsert(any(), any(), any(), eq(true))).willAnswer(inv ->
+                GeneratedReminiscence.of(inv.getArgument(0), inv.getArgument(1), inv.getArgument(2), inv.getArgument(3)));
+
+        service().generateForElder(elderId, date);
+
+        ArgumentCaptor<String> content = ArgumentCaptor.forClass(String.class);
+        verify(saver).upsert(eq(elderId), eq(date), content.capture(), eq(true));
+        String saved = content.getValue();
+        // 쪼개진 이모지를 버려 1999자로 자르고, 끝에 짝 잃은 high surrogate가 남지 않아야 한다.
+        assertThat(saved).hasSize(1999);
+        assertThat(Character.isHighSurrogate(saved.charAt(saved.length() - 1))).isFalse();
+    }
 }
