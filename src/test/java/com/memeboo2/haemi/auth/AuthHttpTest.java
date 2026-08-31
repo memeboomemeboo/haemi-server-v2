@@ -150,6 +150,15 @@ class AuthHttpTest {
     }
 
     @Test
+    void 짧은_loginId로_중복확인하면_400을_반환한다() throws Exception {
+        HttpResponse<String> response = get("/api/v1/auth/login-id/availability?loginId=ab");
+
+        assertThat(response.statusCode()).isEqualTo(400);
+        assertThat(objectMapper.readTree(response.body()).path("error").path("code").asText())
+                .isEqualTo("INVALID_INPUT");
+    }
+
+    @Test
     void 잘못된_비밀번호로_로그인하면_401을_반환한다() throws Exception {
         assertThat(post("/api/v1/auth/guardians/register", registerPayload(loginId)).statusCode()).isEqualTo(201);
 

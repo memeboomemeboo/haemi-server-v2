@@ -1,6 +1,7 @@
 package com.memeboo2.haemi.common.error;
 
 import com.memeboo2.haemi.common.web.ApiResponse;
+import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
@@ -38,6 +39,16 @@ public class GlobalExceptionHandler {
         String message = first != null ? first.getDefaultMessage() : ErrorCode.INVALID_INPUT.getDefaultMessage();
         return ResponseEntity.badRequest()
                 .body(ApiResponse.error(ErrorCode.INVALID_INPUT.name(), message, field));
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleConstraintViolation(ConstraintViolationException ex) {
+        String message = ex.getConstraintViolations().stream()
+                .findFirst()
+                .map(v -> v.getMessage())
+                .orElse(ErrorCode.INVALID_INPUT.getDefaultMessage());
+        return ResponseEntity.badRequest()
+                .body(ApiResponse.error(ErrorCode.INVALID_INPUT.name(), message));
     }
 
     @ExceptionHandler({HttpMessageNotReadableException.class, MissingRequestValueException.class,
