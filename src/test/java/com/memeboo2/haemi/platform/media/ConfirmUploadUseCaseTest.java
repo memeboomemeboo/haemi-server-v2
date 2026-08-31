@@ -517,4 +517,81 @@ class ConfirmUploadUseCaseTest {
         assertThat(ref.getStorageKey()).isEqualTo("memory_image/key.heic");
         org.mockito.Mockito.verify(storage, org.mockito.Mockito.never()).deleteObject(any());
     }
+
+    @Test
+    void 기존_클라이언트가_RESPONSE_VOICE로_올린_훈련_음성도_확정된다() {
+        UUID actorId = UUID.randomUUID();
+        UUID refId = UUID.randomUUID();
+        String temporaryKey = "response_voice/temporary.aac";
+        String confirmedKey = "response_voice/confirmed.aac";
+        // 전환 기간: 클라이언트는 아직 RESPONSE_VOICE로 업로드하지만 훈련은 TRAINING_VOICE_ANSWER를 기대한다. (#144)
+        MediaRef ref = MediaRef.pending(MediaType.RESPONSE_VOICE, temporaryKey, "answer.aac",
+                "audio/aac", 3L, 12, actorId, EXPIRY, NOW.plusSeconds(86400L), null);
+        given(repository.findById(refId)).willReturn(Optional.of(ref));
+        given(storage.headObject(temporaryKey)).willReturn(Optional.of(
+                new StoragePort.ObjectMetadata("audio/aac", 3L, 12, "etag-before-copy")));
+        given(policy.voice()).willReturn(new UploadPolicyProperties.Voice(
+                12_582_912L, 60, List.of("audio/aac")));
+        given(clock.now()).willReturn(NOW);
+        given(storage.buildStorageKey(MediaType.RESPONSE_VOICE, "answer.aac")).willReturn(confirmedKey);
+        given(storage.generateServingUrl(confirmedKey)).willReturn(URI.create("http://localhost/serve/confirmed"));
+
+        URI servingUrl = useCase.confirmUpload(actorId, refId, MediaPurpose.TRAINING_VOICE_ANSWER);
+
+        assertThat(servingUrl).isEqualTo(URI.create("http://localhost/serve/confirmed"));
+        assertThat(ref.getStatus()).isEqualTo(UploadStatus.CONFIRMED);
+    }
+
+    @Test
+    void 새_클라이언트의_TRAINING_VOICE_ANSWER도_음성으로_검증되고_확정된다() {
+        UUID actorId = UUID.randomUUID();
+        UUID refId = UUID.randomUUID();
+        String temporaryKey = "training_voice_answer/temporary.aac";
+        String confirmedKey = "training_voice_answer/confirmed.aac";
+        MediaRef ref = MediaRef.pending(MediaType.TRAINING_VOICE_ANSWER, temporaryKey, "answer.aac",
+                "audio/aac", 3L, 12, actorId, EXPIRY, NOW.plusSeconds(86400L), null);
+        given(repository.findById(refId)).willReturn(Optional.of(ref));
+        given(storage.headObject(temporaryKey)).willReturn(Optional.of(
+                new StoragePort.ObjectMetadata("audio/aac", 3L, 12, "etag-before-copy")));
+        // isVoice에 새 타입이 포함돼야 길이 검증을 거친다.
+        given(policy.voice()).willReturn(new UploadPolicyProperties.Voice(
+                12_582_912L, 60, List.of("audio/aac")));
+        given(clock.now()).willReturn(NOW);
+        given(storage.buildStorageKey(MediaType.TRAINING_VOICE_ANSWER, "answer.aac")).willReturn(confirmedKey);
+        given(storage.generateServingUrl(confirmedKey)).willReturn(URI.create("http://localhost/serve/confirmed"));
+
+        URI servingUrl = useCase.confirmUpload(actorId, refId, MediaPurpose.TRAINING_VOICE_ANSWER);
+
+        assertThat(servingUrl).isEqualTo(URI.create("http://localhost/serve/confirmed"));
+        assertThat(ref.getStatus()).isEqualTo(UploadStatus.CONFIRMED);
+    }
+
+    @Test
+    void 훈련_음성은_추억_응답_음성_용도로는_확정되지_않는다() {
+        UUID actorId = UUID.randomUUID();
+        UUID refId = UUID.randomUUID();
+        // 호환은 한 방향뿐이다: TRAINING_VOICE_ANSWER 기대 ← RESPONSE_VOICE 수용.
+        // 반대 방향까지 열면 격리가 아니라 단순 별칭이 된다.
+        MediaRef ref = MediaRef.pending(MediaType.TRAINING_VOICE_ANSWER, "training_voice_answer/key.aac",
+                "answer.aac", "audio/aac", 3L, 12, actorId, EXPIRY, NOW.plusSeconds(86400L), null);
+        given(repository.findById(refId)).willReturn(Optional.of(ref));
+
+        assertThatThrownBy(() -> useCase.confirmUpload(actorId, refId, MediaPurpose.RESPONSE_VOICE))
+                .isInstanceOf(DomainException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_INPUT);
+        assertThat(ref.getStatus()).isEqualTo(UploadStatus.PENDING);
+    }
+
+    @Test
+    void 훈련_음성은_STT_후속처리에서_추억_응답_음성으로_읽히지_않는다() {
+        UUID actorId = UUID.randomUUID();
+        UUID refId = UUID.randomUUID();
+        MediaRef ref = MediaRef.pending(MediaType.TRAINING_VOICE_ANSWER, "training_voice_answer/key.aac",
+                "answer.aac", "audio/aac", 3L, 12, actorId, EXPIRY, NOW.plusSeconds(86400L), null);
+        ref.confirm(NOW);
+        given(repository.findById(refId)).willReturn(Optional.of(ref));
+
+        assertThat(useCase.readConfirmedMedia(refId, MediaPurpose.RESPONSE_VOICE)).isEmpty();
+        org.mockito.Mockito.verifyNoInteractions(storage);
+    }
 }
