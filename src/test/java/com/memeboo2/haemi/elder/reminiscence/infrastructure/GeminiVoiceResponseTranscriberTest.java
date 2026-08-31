@@ -36,7 +36,7 @@ class GeminiVoiceResponseTranscriberTest {
 
     @BeforeEach
     void setUp() {
-        GeminiProperties props = new GeminiProperties("test-api-key", "gemini-2.0-flash",
+        GeminiProperties props = new GeminiProperties("test-api-key", "gemini-3.5-flash",
                 "https://example.invalid", Duration.ofSeconds(5), Duration.ofSeconds(20), 12_582_912L, 2);
         transcriber = new GeminiVoiceResponseTranscriber(restClient, props);
 
@@ -95,7 +95,7 @@ class GeminiVoiceResponseTranscriberTest {
 
     @Test
     void inline_크기를_넘는_음성은_Gemini를_호출하지_않는다() {
-        GeminiProperties tinyLimit = new GeminiProperties("test-api-key", "gemini-2.0-flash",
+        GeminiProperties tinyLimit = new GeminiProperties("test-api-key", "gemini-3.5-flash",
                 "https://example.invalid", Duration.ofSeconds(5), Duration.ofSeconds(20), 1L, 2);
         GeminiVoiceResponseTranscriber limited = new GeminiVoiceResponseTranscriber(restClient, tinyLimit);
 
@@ -142,7 +142,7 @@ class GeminiVoiceResponseTranscriberTest {
 
     @Test
     void 잘못된_동시_요청_설정은_생성시_거부한다() {
-        GeminiProperties invalid = new GeminiProperties("test-api-key", "gemini-2.0-flash",
+        GeminiProperties invalid = new GeminiProperties("test-api-key", "gemini-3.5-flash",
                 "https://example.invalid", Duration.ofSeconds(5), Duration.ofSeconds(20), 1L, 0);
 
         assertThatThrownBy(() -> new GeminiVoiceResponseTranscriber(restClient, invalid))

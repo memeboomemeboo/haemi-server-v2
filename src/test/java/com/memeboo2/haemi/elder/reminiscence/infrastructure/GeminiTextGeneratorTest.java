@@ -34,7 +34,7 @@ class GeminiTextGeneratorTest {
 
     @BeforeEach
     void setUp() {
-        props = new GeminiProperties("test-api-key", "gemini-2.0-flash",
+        props = new GeminiProperties("test-api-key", "gemini-3.5-flash",
                 "https://example.invalid", Duration.ofSeconds(5), Duration.ofSeconds(20), 12_582_912L, 2);
         generator = new GeminiTextGenerator(restClient, props);
 
