@@ -26,27 +26,20 @@ public class ReminiscenceService {
     private final ElderQuery elderQuery;
     private final ElderProfileQuery elderProfileQuery;
     private final GeneratedReminiscenceRepository repository;
+    private final GeneratedReminiscenceSaver saver;
     private final HaemiClock clock;
 
     /**
      * 지정 어르신의 지정 날짜 회상 콘텐츠를 생성(또는 갱신)한다. (elderId, date) 당 하나.
      * <p>elderId는 호출부에서 확정된 도메인 ID다: 어르신 엔드포인트는 JWT 사용자 ID를
      * {@code CareAccessQuery.elderIdForUser}로 해석해 본인으로 제한하고, 배치는 신뢰된 시스템 호출이다.
+     * <p>트랜잭션을 걸지 않는다: Gemini 호출(외부 HTTP, 수 초)을 DB 트랜잭션 밖에서 수행해
+     * 커넥션 점유를 막는다. 프롬프트 조회와 저장은 각각 짧은 트랜잭션으로 끝난다.
      */
-    @Transactional
     public GeneratedReminiscence generateForElder(UUID elderId, LocalDate date) {
         String prompt = buildPrompt(elderId, date);
         AiTextGenerator.Result result = generator.generate(prompt);
-        String content = truncate(result.text());
-        boolean live = result.live();
-
-        GeneratedReminiscence saved = repository.findByElderIdAndContentDate(elderId, date)
-                .map(existing -> {
-                    existing.update(content, live);
-                    return existing;
-                })
-                .orElseGet(() -> repository.save(GeneratedReminiscence.of(elderId, date, content, live)));
-        return saved;
+        return saver.upsert(elderId, date, truncate(result.text()), result.live());
     }
 
     @Transactional(readOnly = true)
