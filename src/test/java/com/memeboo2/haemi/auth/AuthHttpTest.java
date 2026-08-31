@@ -4,7 +4,11 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.memeboo2.haemi.auth.account.domain.AccountRole;
 import com.memeboo2.haemi.auth.account.infrastructure.AccountRepository;
+import com.memeboo2.haemi.auth.account.domain.Account;
+import com.memeboo2.haemi.auth.credential.PasswordService;
 import com.memeboo2.haemi.auth.api.JwtTokenProvider;
+import com.memeboo2.haemi.guardian.family.domain.Family;
+import com.memeboo2.haemi.guardian.family.domain.FamilyRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,6 +36,8 @@ class AuthHttpTest {
     @LocalServerPort int port;
     @Autowired JwtTokenProvider jwtTokenProvider;
     @Autowired AccountRepository accountRepository;
+    @Autowired FamilyRepository familyRepository;
+    @Autowired PasswordService passwordService;
     @Autowired JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private String loginId;
@@ -90,6 +96,50 @@ class AuthHttpTest {
         assertThat(response.statusCode()).isEqualTo(201);
         UUID userId = UUID.fromString(objectMapper.readTree(response.body()).path("data").path("userId").asText());
         assertThat(accountRepository.findById(userId).orElseThrow().getPhone()).isEqualTo(phone);
+    }
+
+    @Test
+    void 보호자_회원가입시_초대코드를_입력하면_가족에_자동_합류한다() throws Exception {
+        Family family = familyRepository.saveAndFlush(Family.create("초대 가족", "JOIN" + UUID.randomUUID().toString().substring(0, 8)));
+        Map<String, Object> body = registerPayloadMap(loginId);
+        body.put("inviteCode", family.getInviteCode());
+
+        HttpResponse<String> response = post("/api/v1/auth/guardians/register", objectMapper.writeValueAsString(body));
+
+        assertThat(response.statusCode()).isEqualTo(201);
+        UUID guardianId = UUID.fromString(objectMapper.readTree(response.body()).path("data").path("userId").asText());
+        Integer memberCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM guardian_family_members WHERE family_id = ? AND user_id = ?",
+                Integer.class, family.getId(), guardianId);
+        assertThat(memberCount).isEqualTo(1);
+    }
+
+    @Test
+    void 존재하지_않는_초대코드로_회원가입하면_계정도_생성되지_않는다() throws Exception {
+        Map<String, Object> body = registerPayloadMap(loginId);
+        body.put("inviteCode", "NOFAMILY1234");
+
+        HttpResponse<String> response = post("/api/v1/auth/guardians/register", objectMapper.writeValueAsString(body));
+
+        assertThat(response.statusCode()).isEqualTo(404);
+        assertThat(accountRepository.findByLoginId(loginId)).isEmpty();
+    }
+
+    @Test
+    void 어르신_PIN_로그인은_PIN만_받고_액세스토큰을_반환한다() throws Exception {
+        String pin = "654321";
+        Account elder = Account.elder("어르신", "elder_" + UUID.randomUUID().toString().substring(0, 8),
+                passwordService.encode(pin), passwordService.encode(pin), "1945-01-01", null, null);
+        accountRepository.saveAndFlush(elder);
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("pin", pin);
+
+        HttpResponse<String> response = post("/api/v1/auth/elders/login", objectMapper.writeValueAsString(body));
+
+        assertThat(response.statusCode()).isEqualTo(200);
+        JsonNode data = objectMapper.readTree(response.body()).path("data");
+        assertThat(data.path("accessToken").asText()).isNotBlank();
+        assertThat(data.has("refreshToken")).isFalse();
     }
 
     @Test

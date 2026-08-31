@@ -1,6 +1,7 @@
 package com.memeboo2.haemi.auth.account.application;
 
 import com.memeboo2.haemi.auth.account.domain.Account;
+import com.memeboo2.haemi.auth.account.domain.AccountRole;
 import com.memeboo2.haemi.auth.account.infrastructure.AccountRepository;
 import com.memeboo2.haemi.auth.api.AccountCommand;
 import com.memeboo2.haemi.auth.credential.PasswordService;
@@ -33,6 +34,12 @@ public class CreateElderAccountUseCase implements AccountCommand {
                                    String birthDate, String phone, String gender) {
         if (accountRepository.existsByLoginId(loginId)) {
             throw new DomainException(ErrorCode.LOGIN_ID_ALREADY_TAKEN);
+        }
+        // PIN-only 로그인에서는 PIN이 곧 계정 식별자이므로, 같은 PIN을 가진 어르신을 허용할 수 없다.
+        boolean pinAlreadyUsed = accountRepository.findAllByRole(AccountRole.ELDER).stream()
+                .anyMatch(elder -> elder.getPinHash() != null && passwordService.matches(pin, elder.getPinHash()));
+        if (pinAlreadyUsed) {
+            throw new DomainException(ErrorCode.PIN_ALREADY_TAKEN);
         }
         String pinHash = passwordService.encode(pin);
         String passwordHash = password == null ? pinHash : passwordService.encode(password);

@@ -36,7 +36,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> {
                 auth
                 .requestMatchers("/api/v1/auth/guardians/register", "/api/v1/auth/login-id/availability",
-                        "/api/v1/auth/login", "/api/v1/auth/refresh",
+                        "/api/v1/auth/login", "/api/v1/auth/elders/login", "/api/v1/auth/refresh",
                         "/api/v1/auth/email-verifications/**",
                         "/actuator/health").permitAll();
                 auth.requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll();
